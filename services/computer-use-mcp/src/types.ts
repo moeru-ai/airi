@@ -466,6 +466,13 @@ export interface SessionTraceEntry {
   contracts?: AgentExecutionContracts
 }
 
+/** Grounding identity frozen when a desktop_click_target enters the approval queue. */
+export interface PreparedGroundingBinding {
+  snapshotId: string
+  candidateId: string
+  candidateLabel: string
+}
+
 export interface PendingActionRecord {
   id: string
   createdAt: string
@@ -474,6 +481,7 @@ export interface PendingActionRecord {
   policy: PolicyDecision
   context: ForegroundContext
   preparedTerminal?: TerminalSnapshot
+  preparedGrounding?: PreparedGroundingBinding
   /** Stable model decision retained until Host settlement. */
   modelDecision?: import('./contracts/agent-execution').ModelDecisionContract
 }
@@ -712,6 +720,7 @@ export interface ExecutorCallOptions {
   /** Pins an action to the window that was visible when Host approval was requested. */
   targetWindowId?: string
   targetWindowContext?: ForegroundContext
+  boundGrounding?: PreparedGroundingBinding
 }
 
 export interface DesktopExecutor {

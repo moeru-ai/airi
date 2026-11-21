@@ -2,7 +2,7 @@ import type { Conversation } from '@proj-airi/core-agent'
 
 import type { AutoApprovalReviewRequest, AutoApprovalReviewResult } from '../../../shared/eventa/terminal-approval'
 
-import { autoApprovalReviewPrompt, buildAutoReviewTranscript, formatAutoReviewUserMessage, parseFastAutoReview, parseThinkingAutoReview, stripPairedReasoningBlocks } from '../../../shared/auto-approval-review'
+import { autoApprovalReviewPrompt, buildAutoReviewTranscript, formatAutoReviewUserMessage, parseFastAutoReview, parseThinkingAutoReview, sanitizeAutoApprovalCard, stripPairedReasoningBlocks } from '../../../shared/auto-approval-review'
 
 export interface AutoApprovalReviewRunOptions {
   request: AutoApprovalReviewRequest
@@ -22,9 +22,10 @@ export async function runAutoApprovalReview(options: AutoApprovalReviewRunOption
   if (!options.consciousnessConfigured)
     throw new Error('Auto review needs a configured consciousness model.')
   const excerpt = buildAutoReviewTranscript(options.messages)
+  const card = sanitizeAutoApprovalCard(options.request.card)
   const conversation: Conversation = { turns: [
-    { id: 'auto-approval-instructions', type: 'system', authority: 'system', content: [{ type: 'text', text: autoApprovalReviewPrompt(options.request.card, options.request.stage) }] },
-    { id: 'auto-approval-card', type: 'user', content: [{ type: 'text', text: formatAutoReviewUserMessage(options.request.card, excerpt.transcript) }] },
+    { id: 'auto-approval-instructions', type: 'system', authority: 'system', content: [{ type: 'text', text: autoApprovalReviewPrompt(card, options.request.stage) }] },
+    { id: 'auto-approval-card', type: 'user', content: [{ type: 'text', text: formatAutoReviewUserMessage(card, excerpt.transcript) }] },
   ] }
   const reply = await options.generateText(conversation, options.signal)
   const cleaned = stripPairedReasoningBlocks(reply)

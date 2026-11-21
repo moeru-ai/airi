@@ -10,6 +10,7 @@ import type {
   DisplayInfo,
   ForegroundContext,
   PolicyDecision,
+  PreparedGroundingBinding,
   ScreenshotArtifact,
   TerminalCommandResult,
   TerminalExecution,
@@ -33,6 +34,7 @@ import { resolveDisplayPoint } from '../display'
 import { evaluateActionPolicy } from '../policy'
 import { getRuntimePreflight } from '../preflight'
 import { buildCoordinateSpaceInfo } from '../runtime-probes'
+import { resolveSnapByCandidate } from '../snap-resolver'
 import { evaluateStrategy, summarizeAdvisories } from '../strategy'
 import { buildPointerTrace } from '../trace'
 import {
@@ -68,6 +70,8 @@ export interface ExecuteActionOptions {
   executionSignal?: AbortSignal
   /** Foreground context captured when the Host approval was requested. */
   approvedContext?: ForegroundContext
+  /** Grounding identity frozen when the Host approved a desktop_click_target. */
+  boundGrounding?: PreparedGroundingBinding
   terminalOrigin?: TerminalOrigin
   /** The private Host handler supplies the final check and synchronous executor start. Public tools cannot supply callbacks. */
   terminalExecution?: () => TerminalExecution
@@ -456,6 +460,26 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
           })
           Object.freeze(snapshot.argv)
           pending.preparedTerminal = Object.freeze(snapshot)
+        }
+        if (normalizedAction.kind === 'desktop_click_target') {
+          const state = runtime.stateManager.getState()
+          const groundingSnapshot = state.lastGroundingSnapshot
+          if (!groundingSnapshot)
+            throw new Error('No computer_observe snapshot available. Call computer_observe first to get a list of target candidates.')
+          const candidateId = normalizedAction.input.candidateId
+          const candidate = groundingSnapshot.targetCandidates.find(item => item.id === candidateId)
+          const candidateLabel = candidate?.label?.trim() ?? ''
+          if (!candidateLabel) {
+            throw new Error(`Candidate "${candidateId}" not found in snapshot "${groundingSnapshot.snapshotId}". Available candidates: ${groundingSnapshot.targetCandidates.map(item => item.id).join(', ')}`)
+          }
+          const snap = resolveSnapByCandidate(candidateId, groundingSnapshot)
+          if (snap.source === 'none' && !snap.candidateId)
+            throw new Error(`Candidate "${candidateId}" not found in snapshot "${groundingSnapshot.snapshotId}".`)
+          pending.preparedGrounding = Object.freeze({
+            snapshotId: groundingSnapshot.snapshotId,
+            candidateId,
+            candidateLabel,
+          })
         }
         runtime.stateManager.setPendingApprovalCount(runtime.session.listPendingActions().length)
 
@@ -858,6 +882,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
             signal: options.executionSignal,
             targetWindowId: context.windowId,
             targetWindowContext,
+            boundGrounding: options.boundGrounding,
           })
           backendResult = result.backendResult
           summaryOverride = result.summary

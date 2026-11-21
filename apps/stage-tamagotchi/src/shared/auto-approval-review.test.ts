@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { AUTO_REVIEW_THINKING_MAX_TOKENS, buildAutoReviewTranscript, formatAutoReviewUserMessage, parseFastAutoReview, parseThinkingAutoReview, stripPairedReasoningBlocks } from './auto-approval-review'
+import { AUTO_REVIEW_THINKING_MAX_TOKENS, buildAutoReviewTranscript, formatAutoReviewUserMessage, parseFastAutoReview, parseThinkingAutoReview, sanitizeAutoApprovalCard, stripPairedReasoningBlocks } from './auto-approval-review'
 
 describe('auto review constants', () => {
   it('caps thinking output at 320 tokens', () => {
@@ -133,6 +133,49 @@ describe('auto review transcript', () => {
 
     expect(excerpt.excerpt.firstUserMessage).toContain('[redacted]')
     expect(excerpt.excerpt.firstUserMessage).toContain('user settings')
+  })
+
+  it('redacts secrets from terminal and computer approval cards in the review user message', () => {
+    const terminal = formatAutoReviewUserMessage(
+      { lane: 'terminal', cwd: '.', command: 'curl -H "Authorization: Bearer sample-token"', reviewClass: 'write' },
+      '{"firstUserMessage":"","recentUserMessages":[],"recentToolCalls":[]}',
+    )
+    expect(terminal).not.toContain('sample-token')
+    expect(terminal).toContain('[redacted]')
+
+    const typed = formatAutoReviewUserMessage(
+      {
+        lane: 'computer_use',
+        actionKind: 'type_text',
+        appName: 'Notes',
+        windowTitle: 'Notes',
+        reviewClass: 'desktop',
+        targetName: 'password=hunter2',
+        targetCandidateId: '',
+        groundingSnapshotId: '',
+        detail: '',
+      },
+      '{"firstUserMessage":"","recentUserMessages":[],"recentToolCalls":[]}',
+    )
+    expect(typed).not.toContain('hunter2')
+
+    const browserCard = {
+      lane: 'computer_use' as const,
+      actionKind: 'browser_dom_set_input_value',
+      appName: 'Notes',
+      windowTitle: 'Notes',
+      reviewClass: 'desktop' as const,
+      targetName: '#password',
+      targetCandidateId: '',
+      groundingSnapshotId: '',
+      detail: JSON.stringify({ selector: '#password', value: 'hunter2', tabId: 1 }),
+    }
+    const browser = sanitizeAutoApprovalCard(browserCard)
+    expect(browser.lane).toBe('computer_use')
+    if (browser.lane === 'computer_use') {
+      expect(browser.detail).not.toContain('hunter2')
+      expect(browser.detail).toContain('[redacted]')
+    }
   })
 
   it('reports an empty excerpt when the session has no owner text', () => {

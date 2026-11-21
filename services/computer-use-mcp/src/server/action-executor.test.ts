@@ -220,7 +220,41 @@ describe('createExecuteAction', () => {
   })
 
   it('queues desktop_click_target without refocusing when approval is required', async () => {
-    const { runtime, executor, session, desktopSessionController } = createRuntimeForActionTest({ approvalMode: 'all' })
+    const { runtime, executor, session, desktopSessionController, stateManager } = createRuntimeForActionTest({ approvalMode: 'all' })
+    stateManager.updateGroundingSnapshot({
+      snapshotId: 'dg_queue',
+      capturedAt: new Date().toISOString(),
+      foregroundApp: 'Google Chrome',
+      windows: [],
+      screenshot: {
+        dataBase64: '',
+        mimeType: 'image/png',
+        path: '',
+        capturedAt: new Date().toISOString(),
+      },
+      targetCandidates: [
+        {
+          id: 't_0',
+          source: 'ax',
+          appName: 'Google Chrome',
+          role: 'AXButton',
+          label: 'Submit',
+          bounds: { x: 100, y: 200, width: 80, height: 30 },
+          confidence: 0.95,
+          interactable: true,
+        },
+      ],
+      staleFlags: { screenshot: false, ax: false, chromeSemantic: false },
+    } as any)
+    let capturedPending: Record<string, unknown> | undefined
+    session.createPendingAction.mockImplementation((record: Record<string, unknown>) => {
+      capturedPending = {
+        id: 'pa_1',
+        createdAt: new Date().toISOString(),
+        ...record,
+      }
+      return capturedPending
+    })
     desktopSessionController.getSession.mockReturnValue({
       id: 'ds_1',
       controlledApp: 'Google Chrome',
@@ -232,24 +266,6 @@ describe('createExecuteAction', () => {
       available: true,
       appName: 'AIRI',
       platform: 'darwin',
-    })
-    session.createPendingAction.mockReturnValue({
-      id: 'pa_1',
-      createdAt: new Date().toISOString(),
-      toolName: 'desktop_click_target',
-      action: { kind: 'desktop_click_target', input: { candidateId: 't_0' } },
-      context: {
-        available: true,
-        appName: 'Google Chrome',
-        platform: 'darwin',
-      },
-      policy: {
-        allowed: true,
-        requiresApproval: true,
-        reasons: [],
-        riskLevel: 'medium',
-        estimatedOperationUnits: 1,
-      },
     })
 
     const executeAction = createExecuteAction(runtime)
@@ -268,9 +284,56 @@ describe('createExecuteAction', () => {
       action: { kind: 'desktop_click_target', input: { candidateId: 't_0' } },
       context: expect.objectContaining({ appName: 'Google Chrome' }),
     }))
+    expect(capturedPending?.preparedGrounding).toEqual({
+      snapshotId: 'dg_queue',
+      candidateId: 't_0',
+      candidateLabel: 'Submit',
+    })
     expect(desktopSessionController.ensureControlledAppInForeground).not.toHaveBeenCalled()
     expect(executor.click).not.toHaveBeenCalled()
     expect(session.consumeOperation).not.toHaveBeenCalled()
+  })
+
+  it('refuses approved desktop_click_target when bound grounding no longer matches', async () => {
+    const { runtime, executor, stateManager } = createRuntimeForActionTest()
+    stateManager.updateGroundingSnapshot({
+      snapshotId: 'dg_stale',
+      capturedAt: new Date().toISOString(),
+      foregroundApp: 'Google Chrome',
+      windows: [],
+      screenshot: {
+        dataBase64: '',
+        mimeType: 'image/png',
+        path: '',
+        capturedAt: new Date().toISOString(),
+      },
+      targetCandidates: [
+        {
+          id: 't_0',
+          source: 'ax',
+          appName: 'Google Chrome',
+          role: 'AXButton',
+          label: 'Save',
+          bounds: { x: 100, y: 200, width: 80, height: 30 },
+          confidence: 0.95,
+          interactable: true,
+        },
+      ],
+      staleFlags: { screenshot: false, ax: false, chromeSemantic: false },
+    } as any)
+    const executeAction = createExecuteAction(runtime)
+    const result = await executeAction({ kind: 'desktop_click_target', input: { candidateId: 't_0' } }, 'desktop_click_target', {
+      skipApprovalQueue: true,
+      boundGrounding: {
+        snapshotId: 'dg_original',
+        candidateId: 't_0',
+        candidateLabel: 'Save',
+      },
+    })
+
+    expect(result.isError).toBe(true)
+    expect(result.content.find(item => item.type === 'text')?.text).toContain('Grounding snapshot changed during approval')
+    expect(executor.click).not.toHaveBeenCalled()
   })
 
   it('uses controlled-app context for desktop_click_target policy and refocuses only during execution', async () => {

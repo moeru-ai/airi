@@ -1,6 +1,7 @@
 import type { AutoApprovalCard, AutoApprovalReviewReasonCode, AutoApprovalReviewRequest, AutoApprovalReviewResult, AutoApprovalReviewStage } from '../../../../shared/eventa/terminal-approval'
 import type { AutoDecision } from './auto-policy'
 
+import { sanitizeAutoApprovalCard } from '../../../../shared/auto-approval-review'
 import { AUTO_REVIEW_CARD_MAX_BYTES, cardBytes } from './auto-policy'
 
 /** Fast review deadline. A model refusal can still continue into thinking. */
@@ -127,7 +128,7 @@ async function reviewStage(
     return await review({
       sessionId: input.sessionId,
       stage,
-      card,
+      card: sanitizeAutoApprovalCard(card),
     }, AbortSignal.any([input.signal, AbortSignal.timeout(timeoutMs)]))
   }
   catch {

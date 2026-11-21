@@ -93,8 +93,25 @@ export function autoApprovalReviewPrompt(card: AutoApprovalCard, stage: AutoAppr
 /**
  * Builds the review user message with labeled JSON sections for the model.
  */
+/**
+ * Redacts credential-like fields in an approval card before Consciousness review.
+ */
+export function sanitizeAutoApprovalCard(card: AutoApprovalCard): AutoApprovalCard {
+  if (card.lane === 'terminal') {
+    return {
+      ...card,
+      command: sanitizeSensitiveText(card.command),
+    }
+  }
+  return {
+    ...card,
+    targetName: sanitizeSensitiveText(card.targetName),
+    detail: sanitizeAutoApprovalCardDetail(card.detail),
+  }
+}
+
 export function formatAutoReviewUserMessage(card: AutoApprovalCard, transcriptJson: string): string {
-  return `Transcript JSON:\n${transcriptJson}\n\nAction JSON:\n${JSON.stringify(card)}`
+  return `Transcript JSON:\n${transcriptJson}\n\nAction JSON:\n${JSON.stringify(sanitizeAutoApprovalCard(card))}`
 }
 
 /** Removes paired reasoning blocks when the provider leaves them in the text delta stream. */
@@ -182,6 +199,30 @@ export function buildAutoReviewTranscript(messages: readonly unknown[]): AutoRev
     excerpt,
     hasUserTranscript: excerpt.firstUserMessage.length > 0 || excerpt.recentUserMessages.length > 0,
   }
+}
+
+function sanitizeAutoApprovalCardDetail(detail: string): string {
+  const trimmed = detail.trim()
+  if (!trimmed)
+    return detail
+  try {
+    return JSON.stringify(sanitizeApprovalCardDetailValues(JSON.parse(trimmed))) ?? ''
+  }
+  catch {
+    return sanitizeSensitiveText(detail)
+  }
+}
+
+function sanitizeApprovalCardDetailValues(value: unknown): unknown {
+  if (Array.isArray(value))
+    return value.map(sanitizeApprovalCardDetailValues)
+  if (!isRecord(value))
+    return typeof value === 'string' ? sanitizeSensitiveText(value) : value
+
+  return Object.fromEntries(Object.entries(value).map(([key, item]) => [
+    key,
+    key === 'value' || isCredentialKey(key) ? REDACTED : sanitizeApprovalCardDetailValues(item),
+  ]))
 }
 
 function sanitizeAutoReviewExcerpt(excerpt: AutoReviewExcerpt): AutoReviewExcerpt {

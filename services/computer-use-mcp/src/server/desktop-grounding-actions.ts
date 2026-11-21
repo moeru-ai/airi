@@ -34,6 +34,21 @@ export async function executeDesktopClickTarget(
   }
 
   const snapshot = state.lastGroundingSnapshot
+  const boundGrounding = executorOptions.boundGrounding
+
+  if (boundGrounding) {
+    if (snapshot.snapshotId !== boundGrounding.snapshotId) {
+      throw new Error(`Grounding snapshot changed during approval. Expected "${boundGrounding.snapshotId}", but the current snapshot is "${snapshot.snapshotId}". Call computer_observe and request approval again.`)
+    }
+    if (boundGrounding.candidateId !== candidateId) {
+      throw new Error(`Prepared grounding candidate "${boundGrounding.candidateId}" does not match the requested candidate "${candidateId}".`)
+    }
+    const boundCandidate = snapshot.targetCandidates.find(item => item.id === boundGrounding.candidateId)
+    const boundLabel = boundCandidate?.label?.trim() ?? ''
+    if (!boundCandidate || boundLabel !== boundGrounding.candidateLabel) {
+      throw new Error(`Grounding candidate "${boundGrounding.candidateId}" in snapshot "${boundGrounding.snapshotId}" no longer matches the prepared target "${boundGrounding.candidateLabel}". Call computer_observe and request approval again.`)
+    }
+  }
 
   if (state.lastClickedCandidateId === candidateId) {
     throw new Error(`You already clicked candidate "${candidateId}" without calling computer_observe again. Call computer_observe to refresh the state before clicking the same target.`)

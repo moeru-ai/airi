@@ -534,6 +534,7 @@ describe('createMcpManager', () => {
         structuredContent: {
           status: 'approval_required',
           pendingActionId: 'pending-auto-grounding',
+          preparedGrounding: { snapshotId: 'snapshot-1', candidateId: 'candidate-1', candidateLabel: 'Save' },
           toolName: 'computer_act',
           action: { kind: 'desktop_click_target', input: { candidateId: 'candidate-1' } },
           context: { available: true, appName: 'Notes', windowTitle: 'Notes' },
@@ -546,6 +547,63 @@ describe('createMcpManager', () => {
 
     expect(reviewAuto).toHaveBeenCalledWith(expect.objectContaining({ card: expect.objectContaining({ targetName: 'Save', targetCandidateId: 'candidate-1', groundingSnapshotId: 'snapshot-1' }) }), expect.any(AbortSignal))
     expect(clientMocks.privateRequest).toHaveBeenCalledWith(expect.objectContaining({ method: 'airi/computer-use/execute-prepared' }), expect.anything(), expect.anything())
+  })
+
+  it('refuses to dispatch after Auto review when the grounding snapshot changes', async () => {
+    const actions = new PendingActionManager()
+    const attribution = { sessionId: 'session-auto-grounding-stale', turnId: 'turn-auto-grounding-stale', toolCallId: 'call-auto-grounding-stale' }
+    const request = actions.registerRequest({ sessionId: attribution.sessionId, turnId: attribution.turnId, text: 'Click Save.' }, 71)
+    actions.setGrant('computer_use', attribution.sessionId, 71, 'auto', { frozenAppName: 'Notes' })
+    const reviewAuto = vi.fn(async () => modelAllow)
+    const manager = createMcpManager({
+      actions,
+      present: vi.fn(async () => false),
+      presentComputerUse: vi.fn(async () => false),
+      reviewAuto,
+      executeInSlot: async operation => operation(new AbortController().signal, () => {}),
+      notify: async notice => ({ status: 'stored', sessionId: notice.sessionId, messageId: 'fixture' }),
+    })
+    managers.push(manager)
+    await manager.writeConfigText(JSON.stringify({ terminalEnabled: true, mcpServers: {} }))
+    await manager.applyAndRestart()
+    clientMocks.listTools.mockResolvedValue({ tools: [{ name: 'computer_act', inputSchema: { type: 'object' } }] })
+    const prepared = {
+      content: [],
+      structuredContent: {
+        status: 'approval_required',
+        pendingActionId: 'pending-auto-grounding-stale',
+        preparedGrounding: { snapshotId: 'snapshot-1', candidateId: 'candidate-1', candidateLabel: 'Save' },
+        toolName: 'computer_act',
+        action: { kind: 'desktop_click_target', input: { candidateId: 'candidate-1' } },
+        context: { available: true, appName: 'Notes', windowTitle: 'Notes' },
+      },
+    }
+    let stateReads = 0
+    clientMocks.callTool.mockImplementation(async (call) => {
+      if (call.name === 'desktop_get_state') {
+        stateReads += 1
+        const snapshotId = stateReads === 1 ? 'snapshot-1' : 'snapshot-2'
+        const label = stateReads === 1 ? 'Save' : 'Delete'
+        return {
+          content: [],
+          structuredContent: {
+            runState: {
+              foregroundContext: { available: true, appName: 'Notes', windowTitle: 'Notes' },
+              lastGroundingSnapshot: { snapshotId, targetCandidates: [{ id: 'candidate-1', label }] },
+            },
+          },
+        }
+      }
+      return prepared
+    })
+    clientMocks.privateRequest.mockResolvedValue({ content: [{ type: 'text', text: 'Rejected.' }], structuredContent: { status: 'rejected' } })
+
+    const result = await manager.callTool({ name: 'airi-terminal::computer_act', arguments: { candidateId: 'candidate-1' }, requestId: request.id, attribution }, 71)
+
+    expect(reviewAuto).toHaveBeenCalledOnce()
+    expect(clientMocks.privateRequest).toHaveBeenCalledWith(expect.objectContaining({ method: 'airi/computer-use/reject-prepared' }), expect.anything(), expect.anything())
+    expect(clientMocks.privateRequest).not.toHaveBeenCalledWith(expect.objectContaining({ method: 'airi/computer-use/execute-prepared' }), expect.anything(), expect.anything())
+    expect(result.structuredContent).toMatchObject({ status: 'rejected', approval: 'auto', reason: 'The grounding snapshot changed before dispatch.' })
   })
 
   it('refuses to dispatch after Auto review when the foreground window changes', async () => {

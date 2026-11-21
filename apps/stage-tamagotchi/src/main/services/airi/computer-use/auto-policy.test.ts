@@ -11,6 +11,7 @@ import {
   decideCommandAuto,
   decideComputerUseAuto,
   foregroundMatchesComputerCard,
+  groundingMatchesComputerCard,
   isAskReadOnlyCommand,
 } from './auto-policy'
 
@@ -355,6 +356,29 @@ describe('foreground recheck helpers', () => {
     expect(foregroundMatchesComputerCard(card, { available: true, appName: 'Notes', windowTitle: 'Notes' })).toBe(true)
     expect(foregroundMatchesComputerCard(card, { available: true, appName: 'Notes', windowTitle: 'Other' })).toBe(false)
     expect(foregroundMatchesComputerCard(card, { available: false, appName: 'Notes', windowTitle: 'Notes' })).toBe(false)
+  })
+
+  it('requires the live grounding snapshot to match a desktop click review card', () => {
+    const card = {
+      lane: 'computer_use' as const,
+      actionKind: 'desktop_click_target',
+      appName: 'Notes',
+      windowTitle: 'Notes',
+      reviewClass: 'desktop' as const,
+      targetName: 'Save',
+      targetCandidateId: 't_0',
+      groundingSnapshotId: 'snapshot-1',
+      detail: 'Save',
+    }
+    const snapshot = {
+      snapshotId: 'snapshot-1',
+      targetCandidates: [{ id: 't_0', label: 'Save' }],
+    }
+    expect(groundingMatchesComputerCard(card, snapshot)).toBe(true)
+    expect(groundingMatchesComputerCard(card, { ...snapshot, snapshotId: 'snapshot-2' })).toBe(false)
+    expect(groundingMatchesComputerCard(card, { ...snapshot, targetCandidates: [{ id: 't_0', label: 'Delete' }] })).toBe(false)
+    expect(groundingMatchesComputerCard(card, { ...snapshot, targetCandidates: [] })).toBe(false)
+    expect(groundingMatchesComputerCard({ ...card, actionKind: 'type_text' }, undefined)).toBe(true)
   })
 })
 

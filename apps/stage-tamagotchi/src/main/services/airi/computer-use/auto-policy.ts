@@ -152,6 +152,26 @@ export function foregroundMatchesComputerCard(card: AutoApprovalCard, context: F
   return title === card.windowTitle
 }
 
+export interface GroundingSnapshotLike {
+  snapshotId: string
+  targetCandidates: Array<{ id: string, label?: string }>
+}
+
+/** Rejects dispatch when the live grounding snapshot no longer matches a desktop click review card. */
+export function groundingMatchesComputerCard(card: AutoApprovalCard, snapshot: GroundingSnapshotLike | undefined): boolean {
+  if (card.lane !== 'computer_use' || card.actionKind !== 'desktop_click_target')
+    return true
+  if (!snapshot || !card.groundingSnapshotId.trim() || !card.targetCandidateId.trim())
+    return false
+  if (snapshot.snapshotId !== card.groundingSnapshotId)
+    return false
+  const candidate = snapshot.targetCandidates.find(item => item.id === card.targetCandidateId)
+  if (!candidate)
+    return false
+  const label = candidate.label?.trim() ?? ''
+  return label === card.targetName.trim()
+}
+
 /**
  * Decides whether one frozen Shell command may run under Command Auto.
  * The cage refuses anything it cannot prove, and it never asks the model to widen that result.

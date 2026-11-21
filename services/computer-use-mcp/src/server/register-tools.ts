@@ -122,6 +122,7 @@ export async function resolvePendingAction(params: {
       approvedContext: pending.context,
       authorizationSource: 'host',
       modelDecision: pending.modelDecision,
+      boundGrounding: pending.preparedGrounding,
     })
   }
   await runtime.session.record({
