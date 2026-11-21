@@ -244,6 +244,7 @@ Capable of
   - [ ] Co-play [Helldivers 2](https://www.playstation.com/en-hk/games/helldivers-2/pc/) (WIP)
   - [x] Chat in [Telegram](https://telegram.org)
   - [x] Chat in [Discord](https://discord.com)
+  - [x] Chat in iMessage (with the [Photon](https://photon.codes) API)
   - [ ] Memory
     - [x] Pure in-browser database support (DuckDB WASM | `pglite`)
     - [ ] Memory Alaya (WIP)
