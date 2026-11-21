@@ -2436,6 +2436,19 @@ pages:
           voice-clone: '{model} uses the voice sample that you paste. It ignores the preset voice.'
         description: api.xiaomimimo.com
         title: Xiaomi MiMo
+        transcription:
+          language:
+            label: ASR language
+            description: MiMo uses automatic language detection unless you choose Chinese or English.
+            options:
+              auto: Auto-detect
+              zh: Chinese
+              en: English
+          validation:
+            local-complete: Local configuration is complete
+            local-complete-description: >-
+              API key and Base URL are set. This check stays local.
+              Run the transcription test to check the MiMo ASR service.
       mistral:
         description: mistral.ai
         title: Mistral

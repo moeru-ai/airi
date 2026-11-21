@@ -576,7 +576,10 @@ export const useHearingStore = defineStore('hearing-store', () => {
     const config = structuredClone(toRaw(providerStore.getProviderConfig(providerId) ?? {}))
     const model = resolveActiveTranscriptionModel(activeTranscriptionModel.value, config)
     const threshold = confidenceThreshold.value
-    const providerOptions = resolveTranscriptionProviderOptions(config)
+    // MiMo owns automatic language detection. Other providers retain the UI locale hint.
+    const providerOptions = providerId === 'mimo-audio-transcription'
+      ? resolveTranscriptionProviderOptions(config, '')
+      : resolveTranscriptionProviderOptions(config)
     const features = providersStore.getTranscriptionFeatures(providerId)
     const definition = providersStore.getProviderDefinition(providerId)
     // The provider decides its upload format. Every format starts from the same captured PCM stream.
