@@ -1776,12 +1776,18 @@ export const useChatStore = defineStore('chat', () => {
   /** Whether the chat that this window shows is archived. It is read-only until the user restores it. */
   const activeChatArchived = computed(() => isSessionReadOnly(activeSessionId.value))
 
+  /** Messages already in memory. This read does not load a session and it does not write. */
+  function getSessionMessagesIfLoaded(sessionId: string) {
+    return chatSession.getSessionMessagesIfLoaded(sessionId)
+  }
+
   return {
     sending,
     activeTurns,
     activeChatReady,
     activeChatArchived,
     chatReadyFor,
+    getSessionMessagesIfLoaded,
     activeSendSessionId,
     activeStreamingMessage,
     backgroundTasks,

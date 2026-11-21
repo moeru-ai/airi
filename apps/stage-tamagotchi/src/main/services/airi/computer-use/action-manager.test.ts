@@ -52,6 +52,20 @@ describe('pending action provenance', () => {
     expect(() => manager.createPendingAction({ argv, attribution: { ...attribution, [field]: undefined } })).toThrow(/verified Electron sender/)
   })
 
+  it('drops the oldest auto review when the cache is full', () => {
+    const manager = new PendingActionManager()
+    manager.setGrant('terminal', attribution.sessionId, 1, 'auto', { workspaceRoot: '/workspace/app' })
+    for (let index = 0; index < 256; index += 1)
+      manager.rememberReview('terminal', attribution.sessionId, 1, `card-${index}`, 'allow')
+    manager.rememberReview('terminal', attribution.sessionId, 1, 'card-1', 'refuse')
+    expect(manager.cachedReview('terminal', attribution.sessionId, 1, 'card-0')).toBe('allow')
+    expect(manager.cachedReview('terminal', attribution.sessionId, 1, 'card-1')).toBe('refuse')
+    manager.rememberReview('terminal', attribution.sessionId, 1, 'card-new', 'allow')
+    expect(manager.cachedReview('terminal', attribution.sessionId, 1, 'card-0')).toBeUndefined()
+    expect(manager.cachedReview('terminal', attribution.sessionId, 1, 'card-1')).toBe('refuse')
+    expect(manager.cachedReview('terminal', attribution.sessionId, 1, 'card-new')).toBe('allow')
+  })
+
   it('does not overwrite the first settlement or restore a failed approval', () => {
     const manager = new PendingActionManager()
     const action = manager.createPendingAction({ argv, attribution })

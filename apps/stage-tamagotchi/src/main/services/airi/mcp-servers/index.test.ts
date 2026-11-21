@@ -2,6 +2,8 @@ import type { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import type { ElectronMainContextExtensions, ElectronMainEmitOptions } from '@moeru/eventa/adapters/electron/main'
 
+import type { AutoApprovalReviewResult } from '../../../../shared/eventa/terminal-approval'
+
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -26,6 +28,8 @@ const shellMock = vi.hoisted(() => ({
   showItemInFolder: vi.fn(),
 }))
 
+const modelAllow: AutoApprovalReviewResult = { decision: 'allow', reasonCode: 'model_allow', hasUserTranscript: true }
+const modelRefuse: AutoApprovalReviewResult = { decision: 'refuse', reasonCode: 'model_refuse', hasUserTranscript: true }
 const clientMocks = vi.hoisted(() => ({
   instances: [] as Array<Pick<Client, 'onclose' | 'onerror'>>,
   callTool: vi.fn<Client['callTool']>(),
@@ -323,6 +327,278 @@ describe('createMcpManager', () => {
     expect(result.structuredContent).toMatchObject({ status: 'executed', action: 'click' })
   })
 
+  it('refuses a coordinate click in Computer Use Auto without review or a dialog', async () => {
+    const actions = new PendingActionManager()
+    const attribution = { sessionId: 'session-auto-click', turnId: 'turn-auto-click', toolCallId: 'call-auto-click' }
+    const request = actions.registerRequest({ sessionId: attribution.sessionId, turnId: attribution.turnId, text: 'Change the desktop.' }, 71)
+    actions.setGrant('computer_use', attribution.sessionId, 71, 'auto', { frozenAppName: 'Notes' })
+    const presentComputerUse = vi.fn(async () => false)
+    const reviewAuto = vi.fn(async () => modelAllow)
+    const manager = createMcpManager({
+      actions,
+      present: vi.fn(async () => false),
+      presentComputerUse,
+      reviewAuto,
+      executeInSlot: async operation => operation(new AbortController().signal, () => {}),
+      notify: async notice => ({ status: 'stored', sessionId: notice.sessionId, messageId: 'fixture' }),
+    })
+    managers.push(manager)
+    await manager.writeConfigText(JSON.stringify({ terminalEnabled: true, mcpServers: {} }))
+    await manager.applyAndRestart()
+    clientMocks.listTools.mockResolvedValue({ tools: [{ name: 'computer_act', inputSchema: { type: 'object' } }] })
+    clientMocks.callTool.mockResolvedValue({
+      content: [],
+      structuredContent: {
+        status: 'approval_required',
+        pendingActionId: 'pending-auto-click',
+        toolName: 'computer_act',
+        action: { kind: 'click', input: { x: 10, y: 20 } },
+        context: { available: true, appName: 'Notes', windowTitle: 'Notes' },
+      },
+    })
+    clientMocks.privateRequest.mockResolvedValue({ content: [{ type: 'text', text: 'Rejected.' }], structuredContent: { status: 'rejected' } })
+
+    const result = await manager.callTool({ name: 'airi-terminal::computer_act', arguments: { x: 10, y: 20 }, requestId: request.id, attribution }, 71)
+
+    expect(presentComputerUse).not.toHaveBeenCalled()
+    expect(reviewAuto).not.toHaveBeenCalled()
+    expect(clientMocks.privateRequest).toHaveBeenCalledWith(expect.objectContaining({ method: 'airi/computer-use/reject-prepared' }), expect.anything(), expect.anything())
+    expect(clientMocks.privateRequest).not.toHaveBeenCalledWith(expect.objectContaining({ method: 'airi/computer-use/execute-prepared' }), expect.anything(), expect.anything())
+    expect(result.structuredContent).toMatchObject({ status: 'rejected', approval: 'auto' })
+  })
+
+  it('refuses an Auto scroll whose destination cannot be pinned to the frozen window', async () => {
+    const actions = new PendingActionManager()
+    const attribution = { sessionId: 'session-auto-scroll', turnId: 'turn-auto-scroll', toolCallId: 'call-auto-scroll' }
+    const request = actions.registerRequest({ sessionId: attribution.sessionId, turnId: attribution.turnId, text: 'Scroll.' }, 71)
+    actions.setGrant('computer_use', attribution.sessionId, 71, 'auto', { frozenAppName: 'Notes' })
+    const presentComputerUse = vi.fn(async () => false)
+    const reviewAuto = vi.fn(async () => modelRefuse)
+    const manager = createMcpManager({
+      actions,
+      present: vi.fn(async () => false),
+      presentComputerUse,
+      reviewAuto,
+      executeInSlot: async operation => operation(new AbortController().signal, () => {}),
+      notify: async notice => ({ status: 'stored', sessionId: notice.sessionId, messageId: 'fixture' }),
+    })
+    managers.push(manager)
+    await manager.writeConfigText(JSON.stringify({ terminalEnabled: true, mcpServers: {} }))
+    await manager.applyAndRestart()
+    clientMocks.listTools.mockResolvedValue({ tools: [{ name: 'computer_act', inputSchema: { type: 'object' } }] })
+    clientMocks.callTool.mockResolvedValue({
+      content: [],
+      structuredContent: {
+        status: 'approval_required',
+        pendingActionId: 'pending-auto-scroll',
+        toolName: 'computer_act',
+        action: { kind: 'scroll', input: { deltaY: 40 } },
+        context: { available: true, appName: 'Notes', windowTitle: 'Notes' },
+      },
+    })
+    clientMocks.privateRequest.mockResolvedValue({ content: [{ type: 'text', text: 'Rejected.' }], structuredContent: { status: 'rejected' } })
+
+    const result = await manager.callTool({ name: 'airi-terminal::computer_act', arguments: { deltaY: 40 }, requestId: request.id, attribution }, 71)
+
+    expect(presentComputerUse).not.toHaveBeenCalled()
+    expect(reviewAuto).not.toHaveBeenCalled()
+    expect(clientMocks.privateRequest).toHaveBeenCalledWith(expect.objectContaining({ method: 'airi/computer-use/reject-prepared' }), expect.anything(), expect.anything())
+    expect(clientMocks.privateRequest).not.toHaveBeenCalledWith(expect.objectContaining({ method: 'airi/computer-use/execute-prepared' }), expect.anything(), expect.anything())
+    expect(result.structuredContent).toMatchObject({ status: 'rejected', approval: 'auto', reason: 'Computer Use Auto cannot pin scrolling to the frozen application.' })
+  })
+
+  it('refuses a Computer Use Auto click in a password manager without dispatching it', async () => {
+    const actions = new PendingActionManager()
+    const attribution = { sessionId: 'session-auto-deny', turnId: 'turn-auto-deny', toolCallId: 'call-auto-deny' }
+    const request = actions.registerRequest({ sessionId: attribution.sessionId, turnId: attribution.turnId, text: 'Open the vault.' }, 71)
+    actions.setGrant('computer_use', attribution.sessionId, 71, 'auto', { frozenAppName: 'Notes' })
+    const reviewAuto = vi.fn(async () => modelAllow)
+    const manager = createMcpManager({
+      actions,
+      present: vi.fn(async () => false),
+      presentComputerUse: vi.fn(async () => false),
+      reviewAuto,
+      executeInSlot: async operation => operation(new AbortController().signal, () => {}),
+      notify: async notice => ({ status: 'stored', sessionId: notice.sessionId, messageId: 'fixture' }),
+    })
+    managers.push(manager)
+    await manager.writeConfigText(JSON.stringify({ terminalEnabled: true, mcpServers: {} }))
+    await manager.applyAndRestart()
+    clientMocks.listTools.mockResolvedValue({ tools: [{ name: 'computer_act', inputSchema: { type: 'object' } }] })
+    clientMocks.callTool.mockResolvedValue({
+      content: [],
+      structuredContent: {
+        status: 'approval_required',
+        pendingActionId: 'pending-auto-deny',
+        toolName: 'computer_act',
+        action: { kind: 'click', input: { x: 1, y: 2 } },
+        context: { available: true, appName: '1Password', windowTitle: 'Vault' },
+      },
+    })
+    clientMocks.privateRequest.mockResolvedValue({ content: [{ type: 'text', text: 'Rejected.' }], structuredContent: { status: 'rejected' } })
+
+    const result = await manager.callTool({ name: 'airi-terminal::computer_act', arguments: { x: 1, y: 2 }, requestId: request.id, attribution }, 71)
+
+    expect(reviewAuto).not.toHaveBeenCalled()
+    expect(clientMocks.privateRequest).toHaveBeenCalledWith(expect.objectContaining({ method: 'airi/computer-use/reject-prepared' }), expect.anything(), expect.anything())
+    expect(clientMocks.privateRequest).not.toHaveBeenCalledWith(expect.objectContaining({ method: 'airi/computer-use/execute-prepared' }), expect.anything(), expect.anything())
+    expect(result.structuredContent).toMatchObject({ approval: 'auto', status: 'rejected' })
+  })
+
+  it('reuses one Computer Use Auto review for the same card', async () => {
+    const actions = new PendingActionManager()
+    const attribution = { sessionId: 'session-auto-cache', turnId: 'turn-auto-cache', toolCallId: 'call-auto-cache' }
+    const request = actions.registerRequest({ sessionId: attribution.sessionId, turnId: attribution.turnId, text: 'Type twice.' }, 71)
+    actions.setGrant('computer_use', attribution.sessionId, 71, 'auto', { frozenAppName: 'Notes' })
+    const reviewAuto = vi.fn(async () => modelAllow)
+    const manager = createMcpManager({
+      actions,
+      present: vi.fn(async () => false),
+      presentComputerUse: vi.fn(async () => false),
+      reviewAuto,
+      executeInSlot: async operation => operation(new AbortController().signal, () => {}),
+      notify: async notice => ({ status: 'stored', sessionId: notice.sessionId, messageId: 'fixture' }),
+    })
+    managers.push(manager)
+    await manager.writeConfigText(JSON.stringify({ terminalEnabled: true, mcpServers: {} }))
+    await manager.applyAndRestart()
+    clientMocks.listTools.mockResolvedValue({ tools: [{ name: 'computer_act', inputSchema: { type: 'object' } }] })
+    const prepared = {
+      content: [],
+      structuredContent: {
+        status: 'approval_required',
+        pendingActionId: 'pending-auto-cache',
+        toolName: 'computer_act',
+        action: { kind: 'type_text', input: { text: 'hello' } },
+        context: { available: true, appName: 'Notes', windowTitle: 'Notes' },
+      },
+    }
+    const desktopState = {
+      content: [],
+      structuredContent: {
+        runState: {
+          foregroundContext: { available: true, appName: 'Notes', windowTitle: 'Notes' },
+        },
+      },
+    }
+    clientMocks.callTool.mockImplementation(async (request) => {
+      if (request.name === 'desktop_get_state')
+        return desktopState
+      return prepared
+    })
+    clientMocks.privateRequest.mockResolvedValue({ content: [{ type: 'text', text: 'Typed.' }], structuredContent: { status: 'executed' } })
+
+    await manager.callTool({ name: 'airi-terminal::computer_act', arguments: { text: 'hello' }, requestId: request.id, attribution }, 71)
+    clientMocks.callTool.mockImplementation(async (request) => {
+      if (request.name === 'desktop_get_state')
+        return desktopState
+      return { ...prepared, structuredContent: { ...prepared.structuredContent, pendingActionId: 'pending-auto-cache-2' } }
+    })
+    await manager.callTool({ name: 'airi-terminal::computer_act', arguments: { text: 'hello' }, requestId: request.id, attribution }, 71)
+
+    expect(reviewAuto).toHaveBeenCalledOnce()
+  })
+
+  it('reviews a grounded desktop click with its target label', async () => {
+    const actions = new PendingActionManager()
+    const attribution = { sessionId: 'session-auto-grounding', turnId: 'turn-auto-grounding', toolCallId: 'call-auto-grounding' }
+    const request = actions.registerRequest({ sessionId: attribution.sessionId, turnId: attribution.turnId, text: 'Click Save.' }, 71)
+    actions.setGrant('computer_use', attribution.sessionId, 71, 'auto', { frozenAppName: 'Notes' })
+    const reviewAuto = vi.fn(async () => modelAllow)
+    const manager = createMcpManager({
+      actions,
+      present: vi.fn(async () => false),
+      presentComputerUse: vi.fn(async () => false),
+      reviewAuto,
+      executeInSlot: async operation => operation(new AbortController().signal, () => {}),
+      notify: async notice => ({ status: 'stored', sessionId: notice.sessionId, messageId: 'fixture' }),
+    })
+    managers.push(manager)
+    await manager.writeConfigText(JSON.stringify({ terminalEnabled: true, mcpServers: {} }))
+    await manager.applyAndRestart()
+    clientMocks.listTools.mockResolvedValue({ tools: [{ name: 'computer_act', inputSchema: { type: 'object' } }] })
+    clientMocks.callTool.mockImplementation(async (call) => {
+      if (call.name === 'desktop_get_state') {
+        return {
+          content: [],
+          structuredContent: {
+            runState: {
+              foregroundContext: { available: true, appName: 'Notes', windowTitle: 'Notes' },
+              lastGroundingSnapshot: { targetCandidates: [{ id: 'candidate-1', label: 'Save' }] },
+            },
+          },
+        }
+      }
+      return {
+        content: [],
+        structuredContent: {
+          status: 'approval_required',
+          pendingActionId: 'pending-auto-grounding',
+          toolName: 'computer_act',
+          action: { kind: 'desktop_click_target', input: { candidateId: 'candidate-1' } },
+          context: { available: true, appName: 'Notes', windowTitle: 'Notes' },
+        },
+      }
+    })
+    clientMocks.privateRequest.mockResolvedValue({ content: [{ type: 'text', text: 'Clicked.' }], structuredContent: { status: 'executed' } })
+
+    await manager.callTool({ name: 'airi-terminal::computer_act', arguments: { candidateId: 'candidate-1' }, requestId: request.id, attribution }, 71)
+
+    expect(reviewAuto).toHaveBeenCalledWith(expect.objectContaining({ card: expect.objectContaining({ targetName: 'Save' }) }), expect.any(AbortSignal))
+    expect(clientMocks.privateRequest).toHaveBeenCalledWith(expect.objectContaining({ method: 'airi/computer-use/execute-prepared' }), expect.anything(), expect.anything())
+  })
+
+  it('refuses to dispatch after Auto review when the foreground window changes', async () => {
+    const actions = new PendingActionManager()
+    const attribution = { sessionId: 'session-auto-recheck', turnId: 'turn-auto-recheck', toolCallId: 'call-auto-recheck' }
+    const request = actions.registerRequest({ sessionId: attribution.sessionId, turnId: attribution.turnId, text: 'Type once.' }, 71)
+    actions.setGrant('computer_use', attribution.sessionId, 71, 'auto', { frozenAppName: 'Notes' })
+    const reviewAuto = vi.fn(async () => modelAllow)
+    const manager = createMcpManager({
+      actions,
+      present: vi.fn(async () => false),
+      presentComputerUse: vi.fn(async () => false),
+      reviewAuto,
+      executeInSlot: async operation => operation(new AbortController().signal, () => {}),
+      notify: async notice => ({ status: 'stored', sessionId: notice.sessionId, messageId: 'fixture' }),
+    })
+    managers.push(manager)
+    await manager.writeConfigText(JSON.stringify({ terminalEnabled: true, mcpServers: {} }))
+    await manager.applyAndRestart()
+    clientMocks.listTools.mockResolvedValue({ tools: [{ name: 'computer_act', inputSchema: { type: 'object' } }] })
+    const prepared = {
+      content: [],
+      structuredContent: {
+        status: 'approval_required',
+        pendingActionId: 'pending-auto-recheck',
+        toolName: 'computer_act',
+        action: { kind: 'type_text', input: { text: 'hello' } },
+        context: { available: true, appName: 'Notes', windowTitle: 'Notes' },
+      },
+    }
+    clientMocks.callTool.mockImplementation(async (request) => {
+      if (request.name === 'desktop_get_state') {
+        return {
+          content: [],
+          structuredContent: {
+            runState: {
+              foregroundContext: { available: true, appName: 'Notes', windowTitle: 'Other window' },
+            },
+          },
+        }
+      }
+      return prepared
+    })
+    clientMocks.privateRequest.mockResolvedValue({ content: [{ type: 'text', text: 'Rejected.' }], structuredContent: { status: 'rejected' } })
+
+    const result = await manager.callTool({ name: 'airi-terminal::computer_act', arguments: { text: 'hello' }, requestId: request.id, attribution }, 71)
+
+    expect(reviewAuto).toHaveBeenCalledOnce()
+    expect(clientMocks.privateRequest).toHaveBeenCalledWith(expect.objectContaining({ method: 'airi/computer-use/reject-prepared' }), expect.anything(), expect.anything())
+    expect(clientMocks.privateRequest).not.toHaveBeenCalledWith(expect.objectContaining({ method: 'airi/computer-use/execute-prepared' }), expect.anything(), expect.anything())
+    expect(result.structuredContent).toMatchObject({ status: 'rejected', approval: 'auto', reason: 'The foreground window changed before dispatch.' })
+  })
+
   it('cancels a queued Computer Use dispatch when Turbo is turned off', async () => {
     const actions = new PendingActionManager()
     const attribution = { sessionId: 'session-revoked-turbo', turnId: 'turn-revoked-turbo', toolCallId: 'call-revoked-turbo' }
@@ -366,12 +642,10 @@ describe('createMcpManager', () => {
   // https://github.com/moeru-ai/airi/pull/3496
   // ROOT CAUSE:
   //
-  // After `dispatched` is set, only an aborted authorization signal returned
-  // `unknown` with `doNotReplay`. A timeout or a lost reply rethrew, so the
-  // model could replay an action that may already have reached the desktop.
+  // After dispatch, only an aborted signal returned `unknown` with `doNotReplay`.
+  // Timeouts and lost replies rethrew, so the model could replay an action that may have run.
   //
-  // We fixed this by returning `unknown` with `doNotReplay` for every failure
-  // after dispatch, not only for abort.
+  // Return `unknown` with `doNotReplay` for every post-dispatch failure.
   it.each([
     'MCP request timed out',
     'connection closed',

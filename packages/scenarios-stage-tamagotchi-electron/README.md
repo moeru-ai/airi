@@ -78,6 +78,23 @@ Expected result:
 
 With `APP_IGNORE_FOCUS=1`, the menu window never takes focus. Check by hand that a click in another app closes the menu.
 
+### Capture approval modes
+
+Run this scenario after the Stage Tamagotchi build. It captures the approval picker. When Auto is enabled, it also captures the result of selecting Auto.
+
+```bash
+pnpm -F @proj-airi/stage-tamagotchi build
+pnpm exec vishot capture \
+  ./packages/scenarios-stage-tamagotchi-electron/src/scenarios/approval-mode-picker.ts \
+  --target electron \
+  --app-entrypoint ./apps/stage-tamagotchi \
+  --cwd . \
+  --settle-ms 2500 \
+  --output-dir ./.vishot/approval-mode-picker
+```
+
+The Auto result shows either the confirmation or an inline message when AIRI cannot establish an Auto scope. The scenario stops after the picker when Auto is disabled.
+
 ## Scenario Authoring
 
 ```ts
