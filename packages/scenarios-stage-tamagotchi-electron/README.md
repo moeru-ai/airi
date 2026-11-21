@@ -153,3 +153,18 @@ If the chess plugin appears in dev but not in Vishot (`Discovered 0` or `Plugin 
 mkdir -p "$HOME/Library/Application Support/Electron/plugins/v1"
 ln -sfn "/absolute/path/to/airi-plugin-game-chess/dist" "$HOME/Library/Application Support/Electron/plugins/v1/airi-plugin-game-chess"
 ```
+
+### Check billing and usage
+
+`settings-billing-and-usage` opens the real shared settings pages with fixed HTTP fixtures.
+It captures ready and receipt error states, activates receipts with Enter and Space, and checks pagination and receipt cache reuse.
+Usage fixtures retain credits, debits, grants, balance adjustments, and expandable speech groups from the existing wallet history.
+It replaces the Flux page DOM checks. The Capacitor calculation tests remain in `packages/stage-pages/src/components/capacitor-usage.browser.test.ts`.
+Payment API tests cover ownership, payment status, processor destinations, and nullable fields. Formatter tests cover currency units.
+
+```bash
+pnpm exec vishot capture ./packages/scenarios-stage-tamagotchi-electron/src/scenarios/settings-billing-and-usage.ts --target electron --app-entrypoint ./apps/stage-tamagotchi --cwd . --settle-ms 2500 --output-dir ./.vishot/billing-usage
+```
+
+The exported `checkBillingAndUsage` function also accepts a web Playwright page and its route navigation callback.
+The scenario uses reserved fixture identities and never creates a purchase.

@@ -1789,6 +1789,32 @@ pages:
       title: 电量补充包
       buy: 充值
       description: 单次购买，不会过期。
+  billing:
+    refresh: 刷新
+    description: 管理订阅、Flux 购买和收据
+    receipts: Flux 充值收据
+    receiptsHint: 请在上方订阅区域管理订阅账单。
+    date: 日期
+    descriptionColumn: 购买内容
+    status: 状态
+    amount: 金额
+    receipt: 收据
+    paid: 已付款
+    topUp: Flux 充值
+    fluxTopUp: '{amount} Flux 充值'
+    viewReceipt: 查看收据
+    receiptError: 无法打开收据，请重试。
+    loadError: 无法加载收据。
+    empty: 暂无收据
+    unavailable: 暂无金额
+    retry: 重试
+    loadMore: 加载更多
+  usage:
+    title: 使用记录
+    description: 查看 Flux 使用记录
+    signIn: 登录后查看 Flux 使用记录。
+    signInAction: 登录
+    viewDetails: 查看详细数据
   capacitor:
     name: Capacitor
     left: Capacitor 还剩 {percent}
