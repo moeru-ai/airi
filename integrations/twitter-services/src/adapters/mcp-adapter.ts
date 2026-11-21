@@ -1,3 +1,5 @@
+import type { H3Event } from 'h3'
+
 import type { Context } from '../core/browser/context'
 import type { Tweet } from '../core/services/tweet'
 import type { TwitterServices } from '../types/services'
@@ -149,32 +151,6 @@ export class MCPAdapter {
       },
     )
 
-    // Add login tool
-    this.mcpServer.tool(
-      'login',
-      {},
-      async () => {
-        try {
-          const success = await this.twitterServices.auth.login()
-
-          return {
-            content: [{
-              type: 'text',
-              text: success
-                ? 'Successfully loaded login state from session file! If you logged in manually, auto-monitoring is set up to save your session.'
-                : 'No valid session file found. Please log in manually in the browser, the system will automatically save your session.',
-            }],
-          }
-        }
-        catch (error) {
-          return {
-            content: [{ type: 'text', text: `Failed to check login status: ${errorToMessage(error)}` }],
-            isError: true,
-          }
-        }
-      },
-    )
-
     // Add post tweet tool
     this.mcpServer.tool(
       'post-tweet',
@@ -254,32 +230,6 @@ export class MCPAdapter {
       },
     )
 
-    // Add save session tool
-    this.mcpServer.tool(
-      'save-session',
-      {},
-      async () => {
-        try {
-          const success = await this.twitterServices.auth.saveSession()
-
-          return {
-            content: [{
-              type: 'text',
-              text: success
-                ? 'Successfully saved browser session to file. This session will be loaded automatically next time.'
-                : 'Failed to save browser session',
-            }],
-          }
-        }
-        catch (error) {
-          return {
-            content: [{ type: 'text', text: `Failed to save session: ${errorToMessage(error)}` }],
-            isError: true,
-          }
-        }
-      },
-    )
-
     // Add search tool
     this.mcpServer.tool(
       'search',
@@ -346,30 +296,11 @@ export class MCPAdapter {
     this.mcpServer.tool(
       'get-my-profile',
       {
-        username: z.string().optional(),
+        username: z.string(),
       },
       async ({ username }) => {
         try {
-          let profileUsername = username
-
-          // If no username provided, try to get from current URL
-          if (!profileUsername) {
-            const currentUrl = await this.twitterServices.auth.getCurrentUrl()
-            profileUsername = this.extractUsernameFromUrl(currentUrl)
-          }
-
-          // If we still don't have a username, return an error
-          if (!profileUsername) {
-            return {
-              content: [{
-                type: 'text',
-                text: `Failed to get profile: Please provide a username or navigate to a profile page`,
-              }],
-              isError: true,
-            }
-          }
-
-          const profile = await this.twitterServices.user.getUserProfile(profileUsername)
+          const profile = await this.twitterServices.user.getUserProfile(username)
 
           return {
             content: [{
@@ -394,28 +325,6 @@ export class MCPAdapter {
         }
       },
     )
-  }
-
-  /**
-   * Extract username from Twitter URL
-   * @param url Twitter URL
-   * @returns Username or undefined if not a profile URL
-   */
-  private extractUsernameFromUrl(url: string): string | undefined {
-    try {
-      const parsedUrl = new URL(url)
-      if (parsedUrl.hostname === 'x.com') {
-        const pathParts = parsedUrl.pathname.split('/').filter(Boolean)
-        if (pathParts.length > 0 && !['search', 'explore', 'home', 'notifications', 'messages'].includes(pathParts[0])) {
-          return pathParts[0]
-        }
-      }
-      return undefined
-    }
-    catch (e) {
-      logger.mcp.errorWithError('Error extracting username from URL:', e)
-      return undefined
-    }
   }
 
   /**
@@ -587,9 +496,14 @@ export class MCPAdapter {
 }
 
 // h3 utility function: read body from event
-async function readBody(event: any): Promise<any> {
-  const buffers = []
-  for await (const chunk of event.node.req) {
+async function readBody(event: H3Event): Promise<unknown> {
+  const buffers: Buffer[] = []
+  const req = event.node?.req
+  if (!req) {
+    throw new Error('Node request is unavailable')
+  }
+
+  for await (const chunk of req) {
     buffers.push(chunk)
   }
   const data = Buffer.concat(buffers).toString()

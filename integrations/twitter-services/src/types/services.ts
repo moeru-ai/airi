@@ -1,7 +1,9 @@
-export interface TwitterService {
-  [key: string]: (...args: any[]) => any
-}
+import type { useTwitterTimelineServices } from '../core/services/timeline'
+import type { useTwitterTweetServices } from '../core/services/tweet'
+import type { useTwitterUserServices } from '../core/services/user'
 
 export interface TwitterServices {
-  [key: string]: TwitterService
+  timeline: ReturnType<typeof useTwitterTimelineServices>
+  tweet: ReturnType<typeof useTwitterTweetServices>
+  user: ReturnType<typeof useTwitterUserServices>
 }

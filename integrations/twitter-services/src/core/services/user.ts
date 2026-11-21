@@ -1,4 +1,3 @@
-import type { TwitterService } from '../../types/services'
 import type { Context } from '../browser/context'
 
 import { TWITTER_BASE_URL } from '../../constants'
@@ -38,7 +37,7 @@ export interface UserLink {
   title: string
 }
 
-export function useTwitterUserServices(ctx: Context): TwitterService {
+export function useTwitterUserServices(ctx: Context) {
   async function followUser(_username: string): Promise<boolean> {
     throw new Error('Not implemented')
   }
