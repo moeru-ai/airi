@@ -28,6 +28,22 @@ process serves installed files to the renderer through `airi-model`. The desktop
 release bundles X-ASR through `airi-sherpaw`. Sherpaw settings control
 remote downloads. The Resource Status Island shows transfer progress and errors.
 
+## KDE Wayland cursor tracking
+
+On native KDE Wayland, install the bundled KWin script:
+
+```sh
+kpackagetool6 --type=KWin/Script --install <path-to-airi-cursor-bridge>
+```
+
+Enable **AIRI Cursor Bridge** in **System Settings > Window Management > KWin Scripts**, then restart KWin.
+The host must include the QtWebSockets QML module.
+The packaged script is in the app's `resources/kwin/airi-cursor-bridge` directory.
+
+The script shares cursor position and AIRI window geometry over loopback port `6181`.
+AIRI uses fresh connected snapshots and otherwise uses Electron's values.
+The script supports KDE Wayland.
+
 ## Computer use
 
 The desktop chat composer starts with **Use computer** on. Turn it off to send a request without desktop access.
