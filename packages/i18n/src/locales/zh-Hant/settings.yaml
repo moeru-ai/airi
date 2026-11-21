@@ -251,8 +251,6 @@ pages:
     login: 登入
     logout: 登出
     fluxBalance: Flux 餘額
-    viewFluxDetails: 檢視詳細資料
-    viewCapacitor: 檢視
     signedInAs: 登入身分
     profile:
       tab: 個人資料
@@ -351,8 +349,6 @@ pages:
       action: 選擇回應的角色
     sync:
       notice: 角色卡會同步至帳戶。已刪除的角色卡可在 30 天內還原。
-      off_notice: 你已登入，但角色卡同步尚未開啟。
-      off_notice_link: 請在實驗性功能中開啟。
       state:
         synced: 已同步至帳戶
         pending: 等待上傳
@@ -1361,7 +1357,6 @@ pages:
   flux:
     buy: 儲值
     currency: 貨幣
-    description: 目前 Flux
     terms: 條款
     privacy: 隱私權政策
     packagesError: 無法載入儲值組合，請稍後再試。
@@ -1392,7 +1387,6 @@ pages:
     statusError: 無法載入你的 Capacitor，請稍後再試。
     packagesError: 無法載入 Capacitor 清單，請稍後再試。
     preferenceError: 無法儲存偏好設定，請稍後再試。
-    remaining: '剩餘 {percent}'
     rechargesAt: '{date} 充能'
     renewsAt: '{date} 續訂'
     expiresAt: '{date} 到期'
@@ -1956,10 +1950,6 @@ pages:
         local: 你的裝置選擇
         global: 已登入帳戶可使用
         account: 你的帳戶可使用
-      features:
-        character_card_sync:
-          title: 角色卡雲端同步
-          description: 登入時將角色卡同步至帳戶，讓其他裝置也能使用。預設停用，已刪除的角色卡會在帳戶歷史記錄中保留 30 天。
     color-scheme:
       description: 更改舞台的配色方案
       title: 配色方案

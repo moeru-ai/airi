@@ -267,9 +267,6 @@ websocket-status:
   connected: Đã kết nối
   disconnected: Chưa kết nối
   open-settings: Mở cài đặt kết nối
-computer-use:
-  label: Sử dụng máy tính
-  description: Cho phép cửa sổ trò chuyện này xem và điều khiển ứng dụng gốc trên máy tính này.
 status:
   preparing: Đang chuẩn bị micrô
   listening: Đang lắng nghe

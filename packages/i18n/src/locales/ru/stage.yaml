@@ -261,9 +261,6 @@ websocket-status:
   connected: Подключено
   disconnected: Нет подключения
   open-settings: Открыть настройки подключения
-computer-use:
-  label: Использовать компьютер
-  description: Разрешить этому окну чата просматривать и управлять нативными приложениями на этом компьютере.
 status:
   preparing: Подготовка микрофона
   listening: Прослушивание

@@ -131,16 +131,9 @@ chat:
     images: 图片
     call: 语音通话
   call:
-    title: 语音通话
-    listening: 正在聆听
-    hearing: 正在听你说
-    speaking: 正在说话
-    muted: 已静音
     mute: 麦克风静音
     unmute: 取消麦克风静音
     hang-up: 挂断
-    minimize: 收起通话
-    expand: 回到通话
     failed: 无法开始语音通话
     microphone-denied: AIRI 无法使用麦克风。
     microphone-off: 麦克风已关闭。请在听觉设置中打开麦克风，再开始语音通话。
@@ -313,9 +306,9 @@ chat:
     rename-folder: 重命名文件夹
     delete-folder: 删除文件夹（保留对话）
     confirm-delete-folder: 确认删除文件夹
-    selected: 已选 {count} 个
-    empty-folder: “{folder}”还是空的。点上面的按钮新建，或在对话的菜单里选“移到文件夹”。
-    empty-folder-character: “{folder}”里还没有和 {name} 的对话。点上面的按钮开始。
+    selected: '已选 {count} 个'
+    empty-folder: '“{folder}”还是空的。点上面的按钮新建，或在对话的菜单里选“移到文件夹”。'
+    empty-folder-character: '“{folder}”里还没有和 {name} 的对话。点上面的按钮开始。'
     empty-archive: 没有归档的对话。归档的对话放在这里，不会被删除。
     empty-archive-character: 没有和 {name} 的归档对话。归档的对话放在这里，不会被删除。
     empty-character: 还没有和 {name} 的对话。点上面的按钮开始第一段。

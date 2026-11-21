@@ -349,9 +349,6 @@ websocket-status:
   connected: 연결됨
   disconnected: 연결 없음
   open-settings: 연결 설정 열기
-computer-use:
-  label: 컴퓨터 사용
-  description: 이 채팅 창이 이 컴퓨터의 네이티브 앱을 살펴보고 제어하도록 허용합니다.
 status:
   preparing: 마이크 준비 중
   listening: 듣는 중
