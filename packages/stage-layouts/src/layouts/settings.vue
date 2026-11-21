@@ -18,7 +18,7 @@ const scrollContainer = useTemplateRef<HTMLDivElement>('scrollContainer')
 
 // RouterView reuses this viewport across settings and devtools pages. Reset it
 // after the new page renders, but preserve scrolling for query or anchor changes.
-watch(() => route.path, () => {
+watch(() => route?.path, () => {
   if (scrollContainer.value)
     scrollContainer.value.scrollTop = 0
 }, { flush: 'post' })
@@ -45,19 +45,22 @@ provide(settingsFullBleedHostKey, {
 const { isDark: dark } = useTheme()
 const { t } = useI18n()
 const providersStore = useProviderStore()
-const routeMeta = computed(() => route.meta as {
+
+interface SettingsRouteMeta {
   titleKey?: string
   subtitleKey?: string
   title?: string
   subtitle?: string
   disableBackButton?: boolean
-})
+}
+
+const routeMeta = computed(() => (route?.meta ?? {}) as SettingsRouteMeta)
 
 const providerTitle = computed(() => {
-  if (!route.path.startsWith('/settings/providers/'))
+  if (!route?.path?.startsWith('/settings/providers/'))
     return undefined
 
-  const segments = route.path.split('/').filter(Boolean)
+  const segments = (route?.path?.split('/') ?? []).filter(Boolean)
   const providerId = segments[3]
 
   if (!providerId)
@@ -91,7 +94,7 @@ const routeHeaderMetadata = computed(() => {
 
 const { updateThemeColor } = useThemeColor(themeColorFromValue({ light: 'rgb(255 255 255)', dark: 'rgb(18 18 18)' }))
 watch(dark, () => updateThemeColor(), { immediate: true })
-watch(route, () => updateThemeColor(), { immediate: true })
+watch(() => route?.path, () => updateThemeColor(), { immediate: true })
 onMounted(() => updateThemeColor())
 </script>
 
@@ -129,7 +132,7 @@ onMounted(() => updateThemeColor())
         <PageHeader
           :title="routeHeaderMetadata?.title || ''"
           :subtitle="routeHeaderMetadata?.subtitle"
-          :disable-back-button="routeMeta.disableBackButton || (isStageTamagotchi() && route.path === '/settings')"
+          :disable-back-button="routeMeta.disableBackButton || (isStageTamagotchi() && route?.path === '/settings')"
           :transparent="fullBleed"
         />
       </div>
