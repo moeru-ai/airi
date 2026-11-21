@@ -24,6 +24,7 @@ const props = defineProps<{
   // Current state
   apiKeyConfigured?: boolean
   voicesLoading?: boolean
+  ssmlEnabled?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -178,6 +179,7 @@ defineExpose({
     </h2>
     <div flex="~ col gap-4">
       <FieldCheckbox
+        v-if="props.ssmlEnabled !== false"
         v-model="useSSML"
         :label="t('settings.pages.modules.speech.sections.section.voice-settings.use-ssml.label')"
         :description="t('settings.pages.modules.speech.sections.section.voice-settings.use-ssml.description')"
