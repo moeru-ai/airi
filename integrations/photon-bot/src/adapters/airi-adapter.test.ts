@@ -125,7 +125,7 @@ describe('photonAdapter', () => {
   let config: PhotonBotConfig
   let adapter: PhotonAdapter
 
-  let onSend: (record: RecordedSend) => { status?: number, body?: unknown }
+  let onSend: (record: RecordedSend) => { status?: number, body?: unknown } | Promise<{ status?: number, body?: unknown }>
   let onMarkRead: (record: RecordedRead) => { status?: number, body?: unknown }
   let onSetTyping: (record: RecordedTyping) => { status?: number, body?: unknown }
   let onGetMessage: (record: RecordedGetMessage) => { status?: number, body?: unknown }
@@ -147,7 +147,7 @@ describe('photonAdapter', () => {
       const sendMatch = request.method === 'POST' ? /^\/v1\/projects\/([^/]+)\/messages$/.exec(url) : null
       if (sendMatch) {
         const payload = await readJsonBody<{ spaceId: string, senderId: string, content: { text: string } }>(request)
-        const result = onSend({
+        const result = await onSend({
           projectId: sendMatch[1],
           authorization: request.headers.authorization,
           idempotencyKey: typeof request.headers['idempotency-key'] === 'string' ? request.headers['idempotency-key'] : undefined,
@@ -484,6 +484,53 @@ describe('photonAdapter', () => {
 
     adapter.stop()
     await otherPhoton.close()
+  })
+
+  it('does not save the cursor of the old project when a send finishes after a switch of the project', async () => {
+    const airi = createFakeAiri()
+    const sendGate = Promise.withResolvers<void>()
+    const send = vi.fn(async () => {
+      await sendGate.promise
+      return { status: 202, body: { id: 'sent-1' } }
+    })
+    onSend = send
+    adapter = new PhotonAdapter(config)
+    adapter.start()
+    await vi.waitFor(() => expect(subscribes).toEqual([0]))
+    photon.emit('delivery', received('message-20', 'hello'), { seq: 100 })
+    await vi.waitFor(() => expect(airi.sent).toHaveLength(1))
+    airi.reply(airi.sent[0], 'hi')
+    await vi.waitFor(() => expect(send).toHaveBeenCalledOnce())
+
+    // The stand-in has no stream for project-2. The test needs only the switch.
+    airi.configure({ enabled: true, projectId: 'project-2', apiKey: 'other-key' })
+    await vi.waitFor(() => expect(disconnects).toBe(1))
+    sendGate.resolve()
+    await sleep(200)
+    expect(() => readFileSync(config.stateFile)).toThrow()
+  })
+
+  it('sends the same reply again after a failed send, and does not ask AIRI a second time', async () => {
+    const airi = createFakeAiri()
+    writeFileSync(config.stateFile, JSON.stringify({ cursor: 20, projectId: 'project-1' }))
+    const send = vi.fn<(record: RecordedSend) => { status?: number, body?: unknown }>()
+      .mockReturnValueOnce({ status: 503, body: { code: 'UPSTREAM_UNAVAILABLE' } })
+      .mockReturnValue({ status: 202, body: { id: 'sent-1' } })
+    onSend = send
+    adapter = new PhotonAdapter(config)
+    adapter.start()
+    await vi.waitFor(() => expect(subscribes).toEqual([20]))
+    photon.emit('delivery', received('message-30', 'are you there?'), { seq: 21 })
+    await vi.waitFor(() => expect(airi.sent).toHaveLength(1))
+    airi.reply(airi.sent[0], 'yes, here')
+
+    // The failed send ends the connection. The stream connects again, and Photon replays from the saved cursor.
+    await vi.waitFor(() => expect(subscribes).toEqual([20, 20]), { timeout: 5_000 })
+    photon.emit('delivery', received('message-30', 'are you there?'), { seq: 21 })
+    await vi.waitFor(() => expect(JSON.parse(readFileSync(config.stateFile, 'utf8'))).toEqual({ cursor: 21, projectId: 'project-1' }))
+    expect(airi.sent).toHaveLength(1)
+    expect(send).toHaveBeenCalledTimes(2)
+    expect(send).toHaveBeenLastCalledWith(expect.objectContaining({ text: 'yes, here', idempotencyKey: 'airi-reply:message-30' }))
   })
 
   it('names a rejected API key in the log and does not connect again every few seconds', async () => {

@@ -52,6 +52,8 @@ export class PhotonAdapter {
   private readonly recent = new Map<string, QuotedMessage>()
   /** The content types that the log already has a report for. */
   private readonly reportedTypes = new Set<string>()
+  /** Replies of the character that Photon did not accept yet, by inbound message ID. A replay sends them again. */
+  private readonly unsentReplies = new Map<string, string>()
   /** The Photon project in use. It is not set while the bot waits for settings or while AIRI disables the integration. */
   private connection?: PhotonConnection
   private stream?: PhotonStream
@@ -179,6 +181,10 @@ export class PhotonAdapter {
     if (event.type === 'message.received')
       await this.answer(connection, event.data.object)
 
+    // The settings can change the project while a delivery is in progress. The cursor then belongs to the new project.
+    if (this.cursorProjectId !== connection.projectId)
+      return
+
     // The cursor moves only after the delivery is handled. A crash before this line replays the delivery.
     this.cursor = seq
     writeFileSync(this.config.stateFile, JSON.stringify({ cursor: seq, projectId: connection.projectId }))
@@ -208,23 +214,28 @@ export class PhotonAdapter {
     })
     const typing = (on: boolean) => bestEffort(on ? 'Typing' : 'Stopping typing', setTyping(connection, space.id, receivedBy.id, on))
 
-    // A tapback is not a message that a person reads, so it gets no read receipt.
-    if (kind !== 'tapback')
-      await bestEffort('Read receipt', markRead(connection, id))
-    await typing(true)
-    // A refresh that fails has no caller. The send after it reports a rejected API key.
-    const typingRefresh = setInterval(() => void typing(true).catch(() => {}), TYPING_REFRESH_MS)
-    let reply: string | undefined
-    try {
-      reply = await this.converse(connection, { messageId: id, spaceId: space.id, agentUserId: receivedBy.id, handle: sentBy.handle }, text)
-    }
-    finally {
-      clearInterval(typingRefresh)
-      await typing(false)
+    // After a failed send, the replay sends the same reply. AIRI does not answer the same text a second time.
+    let reply = this.unsentReplies.get(id)
+    if (reply === undefined) {
+      // A tapback is not a message that a person reads, so it gets no read receipt.
+      if (kind !== 'tapback')
+        await bestEffort('Read receipt', markRead(connection, id))
+      await typing(true)
+      // A refresh that fails has no caller. The send after it reports a rejected API key.
+      const typingRefresh = setInterval(() => void typing(true).catch(() => {}), TYPING_REFRESH_MS)
+      try {
+        reply = await this.converse(connection, { messageId: id, spaceId: space.id, agentUserId: receivedBy.id, handle: sentBy.handle }, text)
+      }
+      finally {
+        clearInterval(typingRefresh)
+        await typing(false)
+      }
     }
 
     if (reply) {
+      this.unsentReplies.set(id, reply)
       const sentId = await sendText(connection, { spaceId: space.id, senderId: receivedBy.id, text: reply, idempotencyKey: `airi-reply:${id}` })
+      this.unsentReplies.delete(id)
       if (sentId)
         this.remember(sentId, { text: reply, fromAgent: true })
       log.log(`Sent the reply for ${kind} ${id} to ${who}`)
