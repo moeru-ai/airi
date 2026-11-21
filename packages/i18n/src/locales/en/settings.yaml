@@ -1333,6 +1333,20 @@ pages:
       token-description: Your Discord bot token
       token-placeholder: Enter your Discord bot token
       configured: Discord is properly configured!
+    messaging-photon:
+      description: Chat over iMessage
+      title: iMessage
+      enable: Enable iMessage Integration
+      enable-description: Allow AIRI to answer iMessage texts
+      enable-missing-values: Enter the Photon project ID and the Photon API key first
+      powered-by: 'The iMessage integration uses the Photon API. Create a project and an API key in the Photon beta: {link}'
+      project-id: Photon Project ID
+      project-id-description: The ID of your project in the Photon dashboard
+      project-id-placeholder: pho_prj_…
+      api-key: Photon API Key
+      api-key-description: A project API key with the project:read and project:write scopes
+      api-key-placeholder: Enter your Photon project API key
+      configured: iMessage is properly configured!
     speech:
       description: Speech synthesis
       sections:
