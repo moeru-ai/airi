@@ -120,6 +120,7 @@ export interface ComputerUseAutoInput {
   windowTitle?: string
   contextAvailable: boolean
   targetLabel?: string
+  groundingSnapshotId?: string
   action?: { kind?: string, input?: Record<string, unknown> }
 }
 
@@ -228,6 +229,10 @@ export function decideComputerUseAuto(input: ComputerUseAutoInput): AutoDecision
   if (!targetName)
     return { outcome: 'refuse', reason: 'Computer Use Auto refuses actions without a target name.' }
 
+  const actionInput = input.action?.input ?? {}
+  const targetCandidateId = input.actionKind === 'desktop_click_target' && typeof actionInput.candidateId === 'string'
+    ? actionInput.candidateId
+    : ''
   const card: AutoApprovalCard = {
     lane: 'computer_use',
     actionKind: input.actionKind,
@@ -235,6 +240,8 @@ export function decideComputerUseAuto(input: ComputerUseAutoInput): AutoDecision
     windowTitle: (input.windowTitle ?? '').trim(),
     reviewClass: 'desktop',
     targetName,
+    targetCandidateId,
+    groundingSnapshotId: input.actionKind === 'desktop_click_target' ? input.groundingSnapshotId ?? '' : '',
     detail: desktopDetail(input),
   }
   if (cardBytes(card) > AUTO_REVIEW_CARD_MAX_BYTES)

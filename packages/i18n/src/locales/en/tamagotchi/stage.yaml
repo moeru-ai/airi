@@ -92,13 +92,13 @@ docs:
     approval-mode-auto: Auto
     approval-mode-full: Full
     approval-command-auto-confirm: Allow Command auto approval in this conversation?
-    approval-command-auto-scope: AIRI approves Shell commands inside {workspace} for 30 minutes. Commands outside that folder, privilege changes, and secrets are refused. Sensitive commands inside the folder are reviewed without asking you. The review reads a short excerpt from this conversation.
+    approval-command-auto-scope: AIRI approves Shell commands inside {workspace} for 30 minutes under its closed policy. Commands outside that folder, privilege changes, and secrets are refused. The current Consciousness model in Settings receives the first and recent user messages, plus recent tool names and argument summaries. AIRI redacts known credential fields and sensitive paths before review. The review card and rules cannot widen this scope.
     approval-command-auto-allow: Allow Command auto approval
     approval-command-full-confirm: Allow Command full access in this conversation?
     approval-command-full-scope: AIRI can run local Shell commands with your system privileges. Ask mode requires confirmation before each command.
     approval-command-full-allow: Allow Command full access
     approval-computer-use-auto-confirm: Allow Computer Use auto approval in this conversation?
-    approval-computer-use-auto-scope: AIRI approves changes in {app} for 30 minutes. Other apps, password managers, wallets, the clipboard, and secrets are refused. Named clicks, typing, and shortcuts are reviewed without asking you. The review reads a short excerpt from this conversation.
+    approval-computer-use-auto-scope: AIRI approves changes in {app} for 30 minutes under its closed policy. Other apps, password managers, wallets, the clipboard, and secrets are refused. The current Consciousness model in Settings receives the first and recent user messages, plus recent tool names and argument summaries. AIRI redacts known credential fields and sensitive paths before review. The review card and rules cannot widen this scope.
     approval-computer-use-auto-allow: Allow Computer Use auto approval
     approval-computer-use-full-confirm: Allow Computer Use full access in this conversation?
     approval-computer-use-full-scope: AIRI can change the desktop, apps, and input through Computer Use. Ask mode requires confirmation before each change.

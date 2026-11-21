@@ -25,8 +25,8 @@ export interface AutoReviewConsultation {
   /** Chat session whose loaded messages the reviewer reads. */
   sessionId: string
   /**
-   * Turn that owns this review.
-   * The cache key is this value plus the card. Without it, consultAuto skips the cache.
+   * Turn and prepared action that own this review.
+   * The cache key adds the card. Without this scope, consultAuto skips the cache.
    */
   cacheScope?: string
   /**

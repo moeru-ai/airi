@@ -26,7 +26,28 @@ const TRANSCRIPT_MAX_CHARS = 8_000
 const REVIEW_DETAIL_MAX_CHARS = 240
 
 const VERDICT_LINE = /^verdict:\s*(?:allow|refuse)\s*$/i
-
+const REDACTED = '[redacted]'
+const CREDENTIAL_KEYS = new Set([
+  'password',
+  'passwd',
+  'pwd',
+  'token',
+  'secret',
+  'authorization',
+  'cookie',
+  'credential',
+  'credentials',
+  'wallet',
+  'mnemonic',
+])
+const SENSITIVE_PATH_NAMES = new Set([
+  '.ssh',
+  '.aws',
+  '.gnupg',
+  '.netrc',
+])
+const CREDENTIAL_ASSIGNMENT = /(["']?(?:password|passwd|pwd|api[_-]?key|token|secret|authorization|access[_-]?token|refresh[_-]?token|private[_-]?key|client[_-]?secret|cookie|credentials?)["']?(?:[ \t]*:[ \t]*|[ \t]*=[ \t]*|[ \t]+is[ \t]+))(?:(?:Bearer|Basic)[ \t]+)?(?:"[^"]*"|'[^']*'|[^ \t\r\n,;}&]+)/gi
+const SECRET_PHRASE_ASSIGNMENT = /["']?(?:seed[ _-]?phrase|recovery[ _-]?phrase|mnemonic)["']?(?:[ \t]*:[ \t]*|[ \t]*=[ \t]*|[ \t]+is[ \t]+)/gi
 export interface AutoReviewExcerpt {
   firstUserMessage: string
   recentUserMessages: string[]
@@ -143,16 +164,129 @@ export function buildAutoReviewTranscript(messages: readonly unknown[]): AutoRev
       toolCalls.push(...readToolCalls(message))
   }
 
-  const firstUserMessage = truncateText(userTexts[0] ?? '', FIRST_USER_MAX_CHARS)
   const recentStart = Math.max(1, userTexts.length - RECENT_USER_LIMIT)
-  const recentUserMessages = capTexts(userTexts.slice(recentStart), RECENT_USER_MAX_CHARS)
-  const recentToolCalls = capJsonItems(toolCalls.slice(-TOOL_CALL_LIMIT), TOOL_SECTION_MAX_CHARS)
+  const sanitized = sanitizeAutoReviewExcerpt({
+    firstUserMessage: userTexts[0] ?? '',
+    recentUserMessages: userTexts.slice(recentStart),
+    recentToolCalls: toolCalls.slice(-TOOL_CALL_LIMIT),
+  })
+  const firstUserMessage = truncateText(sanitized.firstUserMessage, FIRST_USER_MAX_CHARS)
+  const recentUserMessages = capTexts(sanitized.recentUserMessages, RECENT_USER_MAX_CHARS)
+  const recentToolCalls = capJsonItems(sanitized.recentToolCalls.map(call => ({
+    name: truncateText(call.name, TOOL_NAME_MAX_CHARS),
+    argumentsPreview: truncateText(call.argumentsPreview, TOOL_ARGUMENT_MAX_CHARS),
+  })), TOOL_SECTION_MAX_CHARS)
   const excerpt = fitExcerpt({ firstUserMessage, recentUserMessages, recentToolCalls })
   return {
     transcript: JSON.stringify(excerpt),
     excerpt,
     hasUserTranscript: excerpt.firstUserMessage.length > 0 || excerpt.recentUserMessages.length > 0,
   }
+}
+
+function sanitizeAutoReviewExcerpt(excerpt: AutoReviewExcerpt): AutoReviewExcerpt {
+  return {
+    firstUserMessage: sanitizeSensitiveText(excerpt.firstUserMessage),
+    recentUserMessages: excerpt.recentUserMessages.map(sanitizeSensitiveText),
+    recentToolCalls: excerpt.recentToolCalls.map(call => ({
+      name: call.name,
+      argumentsPreview: sanitizeToolArguments(call.argumentsPreview),
+    })),
+  }
+}
+
+function sanitizeToolArguments(value: string): string {
+  try {
+    return JSON.stringify(sanitizeCredentialValues(JSON.parse(value))) ?? ''
+  }
+  catch {
+    return sanitizeSensitiveText(value)
+  }
+}
+
+function sanitizeCredentialValues(value: unknown): unknown {
+  if (Array.isArray(value))
+    return value.map(sanitizeCredentialValues)
+  if (typeof value === 'string')
+    return sanitizeSensitiveText(value)
+  if (!isRecord(value))
+    return value
+
+  return Object.fromEntries(Object.entries(value).map(([key, item]) => [
+    key,
+    isCredentialKey(key) ? REDACTED : sanitizeCredentialValues(item),
+  ]))
+}
+
+function isCredentialKey(key: string): boolean {
+  const words: string[] = key.replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase().match(/[a-z0-9]+/g) ?? []
+  if (words.some(word => CREDENTIAL_KEYS.has(word)))
+    return true
+
+  const normalized = words.join('')
+  return normalized === 'apikey'
+    || (words.includes('api') && words.includes('key'))
+    || (words.includes('private') && words.includes('key'))
+    || (words.includes('client') && words.includes('secret'))
+    || (words.includes('access') && words.includes('token'))
+    || (words.includes('refresh') && words.includes('token'))
+    || (words.includes('seed') && words.includes('phrase'))
+    || (words.includes('recovery') && words.includes('phrase'))
+}
+
+function sanitizeCredentialAssignments(value: string): string {
+  const matches = [...value.matchAll(SECRET_PHRASE_ASSIGNMENT)]
+  let sanitized = ''
+  let copiedThrough = 0
+  for (const match of matches) {
+    const start = match.index ?? 0
+    if (start < copiedThrough)
+      continue
+    const end = sensitivePhraseEnd(value, start + match[0].length)
+    if (end <= start + match[0].length)
+      continue
+    sanitized += `${value.slice(copiedThrough, start + match[0].length)}${REDACTED}`
+    copiedThrough = end
+  }
+  if (copiedThrough > 0)
+    sanitized += value.slice(copiedThrough)
+  else
+    sanitized = value
+  return sanitized.replace(CREDENTIAL_ASSIGNMENT, (_match, prefix: string) => `${prefix}${REDACTED}`)
+}
+
+function sensitivePhraseEnd(value: string, start: number): number {
+  let end = start
+  while (end < value.length && !/[\r\n}]/.test(value[end] ?? ''))
+    end += 1
+  return end
+}
+
+function sanitizeSensitiveText(value: string): string {
+  return sanitizeCredentialAssignments(value)
+    .split(/(\s+)/)
+    .map((part) => {
+      if (!part || /^\s+$/.test(part))
+        return part
+
+      const leading = part.match(/^["'`([{<]*/)?.[0] ?? ''
+      const trailing = part.match(/["'`)}\]>.,;!?]*$/)?.[0] ?? ''
+      const token = part.slice(leading.length, part.length - trailing.length)
+      return token && containsSensitivePath(token)
+        ? `${leading}${REDACTED}${trailing}`
+        : part
+    })
+    .join('')
+}
+
+function containsSensitivePath(token: string): boolean {
+  return token.split(/[\\/=:]/).some((segment) => {
+    const name = segment.replace(/^["'`([{<]+|["'`)}\]>.,;!?]+$/g, '').toLowerCase()
+    return SENSITIVE_PATH_NAMES.has(name)
+      || name.startsWith('.env')
+      || /^id_(?:rsa|ed25519)(?:[._-]|$)/.test(name)
+      || /^(?:credentials?|secrets?|keychain|wallet|mnemonic)(?:[._-]|$)/.test(name)
+  })
 }
 
 function fitExcerpt(excerpt: AutoReviewExcerpt): AutoReviewExcerpt {

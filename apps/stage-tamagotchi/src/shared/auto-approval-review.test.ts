@@ -94,6 +94,47 @@ describe('auto review transcript', () => {
     expect(excerpt.excerpt.recentToolCalls).toEqual([{ name: 'listed', argumentsPreview: '{"from":"tool_calls"}' }])
   })
 
+  it('redacts credentials and sensitive paths from the review excerpt', () => {
+    const excerpt = buildAutoReviewTranscript([
+      { role: 'user', content: 'Read /workspace/.env before updating the deploy config.' },
+      { role: 'user', content: 'Seed phrase is alpha beta gamma delta.' },
+      { role: 'assistant', tool_calls: [{ function: { name: 'deploy', arguments: '{"password":"hunter2","apiKey":"key-value","nested":{"refreshToken":"refresh-value"},"endpoint":"example.com"}' } }] },
+    ])
+
+    expect(excerpt.excerpt.firstUserMessage).not.toContain('.env')
+    expect(excerpt.excerpt.firstUserMessage).toContain('[redacted]')
+    expect(excerpt.excerpt.recentUserMessages[0]).toContain('[redacted]')
+    expect(excerpt.excerpt.recentUserMessages[0]).not.toContain('alpha beta gamma delta')
+    expect(excerpt.transcript).not.toContain('alpha beta gamma delta')
+    expect(excerpt.transcript).not.toContain('hunter2')
+    expect(excerpt.transcript).not.toContain('key-value')
+    expect(excerpt.transcript).not.toContain('refresh-value')
+    expect(excerpt.excerpt.recentToolCalls).toEqual([{
+      name: 'deploy',
+      argumentsPreview: '{"password":"[redacted]","apiKey":"[redacted]","nested":{"refreshToken":"[redacted]"},"endpoint":"example.com"}',
+    }])
+  })
+
+  it('redacts credential assignments in non-JSON tool arguments', () => {
+    const excerpt = buildAutoReviewTranscript([{
+      role: 'assistant',
+      tool_calls: [{ function: { name: 'shell', arguments: 'password=sample-secret, command=ls' } }],
+    }])
+
+    expect(excerpt.transcript).not.toContain('sample-secret')
+    expect(excerpt.excerpt.recentToolCalls[0]).toMatchObject({ name: 'shell' })
+    expect(excerpt.excerpt.recentToolCalls[0]?.argumentsPreview).toContain('command=ls')
+  })
+
+  it('keeps ordinary user wording while redacting credential file names', () => {
+    const excerpt = buildAutoReviewTranscript([
+      { role: 'user', content: 'Use the credentials.json file, then show the user settings.' },
+    ])
+
+    expect(excerpt.excerpt.firstUserMessage).toContain('[redacted]')
+    expect(excerpt.excerpt.firstUserMessage).toContain('user settings')
+  })
+
   it('reports an empty excerpt when the session has no owner text', () => {
     const excerpt = buildAutoReviewTranscript([
       { role: 'user', content: 'background result', notice: { source: 'task' } },

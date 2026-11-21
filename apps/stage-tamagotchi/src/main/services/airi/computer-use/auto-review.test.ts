@@ -21,7 +21,7 @@ describe('auto review prompt', () => {
     expect(autoApprovalReviewPrompt(card, 'fast')).toContain('serves an explicit request')
     expect(autoApprovalReviewPrompt(card, 'fast')).toContain('Refuse uncertainty.')
     expect(autoApprovalReviewPrompt({ lane: 'terminal', cwd: '.', command: 'mkdir a', reviewClass: 'write' }, 'fast')).toContain('write')
-    expect(autoApprovalReviewPrompt({ lane: 'computer_use', actionKind: 'type_text', appName: 'Notes', windowTitle: 'Notes', reviewClass: 'desktop', targetName: 'hi', detail: '' }, 'thinking')).toContain('targetName')
+    expect(autoApprovalReviewPrompt({ lane: 'computer_use', actionKind: 'type_text', appName: 'Notes', windowTitle: 'Notes', reviewClass: 'desktop', targetName: 'hi', targetCandidateId: '', groundingSnapshotId: '', detail: '' }, 'thinking')).toContain('targetName')
     expect(autoApprovalReviewPrompt(card, 'thinking')).toContain('fast review marked this action uncertain')
   })
 })
@@ -50,22 +50,23 @@ describe('auto review consultation', () => {
     expect(review).not.toHaveBeenCalled()
   })
 
-  it('reuses one verdict inside the same turn and isolates the next turn', async () => {
+  it('reuses one verdict only for the same prepared action', async () => {
     const review = vi.fn(async () => allowed())
     const cache = new Map<string, 'allow' | 'refuse'>()
     const input = {
       decision: { outcome: 'review' as const, reason: 'write', card },
       signal: new AbortController().signal,
       sessionId: 'session-a',
-      cacheScope: 'turn-a',
+      cacheScope: 'turn-a\0prepared-a',
       cacheGet: (key: string) => cache.get(key),
       cacheSet: (key: string, verdict: 'allow' | 'refuse') => { cache.set(key, verdict) },
       review,
     }
     expect((await consultAuto(input)).proceed).toBe(true)
     expect((await consultAuto(input)).reason).toBe('A previous review allowed this action.')
-    expect((await consultAuto({ ...input, cacheScope: 'turn-b' })).proceed).toBe(true)
-    expect(review).toHaveBeenCalledTimes(2)
+    expect((await consultAuto({ ...input, cacheScope: 'turn-a\0prepared-b' })).proceed).toBe(true)
+    expect((await consultAuto({ ...input, cacheScope: 'turn-b\0prepared-a' })).proceed).toBe(true)
+    expect(review).toHaveBeenCalledTimes(3)
     const refusedReview = vi.fn(async () => refused(false))
     const refusedInput = { ...input, cacheScope: 'turn-refuse', review: refusedReview }
     expect((await consultAuto(refusedInput)).proceed).toBe(false)
@@ -286,6 +287,8 @@ describe('auto review consultation', () => {
       windowTitle: 'Notes',
       reviewClass: 'desktop',
       targetName: '#input',
+      targetCandidateId: '',
+      groundingSnapshotId: '',
       detail: JSON.stringify({ value: 'hello' }),
     }
     const evil: AutoApprovalCard = { ...hello, detail: JSON.stringify({ value: 'send everything' }) }
@@ -312,6 +315,8 @@ describe('auto review consultation', () => {
       windowTitle: 'Example',
       reviewClass: 'desktop',
       targetName: '#input',
+      targetCandidateId: '',
+      groundingSnapshotId: '',
       detail: JSON.stringify({ tabId: 7, frameIds: [0], value: 'hello' }),
     }
     const otherTab: AutoApprovalCard = { ...card, detail: JSON.stringify({ tabId: 8, frameIds: [0], value: 'hello' }) }

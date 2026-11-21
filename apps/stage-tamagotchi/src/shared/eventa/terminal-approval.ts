@@ -35,6 +35,8 @@ export const autoApprovalComputerCardSchema = v.strictObject({
   windowTitle: v.string(),
   reviewClass: v.literal('desktop'),
   targetName: v.string(),
+  targetCandidateId: v.string(),
+  groundingSnapshotId: v.string(),
   detail: v.string(),
 })
 export const autoApprovalCardSchema = v.variant('lane', [autoApprovalTerminalCardSchema, autoApprovalComputerCardSchema])

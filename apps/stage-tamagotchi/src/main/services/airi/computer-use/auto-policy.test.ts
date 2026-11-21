@@ -247,8 +247,35 @@ describe('computer use auto cage', () => {
     })
     expect(typing).toMatchObject({ outcome: 'review', card: { windowTitle: 'Notes', targetName: 'hello', reviewClass: 'desktop' } })
     expect(confirm).toMatchObject({ outcome: 'review', card: { windowTitle: 'Delete file?' } })
-    expect(target).toMatchObject({ outcome: 'review', card: { targetName: 'Save', detail: 'Save' } })
+    expect(target).toMatchObject({ outcome: 'review', card: { targetName: 'Save', targetCandidateId: 'c1', groundingSnapshotId: '', detail: 'Save' } })
     expect(typing.outcome === 'review' && confirm.outcome === 'review' && typing.card.lane === 'computer_use' && confirm.card.lane === 'computer_use' && typing.card.windowTitle !== confirm.card.windowTitle).toBe(true)
+  })
+
+  it('keeps same-label grounded targets distinct', () => {
+    const first = decideComputerUseAuto({
+      frozenAppName: frozenApp,
+      actionKind: 'desktop_click_target',
+      contextAvailable: true,
+      appName: 'Notes',
+      windowTitle: 'Notes',
+      targetLabel: 'Save',
+      groundingSnapshotId: 'snapshot-1',
+      action: { input: { candidateId: 'candidate-1' } },
+    })
+    const second = decideComputerUseAuto({
+      frozenAppName: frozenApp,
+      actionKind: 'desktop_click_target',
+      contextAvailable: true,
+      appName: 'Notes',
+      windowTitle: 'Notes',
+      targetLabel: 'Save',
+      groundingSnapshotId: 'snapshot-2',
+      action: { input: { candidateId: 'candidate-2' } },
+    })
+
+    expect(first).toMatchObject({ outcome: 'review', card: { targetName: 'Save', targetCandidateId: 'candidate-1', groundingSnapshotId: 'snapshot-1' } })
+    expect(second).toMatchObject({ outcome: 'review', card: { targetName: 'Save', targetCandidateId: 'candidate-2', groundingSnapshotId: 'snapshot-2' } })
+    expect(first).not.toEqual(second)
   })
 
   it('refuses password managers, clipboard, secrets, and new terminals', () => {
@@ -324,7 +351,7 @@ describe('foreground recheck helpers', () => {
   })
 
   it('requires the foreground window title to match the review card', () => {
-    const card = { lane: 'computer_use' as const, actionKind: 'type_text', appName: 'Notes', windowTitle: 'Notes', reviewClass: 'desktop' as const, targetName: 'hi', detail: '' }
+    const card = { lane: 'computer_use' as const, actionKind: 'type_text', appName: 'Notes', windowTitle: 'Notes', reviewClass: 'desktop' as const, targetName: 'hi', targetCandidateId: '', groundingSnapshotId: '', detail: '' }
     expect(foregroundMatchesComputerCard(card, { available: true, appName: 'Notes', windowTitle: 'Notes' })).toBe(true)
     expect(foregroundMatchesComputerCard(card, { available: true, appName: 'Notes', windowTitle: 'Other' })).toBe(false)
     expect(foregroundMatchesComputerCard(card, { available: false, appName: 'Notes', windowTitle: 'Notes' })).toBe(false)

@@ -271,7 +271,7 @@ export async function bindTerminalApproval(params: {
       decision,
       signal: auto.signal,
       sessionId: attribution.sessionId,
-      cacheScope: attribution.turnId,
+      cacheScope: `${attribution.turnId ?? ''}\0${snapshot.preparedId}`,
       timeoutMs: options.reviewTimeoutMs,
       cacheGet: key => options.actions.cachedReview('terminal', attribution.sessionId, attribution.senderWebContentsId, key),
       cacheSet: (key, value) => options.actions.rememberReview('terminal', attribution.sessionId, attribution.senderWebContentsId, key, value),

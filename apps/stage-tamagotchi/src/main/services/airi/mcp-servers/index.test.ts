@@ -496,7 +496,7 @@ describe('createMcpManager', () => {
     })
     await manager.callTool({ name: 'airi-terminal::computer_act', arguments: { text: 'hello' }, requestId: request.id, attribution }, 71)
 
-    expect(reviewAuto).toHaveBeenCalledOnce()
+    expect(reviewAuto).toHaveBeenCalledTimes(2)
   })
 
   it('reviews a grounded desktop click with its target label', async () => {
@@ -524,7 +524,7 @@ describe('createMcpManager', () => {
           structuredContent: {
             runState: {
               foregroundContext: { available: true, appName: 'Notes', windowTitle: 'Notes' },
-              lastGroundingSnapshot: { targetCandidates: [{ id: 'candidate-1', label: 'Save' }] },
+              lastGroundingSnapshot: { snapshotId: 'snapshot-1', targetCandidates: [{ id: 'candidate-1', label: 'Save' }] },
             },
           },
         }
@@ -544,7 +544,7 @@ describe('createMcpManager', () => {
 
     await manager.callTool({ name: 'airi-terminal::computer_act', arguments: { candidateId: 'candidate-1' }, requestId: request.id, attribution }, 71)
 
-    expect(reviewAuto).toHaveBeenCalledWith(expect.objectContaining({ card: expect.objectContaining({ targetName: 'Save' }) }), expect.any(AbortSignal))
+    expect(reviewAuto).toHaveBeenCalledWith(expect.objectContaining({ card: expect.objectContaining({ targetName: 'Save', targetCandidateId: 'candidate-1', groundingSnapshotId: 'snapshot-1' }) }), expect.any(AbortSignal))
     expect(clientMocks.privateRequest).toHaveBeenCalledWith(expect.objectContaining({ method: 'airi/computer-use/execute-prepared' }), expect.anything(), expect.anything())
   })
 

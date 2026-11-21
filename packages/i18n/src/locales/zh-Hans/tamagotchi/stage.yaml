@@ -91,13 +91,13 @@ docs:
     approval-mode-auto: 自动
     approval-mode-full: 完全
     approval-command-auto-confirm: 允许此会话自动审批命令？
-    approval-command-auto-scope: AIRI 会在 30 分钟内审批 {workspace} 里的 Shell 命令。工作区之外、提权和密钥会被拒绝。工作区内的敏感命令由后台审查，不再询问你。审查会读取当前对话的简短摘录。
+    approval-command-auto-scope: AIRI 会在封闭策略下的 30 分钟内审批 {workspace} 里的 Shell 命令。工作区之外、提权和密钥会被拒绝。当前 Settings 中的 Consciousness 模型会收到首条与近期用户消息、近期工具名称和参数摘要。AIRI 会在审查前脱敏已知凭据字段和敏感路径。审查卡片和规则不能扩大此范围。
     approval-command-auto-allow: 允许命令自动审批
     approval-command-full-confirm: 允许此会话完全使用命令？
     approval-command-full-scope: AIRI 可以用你的系统权限运行本地 Shell 命令。询问模式会在每条命令前确认。
     approval-command-full-allow: 允许命令完全授权
     approval-computer-use-auto-confirm: 允许此会话自动审批 Computer Use？
-    approval-computer-use-auto-scope: AIRI 会在 30 分钟内只审批 {app} 内的更改。其他应用、密码管理器、钱包、剪贴板和密钥会被拒绝。带名称的点击、输入和快捷键由后台审查，不再询问你。审查会读取当前对话的简短摘录。
+    approval-computer-use-auto-scope: AIRI 会在封闭策略下的 30 分钟内只审批 {app} 内的更改。其他应用、密码管理器、钱包、剪贴板和密钥会被拒绝。当前 Settings 中的 Consciousness 模型会收到首条与近期用户消息、近期工具名称和参数摘要。AIRI 会在审查前脱敏已知凭据字段和敏感路径。审查卡片和规则不能扩大此范围。
     approval-computer-use-auto-allow: 允许 Computer Use 自动审批
     approval-computer-use-full-confirm: 允许此会话完全使用 Computer Use？
     approval-computer-use-full-scope: AIRI 可以通过 Computer Use 更改桌面、应用和输入。询问模式会在每次更改前确认。

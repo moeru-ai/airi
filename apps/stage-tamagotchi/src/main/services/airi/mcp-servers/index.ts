@@ -110,8 +110,8 @@ export interface McpManager {
   readBundledTerminalCwd: () => Promise<string | undefined>
   /** Reads the bundled Desktop foreground application for Computer Use Auto. */
   readBundledForeground: () => Promise<{ appName: string, windowTitle?: string } | undefined>
-  /** Reads one grounding label for a desktop click target id. */
-  readGroundingCandidateLabel: (candidateId: string) => Promise<string | undefined>
+  /** Reads one grounding target and its snapshot identity for a desktop click target id. */
+  readGroundingCandidate: (candidateId: string) => Promise<{ label: string, snapshotId: string } | undefined>
 }
 
 const toolNameSeparator = '::'
@@ -588,8 +588,12 @@ export function createMcpManager(terminalApproval?: TerminalApprovalOptions): Mc
             ? actionRecord.input as Record<string, unknown>
             : undefined
           let targetLabel: string | undefined
-          if (actionKind === 'desktop_click_target' && typeof actionInput?.candidateId === 'string')
-            targetLabel = await readGroundingCandidateLabel(actionInput.candidateId)
+          let groundingSnapshotId: string | undefined
+          if (actionKind === 'desktop_click_target' && typeof actionInput?.candidateId === 'string') {
+            const groundingCandidate = await readGroundingCandidate(actionInput.candidateId)
+            targetLabel = groundingCandidate?.label
+            groundingSnapshotId = groundingCandidate?.snapshotId
+          }
           const decision = decideComputerUseAuto({
             frozenAppName: autoGrant?.frozenAppName ?? '',
             actionKind,
@@ -597,13 +601,14 @@ export function createMcpManager(terminalApproval?: TerminalApprovalOptions): Mc
             windowTitle: typeof context?.windowTitle === 'string' ? context.windowTitle : undefined,
             contextAvailable: context?.available === true,
             targetLabel,
+            groundingSnapshotId,
             action: actionRecord ? { kind: actionKind, input: actionInput } : undefined,
           })
           const verdict = await consultAuto({
             decision,
             signal: autoGrant?.signal ?? AbortSignal.abort(),
             sessionId: attribution.sessionId,
-            cacheScope: attribution.turnId,
+            cacheScope: `${attribution.turnId ?? ''}\0${pendingActionId}`,
             timeoutMs: terminalApproval.reviewTimeoutMs,
             cacheGet: key => terminalApproval.actions.cachedReview('computer_use', attribution.sessionId, senderWebContentsId, key),
             cacheSet: (key, value) => terminalApproval.actions.rememberReview('computer_use', attribution.sessionId, senderWebContentsId, key, value),
@@ -851,20 +856,22 @@ export function createMcpManager(terminalApproval?: TerminalApprovalOptions): Mc
     }
   }
 
-  async function readGroundingCandidateLabel(candidateId: string): Promise<string | undefined> {
+  async function readGroundingCandidate(candidateId: string): Promise<{ label: string, snapshotId: string } | undefined> {
     const runState = await readDesktopRunState()
     const snapshot = runState?.lastGroundingSnapshot
     if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot))
       return undefined
-    const candidates = (snapshot as { targetCandidates?: unknown }).targetCandidates
-    if (!Array.isArray(candidates))
+    const snapshotRecord = snapshot as Record<string, unknown>
+    const candidates = snapshotRecord.targetCandidates
+    const snapshotId = typeof snapshotRecord.snapshotId === 'string' ? snapshotRecord.snapshotId : ''
+    if (!snapshotId.trim() || !Array.isArray(candidates))
       return undefined
     for (const candidate of candidates) {
       if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate))
         continue
       const record = candidate as Record<string, unknown>
       if (record.id === candidateId && typeof record.label === 'string' && record.label.trim().length > 0)
-        return record.label
+        return { label: record.label, snapshotId }
     }
     return undefined
   }
@@ -882,7 +889,7 @@ export function createMcpManager(terminalApproval?: TerminalApprovalOptions): Mc
     testServer,
     readBundledTerminalCwd,
     readBundledForeground,
-    readGroundingCandidateLabel,
+    readGroundingCandidate,
   }
 }
 
