@@ -1,4 +1,3 @@
-import type { TwitterService } from '../../types/services'
 import type { Context } from '../browser/context'
 import type { Tweet } from './tweet'
 
@@ -18,7 +17,7 @@ export interface TimelineOptions {
   limit?: number
 }
 
-export function useTwitterTimelineServices(ctx: Context): TwitterService {
+export function useTwitterTimelineServices(ctx: Context) {
   async function getTimeline(options: TimelineOptions = {}): Promise<Tweet[]> {
     try {
       logger.timeline.withFields({ options }).log('Fetching timeline')

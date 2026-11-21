@@ -329,21 +329,6 @@
       "count": 2
     }
   },
-  "integrations/twitter-services/src/adapters/mcp-adapter.ts": {
-    "ts/no-explicit-any": {
-      "count": 2
-    }
-  },
-  "integrations/twitter-services/src/types/services.ts": {
-    "ts/no-explicit-any": {
-      "count": 2
-    }
-  },
-  "integrations/twitter-services/src/utils/error.ts": {
-    "ts/no-explicit-any": {
-      "count": 2
-    }
-  },
   "packages/plugin-sdk/src/channels/index.ts": {
     "ts/no-explicit-any": {
       "count": 6

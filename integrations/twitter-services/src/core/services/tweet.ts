@@ -1,4 +1,3 @@
-import type { TwitterService } from '../../types/services'
 import type { Context } from '../browser/context'
 
 import { TWITTER_BASE_URL, TWITTER_HOME_URL, TWITTER_SEARCH_URL } from '../../constants'
@@ -49,7 +48,7 @@ export interface TweetDetail extends Tweet {
   quotedTweet?: Tweet
 }
 
-export function useTwitterTweetServices(ctx: Context): TwitterService {
+export function useTwitterTweetServices(ctx: Context) {
   /**
    * Searches for tweets based on the provided query and options
    */

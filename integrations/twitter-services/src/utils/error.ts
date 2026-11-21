@@ -24,8 +24,8 @@ export function errorToMessage(error: unknown, fallbackMessage = 'Unknown error'
   // Handle objects with message property
   if (typeof error === 'object') {
     // Check if it has a message property
-    if ('message' in error && typeof (error as any).message === 'string') {
-      return (error as any).message
+    if ('message' in error && typeof error.message === 'string') {
+      return error.message
     }
 
     // Try to convert object to string
