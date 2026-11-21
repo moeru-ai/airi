@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { providerMinimaxSpeech } from './index'
 
 const listVoices = providerMinimaxSpeech.extraMethods!.listVoices!
+const designVoice = providerMinimaxSpeech.extraMethods!.designVoice!
 
 const config = { apiKey: 'sk-test', baseUrl: 'https://api.minimax.io' }
 
@@ -210,6 +211,66 @@ describe('providerMinimaxSpeech voice catalog', () => {
     vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => voiceResponse(INVALID_KEY_PAYLOAD)))
 
     await expect(readVoices()).rejects.toThrow('invalid api key')
+  })
+})
+
+describe('providerMinimaxSpeech voice design', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it.each([
+    ['https://api.minimax.io', 'https://api.minimax.io/v1/voice_design'],
+    ['https://api.minimaxi.com', 'https://api.minimaxi.com/v1/voice_design'],
+  ])('sends a design request to %s', async (baseUrl, expectedUrl) => {
+    const fetchMock = vi.fn<typeof fetch>(async () => voiceResponse({
+      voice_id: 'custom-voice-1',
+      base_resp: { status_code: 0, status_msg: 'success' },
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const providerConfig = { apiKey: 'sk-test', baseUrl }
+    const provider = await providerMinimaxSpeech.createProvider(providerConfig)
+    const result = await designVoice(providerConfig, provider, {
+      prompt: 'A warm and calm narrator',
+      voiceId: 'custom-voice-1',
+    })
+
+    expect(result).toEqual({ voiceId: 'custom-voice-1' })
+    expect(fetchMock).toHaveBeenCalledWith(expectedUrl, expect.objectContaining({
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer sk-test',
+      },
+      body: JSON.stringify({ prompt: 'A warm and calm narrator', voice_id: 'custom-voice-1' }),
+    }))
+  })
+
+  it('reports a refusal from the voice design endpoint', async () => {
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => voiceResponse({
+      base_resp: { status_code: 1004, status_msg: 'invalid prompt' },
+    })))
+
+    const provider = await providerMinimaxSpeech.createProvider(config)
+
+    await expect(designVoice(config, provider, {
+      prompt: 'prompt',
+      voiceId: 'custom-voice-1',
+    })).rejects.toThrow('invalid prompt')
+  })
+
+  it('rejects a response without a voice ID', async () => {
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => voiceResponse({
+      base_resp: { status_code: 0, status_msg: 'success' },
+    })))
+
+    const provider = await providerMinimaxSpeech.createProvider(config)
+
+    await expect(designVoice(config, provider, {
+      prompt: 'prompt',
+      voiceId: 'custom-voice-1',
+    })).rejects.toThrow('response is missing voice_id')
   })
 })
 
