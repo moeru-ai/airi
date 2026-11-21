@@ -1,3 +1,11 @@
+import type { Bot } from 'mineflayer'
+import type { Item as InventoryItem } from 'prismarine-item'
+
+import type { PerceptionContext } from '../types'
+
+import prismarineItem from 'prismarine-item'
+import prismarineRegistry from 'prismarine-registry'
+
 import { describe, expect, it } from 'vitest'
 
 import { lowHealthEvent } from './low-health'
@@ -5,13 +13,23 @@ import { lowHealthEvent } from './low-health'
 const filter = lowHealthEvent.mineflayer.filter!
 const extract = lowHealthEvent.mineflayer.extract
 
-/** Perception-context stub: drives the low-health filter with a health value, inventory, and pvp state. */
-function ctx(health: number, items: Array<{ name: string, foodPoints?: number }> = [], pvpTarget: unknown = null): any {
-  return { bot: { health, inventory: { items: () => items }, pvp: { target: pvpTarget } } }
-}
+const registry = prismarineRegistry('1.21.4')
+const Item = prismarineItem(registry)
+const bread = new Item(registry.itemsByName.bread.id, 1)
+const rawBeef = new Item(registry.itemsByName.beef.id, 1)
 
-const bread = { name: 'bread', foodPoints: 5 }
-const rawBeef = { name: 'beef', foodPoints: 3 }
+function ctx(health: number, items: InventoryItem[] = [], pvpTarget: unknown = null): PerceptionContext {
+  const bot = { registry, health, inventory: { items: () => items }, pvp: { target: pvpTarget } } as Bot
+  return {
+    bot,
+    selfUsername: 'Airi',
+    maxDistance: 32,
+    distanceTo: () => null,
+    distanceToPos: () => null,
+    isSelf: () => false,
+    entityId: () => '',
+  }
+}
 
 describe('low_health perception event', () => {
   it('fires once when entering critical health with no ready food, then re-arms above threshold', () => {

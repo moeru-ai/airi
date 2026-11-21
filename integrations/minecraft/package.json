@@ -49,6 +49,7 @@
     "zod-to-json-schema": "catalog:"
   },
   "devDependencies": {
-    "@types/ws": "catalog:"
+    "@types/ws": "catalog:",
+    "prismarine-registry": "catalog:"
   }
 }

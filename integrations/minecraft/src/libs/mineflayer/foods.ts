@@ -22,13 +22,6 @@ const RAW_TO_COOKED: Record<string, string> = {
   kelp: 'dried_kelp',
 }
 
-/** prismarine-item enriches inventory items with `foodPoints` at runtime; it is absent from its types. */
-type MaybeFood = Item & { foodPoints?: number }
-
-function foodPointsOf(item: Item): number {
-  return (item as MaybeFood).foodPoints ?? 0
-}
-
 /**
  * The cooked item id a raw food smelts into, or null if the item is not a raw cookable food.
  *
@@ -55,7 +48,7 @@ export function isCookableToHigherSaturation(itemName: string): boolean {
  *   needs to know whether the reflex can handle recovery on its own.
  *
  * Expects:
- * - `bot` is a live mineflayer Bot whose inventory items carry runtime `foodPoints`.
+ * - `bot` is a live mineflayer Bot with version-matched food data in its registry.
  *
  * Returns:
  * - The highest-`foodPoints` edible item that is NOT a raw cookable food, or null when the only food
@@ -66,7 +59,7 @@ export function selectReadyFood(bot: Bot): Item | null {
   let best: Item | null = null
   let bestPoints = -1
   for (const item of bot.inventory.items()) {
-    const points = foodPointsOf(item)
+    const points = bot.registry.foodsByName[item.name]?.foodPoints ?? 0
     if (points <= 0)
       continue
     if (isCookableToHigherSaturation(item.name))
