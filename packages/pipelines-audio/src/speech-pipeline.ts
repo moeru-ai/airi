@@ -74,8 +74,18 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
   const pending: IntentState[] = []
   let activeIntent: IntentState | null = null
   const playbackWaiters = new Map<string, () => void>()
+  /** Runs once when a clip starts, or when it settles without a start. Leading controls of the clip use it. */
+  const playbackStarts = new Map<string, () => void>()
+
+  function startPlayback(itemId: string) {
+    const start = playbackStarts.get(itemId)
+    playbackStarts.delete(itemId)
+    start?.()
+  }
 
   function resolvePlayback(itemId: string) {
+    startPlayback(itemId)
+
     const resolve = playbackWaiters.get(itemId)
     if (!resolve)
       return
@@ -84,7 +94,10 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
     resolve()
   }
 
-  options.playback.onStart(event => context.emit(speechPipelineEventMap.onPlaybackStart, event))
+  options.playback.onStart((event) => {
+    startPlayback(event.item.id)
+    context.emit(speechPipelineEventMap.onPlaybackStart, event)
+  })
   options.playback.onEnd((event) => {
     context.emit(speechPipelineEventMap.onPlaybackEnd, event)
     resolvePlayback(event.item.id)
@@ -98,18 +111,32 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
     resolvePlayback(event.item.id)
   })
 
-  function waitForPlayback(item: PlaybackItem<TAudio>) {
+  function waitForPlayback(item: PlaybackItem<TAudio>, onStart: () => void) {
     return new Promise<void>((resolve) => {
       playbackWaiters.set(item.id, resolve)
+      playbackStarts.set(item.id, onStart)
       try {
         options.playback.schedule(item)
       }
       catch (err) {
-        playbackWaiters.delete(item.id)
         logger.warn('Playback schedule failed:', err)
-        resolve()
+        resolvePlayback(item.id)
       }
     })
+  }
+
+  /** A clip and a special token carry the same fields, so a control emits as the segment that produced it. */
+  function toControl(source: Omit<TextSegment, 'reason'>): TextSegment {
+    return {
+      turnId: source.turnId,
+      streamId: source.streamId,
+      intentId: source.intentId,
+      segmentId: source.segmentId,
+      text: source.text,
+      special: source.special,
+      reason: 'special',
+      createdAt: source.createdAt,
+    }
   }
 
   function enqueueIntent(intent: IntentState) {
@@ -131,25 +158,34 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
 
     const tokenStream = intent.stream
     const segmentStream = segmenter(tokenStream, { streamId: intent.streamId, intentId: intent.intentId, turnId: intent.turnId })
-    const completedRequests = new Map<number, TtsResult<TAudio> | null>()
+    // Text and special tokens share one sequence, so a control keeps its place between clips.
+    // A clip step carries the token after its text. A control step is a token with no text before it.
+    // `audio` is null when the text has no audio, for example muted or failed TTS.
+    const completedSteps = new Map<number, { type: 'clip', request: TtsRequest, audio: TAudio | null } | { type: 'control', segment: TextSegment }>()
     const inFlightTasks = new Set<Promise<void>>()
-    let nextRequestSequence = 0
+    let nextSequence = 0
     let nextSequenceToSchedule = 0
+    // Controls wait for the next clip to start, so an expression shows with the speech and not while TTS runs.
+    // Issue: https://github.com/moeru-ai/airi/issues/3167
+    const heldControls: TextSegment[] = []
 
-    function enqueueSpecial(segment: TextSegment) {
+    function emitControls(controls: TextSegment[]) {
+      if (intent.canceled || intent.controller.signal.aborted)
+        return
+
+      for (const control of controls)
+        context.emit(speechPipelineEventMap.onSpecial, control)
+    }
+
+    function enqueueControls(controls: TextSegment[]) {
       timeline.enqueue({
-        id: `special:${segment.segmentId}`,
+        id: `special:${controls[0]!.segmentId}`,
         track: 'speech',
-        run() {
-          if (intent.canceled || intent.controller.signal.aborted)
-            return
-
-          context.emit(speechPipelineEventMap.onSpecial, segment)
-        },
+        run: () => emitControls(controls),
       })
     }
 
-    function enqueuePlayback(item: PlaybackItem<TAudio>) {
+    function enqueuePlayback(item: PlaybackItem<TAudio>, leadingControls: TextSegment[]) {
       timeline.enqueue({
         id: `playback:${item.id}`,
         track: 'speech',
@@ -157,51 +193,56 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
           if (intent.canceled || intent.controller.signal.aborted)
             return
 
-          await waitForPlayback(item)
+          await waitForPlayback(item, () => emitControls(leadingControls))
 
-          if (intent.canceled || intent.controller.signal.aborted)
-            return
-
-          if (item.special) {
-            context.emit(speechPipelineEventMap.onSpecial, {
-              turnId: item.turnId,
-              streamId: item.streamId,
-              intentId: item.intentId,
-              segmentId: item.segmentId,
-              text: item.text,
-              special: item.special,
-              reason: 'special',
-              createdAt: item.createdAt,
-            })
-          }
+          if (item.special)
+            emitControls([toControl(item)])
         },
       })
     }
 
-    function scheduleCompletedRequests() {
-      while (completedRequests.has(nextSequenceToSchedule)) {
-        const completedRequest = completedRequests.get(nextSequenceToSchedule) ?? null
-        completedRequests.delete(nextSequenceToSchedule)
+    function scheduleCompletedSteps() {
+      while (completedSteps.has(nextSequenceToSchedule)) {
+        const step = completedSteps.get(nextSequenceToSchedule)!
+        completedSteps.delete(nextSequenceToSchedule)
+        nextSequenceToSchedule += 1
 
-        if (completedRequest) {
-          enqueuePlayback({
-            id: createId('playback'),
-            turnId: completedRequest.turnId,
-            streamId: completedRequest.streamId,
-            intentId: completedRequest.intentId,
-            segmentId: completedRequest.segmentId,
-            sequence: completedRequest.sequence,
-            ownerId: intent.ownerId,
-            priority: intent.priority,
-            text: completedRequest.text,
-            special: completedRequest.special,
-            audio: completedRequest.audio,
-            createdAt: Date.now(),
-          })
+        if (step.type === 'control') {
+          heldControls.push(step.segment)
+          continue
         }
 
-        nextSequenceToSchedule += 1
+        const { request, audio } = step
+        if (audio === null) {
+          // No clip plays for this text, so the held controls and its own control happen at this point of the timeline.
+          const controls = heldControls.splice(0)
+          if (request.special)
+            controls.push(toControl(request))
+          if (controls.length > 0)
+            enqueueControls(controls)
+          continue
+        }
+
+        enqueuePlayback({
+          id: createId('playback'),
+          turnId: request.turnId,
+          streamId: request.streamId,
+          intentId: request.intentId,
+          segmentId: request.segmentId,
+          sequence: request.sequence,
+          ownerId: intent.ownerId,
+          priority: intent.priority,
+          text: request.text,
+          special: request.special,
+          audio,
+          createdAt: Date.now(),
+        }, heldControls.splice(0))
       }
+    }
+
+    function completeRequest(request: TtsRequest, audio: TAudio | null) {
+      completedSteps.set(request.sequence, { type: 'clip', request, audio })
+      scheduleCompletedSteps()
     }
 
     function createTtsTask(request: TtsRequest) {
@@ -216,15 +257,8 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
             return
         }
 
-        if (intent.controller.signal.aborted) {
-          completedRequests.set(request.sequence, null)
-          scheduleCompletedRequests()
-          return
-        }
-
-        if (!audio) {
-          completedRequests.set(request.sequence, null)
-          scheduleCompletedRequests()
+        if (intent.controller.signal.aborted || !audio) {
+          completeRequest(request, null)
           return
         }
 
@@ -241,8 +275,7 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
         }
 
         context.emit(speechPipelineEventMap.onTtsResult, ttsResult)
-        completedRequests.set(request.sequence, ttsResult)
-        scheduleCompletedRequests()
+        completeRequest(request, audio)
       })()
         .finally(() => {
           inFlightTasks.delete(task)
@@ -273,7 +306,8 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
         context.emit(speechPipelineEventMap.onSegment, value)
 
         if (value.text === '' && value.special) {
-          enqueueSpecial(value)
+          completedSteps.set(nextSequence++, { type: 'control', segment: value })
+          scheduleCompletedSteps()
           continue
         }
 
@@ -282,7 +316,7 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
           streamId: value.streamId,
           intentId: value.intentId,
           segmentId: value.segmentId,
-          sequence: nextRequestSequence++,
+          sequence: nextSequence++,
           text: value.text,
           special: value.special,
           reason: value.reason,
@@ -295,7 +329,10 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
       }
 
       await Promise.allSettled(inFlightTasks)
-      scheduleCompletedRequests()
+      scheduleCompletedSteps()
+      // No clip follows the last controls, so they happen after the last clip ends.
+      if (heldControls.length > 0)
+        enqueueControls(heldControls.splice(0))
       await timeline.flush('speech')
       reader.releaseLock()
     }

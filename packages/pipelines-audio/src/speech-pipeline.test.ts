@@ -51,27 +51,63 @@ function createSegmenter(texts: string[]) {
   }
 }
 
+/** Emits one segment for each part. A part with a special token and no text is a control between two clips. */
+function createSegments(parts: Array<{ text: string, special?: string }>) {
+  return (_tokens: ReadableStream<TextToken>, meta: { streamId: string, intentId: string, turnId?: string }) => {
+    return new ReadableStream<TextSegment>({
+      start(controller) {
+        parts.forEach((part, index) => controller.enqueue({
+          turnId: meta.turnId,
+          streamId: meta.streamId,
+          intentId: meta.intentId,
+          segmentId: `segment:${index}`,
+          text: part.text,
+          special: part.special ?? null,
+          reason: part.special ? 'special' : 'flush',
+          createdAt: Date.now(),
+        }))
+        controller.close()
+      },
+    })
+  }
+}
+
 function createPlaybackSpy(options?: { autoEnd?: boolean }) {
   const scheduled: Array<PlaybackItem<string>> = []
+  const startListeners: Array<(event: { item: PlaybackItem<string>, startedAt: number }) => void> = []
   const endListeners: Array<(event: { item: PlaybackItem<string>, endedAt: number }) => void> = []
   const autoEnd = options?.autoEnd ?? true
 
+  function start(item: PlaybackItem<string>) {
+    for (const listener of startListeners)
+      listener({ item, startedAt: Date.now() })
+  }
+
+  function end(item: PlaybackItem<string>) {
+    for (const listener of endListeners)
+      listener({ item, endedAt: Date.now() })
+  }
+
   return {
     scheduled,
-    end(item: PlaybackItem<string>) {
-      for (const listener of endListeners)
-        listener({ item, endedAt: Date.now() })
-    },
+    start,
+    end,
     playback: {
       schedule(item: PlaybackItem<string>) {
         scheduled.push(item)
-        if (autoEnd)
-          queueMicrotask(() => endListeners.forEach(listener => listener({ item, endedAt: Date.now() })))
+        if (autoEnd) {
+          queueMicrotask(() => {
+            start(item)
+            end(item)
+          })
+        }
       },
       stopAll: vi.fn(),
       stopByIntent: vi.fn(),
       stopByOwner: vi.fn(),
-      onStart: vi.fn(),
+      onStart(listener: (event: { item: PlaybackItem<string>, startedAt: number }) => void) {
+        startListeners.push(listener)
+      },
       onEnd(listener: (event: { item: PlaybackItem<string>, endedAt: number }) => void) {
         endListeners.push(listener)
       },
@@ -258,6 +294,156 @@ describe('createSpeechPipeline', () => {
       'special:<|CALL ["plugin.action"]|>',
       'turn:turn-1',
     ])
+  })
+
+  // https://github.com/moeru-ai/airi/issues/3167
+  it('issue #3167: dispatches a leading special control when the first clip starts', async () => {
+    const { scheduled, playback, start } = createPlaybackSpy({ autoEnd: false })
+    const synthesis = deferred<string>()
+    const events: string[] = []
+
+    const pipeline = createSpeechPipeline<string>({
+      segmenter: createSegments([
+        { text: '', special: '<|ACT {"emotion":"happy"}|>' },
+        { text: 'Hello!' },
+      ]),
+      playback,
+      tts: () => synthesis.promise,
+    })
+    pipeline.on('onSpecial', segment => events.push(`special:${segment.special}`))
+    pipeline.on('onPlaybackStart', ({ item }) => events.push(`start:${item.text}`))
+
+    pipeline.openIntent({ turnId: 'turn-1' }).end()
+    await delay(0)
+
+    expect(events).toEqual([])
+
+    synthesis.resolve('Hello!')
+    await delay(0)
+
+    expect(scheduled.map(item => item.text)).toEqual(['Hello!'])
+    expect(events).toEqual([])
+
+    start(scheduled[0]!)
+
+    expect(events).toEqual([
+      'special:<|ACT {"emotion":"happy"}|>',
+      'start:Hello!',
+    ])
+  })
+
+  it('dispatches a special control between clips when the next clip starts', async () => {
+    const { scheduled, playback, start, end } = createPlaybackSpy({ autoEnd: false })
+    const synthesis = new Map([['before', deferred<string>()], ['after', deferred<string>()]])
+    const events: string[] = []
+
+    const pipeline = createSpeechPipeline<string>({
+      segmenter: createSegments([
+        { text: 'before' },
+        { text: '', special: '<|ACT {"emotion":"sad"}|>' },
+        { text: 'after' },
+      ]),
+      playback,
+      tts: request => synthesis.get(request.text)!.promise,
+    })
+    pipeline.on('onSpecial', segment => events.push(`special:${segment.special}`))
+
+    pipeline.openIntent({ turnId: 'turn-1' }).end()
+    await delay(0)
+
+    expect(events).toEqual([])
+
+    synthesis.get('before')!.resolve('before')
+    await delay(0)
+    start(scheduled[0]!)
+    end(scheduled[0]!)
+    await delay(0)
+
+    expect(events).toEqual([])
+
+    synthesis.get('after')!.resolve('after')
+    await delay(0)
+    start(scheduled[1]!)
+
+    expect(events).toEqual(['special:<|ACT {"emotion":"sad"}|>'])
+  })
+
+  it('dispatches special controls in order when the text after them has no audio', async () => {
+    const { playback } = createPlaybackSpy()
+    const events: string[] = []
+
+    const pipeline = createSpeechPipeline<string>({
+      segmenter: createSegments([
+        { text: '', special: '<|ACT {"emotion":"happy"}|>' },
+        { text: '', special: '<|DELAY:1|>' },
+        { text: 'Hello!', special: '<|ACT {"emotion":"think"}|>' },
+      ]),
+      playback,
+      tts: async () => null,
+    })
+    const intentFinished = new Promise<void>(resolve => pipeline.on('onIntentEnd', () => resolve()))
+    pipeline.on('onSpecial', segment => events.push(`special:${segment.special}`))
+
+    pipeline.openIntent({ turnId: 'turn-1' }).end()
+    await intentFinished
+
+    expect(events).toEqual([
+      'special:<|ACT {"emotion":"happy"}|>',
+      'special:<|DELAY:1|>',
+      'special:<|ACT {"emotion":"think"}|>',
+    ])
+  })
+
+  it('dispatches trailing special controls after the last clip ends', async () => {
+    const { scheduled, playback, start, end } = createPlaybackSpy({ autoEnd: false })
+    const events: string[] = []
+
+    const pipeline = createSpeechPipeline<string>({
+      segmenter: createSegments([
+        { text: 'Hello!' },
+        { text: '', special: '<|ACT {"emotion":"happy"}|>' },
+      ]),
+      playback,
+      tts: async request => request.text,
+    })
+    pipeline.on('onSpecial', segment => events.push(`special:${segment.special}`))
+
+    pipeline.openIntent({ turnId: 'turn-1' }).end()
+    await delay(0)
+    start(scheduled[0]!)
+
+    expect(events).toEqual([])
+
+    end(scheduled[0]!)
+    await delay(0)
+
+    expect(events).toEqual(['special:<|ACT {"emotion":"happy"}|>'])
+  })
+
+  it('drops held special controls when the intent is cancelled', async () => {
+    const { playback } = createPlaybackSpy()
+    const synthesis = deferred<string>()
+    const events: string[] = []
+
+    const pipeline = createSpeechPipeline<string>({
+      segmenter: createSegments([
+        { text: '', special: '<|ACT {"emotion":"happy"}|>' },
+        { text: 'Hello!' },
+      ]),
+      playback,
+      tts: () => synthesis.promise,
+    })
+    const intentCanceled = new Promise<void>(resolve => pipeline.on('onIntentCancel', () => resolve()))
+    pipeline.on('onSpecial', segment => events.push(`special:${segment.special}`))
+
+    const intent = pipeline.openIntent({ turnId: 'turn-1' })
+    intent.end()
+    await delay(0)
+    intent.cancel('interrupted')
+    synthesis.resolve('Hello!')
+    await intentCanceled
+
+    expect(events).toEqual([])
   })
 
   it('does not schedule queued timeline playback after the owning intent is cancelled', async () => {

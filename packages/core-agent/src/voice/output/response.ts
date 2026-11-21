@@ -96,8 +96,9 @@ export type SpeechOutputEvent
   }
   | {
     /**
-     * Playback reaches a special token, for example an expression marker. The chunker orders it after the audio
-     * before it. A streaming provider has no segments, so its special tokens arrive when the text is written.
+     * Playback reaches a special token, for example an expression marker. A token after text arrives when the audio of
+     * that text ends. A token with no text before it arrives when the next audio starts, or at the end without audio.
+     * A streaming provider has no segments, so its tokens arrive when the next audio part starts.
      */
     readonly type: 'token-special'
     readonly segmentId?: string
@@ -129,6 +130,11 @@ export class SpeechStream {
   private readonly controls: SpeechControl[] = []
   /** The spoken text of the last segment, for the language of a formula that starts the next one. */
   private spoken = ''
+  /**
+   * Special tokens for a streaming provider that wait for its next audio part. The provider does not tell which part
+   * speaks the text before a token, so a token can arrive one part early, but not before the speech starts.
+   */
+  private readonly heldSpecials: string[] = []
   readonly signal = this.abort.signal
   readonly done = this.completion.promise
 
@@ -297,6 +303,7 @@ export class SpeechStream {
           signal: this.signal,
           onStart: () => {
             started = true
+            this.releaseSpecials()
             this.response.emit({ type: 'playback-start', segmentId: clip.id, text: clip.text })
             this.output.onPlaybackStart?.(clip)
           },
@@ -314,6 +321,7 @@ export class SpeechStream {
         throw new Error('Speech provider completed before text input ended')
 
       await Promise.all(playing)
+      this.releaseSpecials()
       this.settle({ status: 'finished', value: undefined })
     }
     catch (cause) {
@@ -417,7 +425,7 @@ export class SpeechStream {
       this.intent!.writeLiteral(text)
   }
 
-  /** The chunker orders special tokens with the audio. Streaming providers handle them outside their text transport. */
+  /** The chunker orders special tokens with the audio. A streaming provider gets no tokens in its text, so they wait for its audio. */
   private deliverControl(control: SpeechControl) {
     if (control.type === 'flush') {
       this.intent?.writeFlush()
@@ -426,8 +434,17 @@ export class SpeechStream {
       this.intent.writeSpecial(control.value)
     }
     else {
-      this.response.emit({ type: 'token-special', special: control.value })
-      this.output.onSpecial?.(control.value)
+      this.heldSpecials.push(control.value)
+    }
+  }
+
+  private releaseSpecials() {
+    if (this.signal.aborted || this.response.signal.aborted)
+      return
+
+    for (const special of this.heldSpecials.splice(0)) {
+      this.response.emit({ type: 'token-special', special })
+      this.output.onSpecial?.(special)
     }
   }
 
