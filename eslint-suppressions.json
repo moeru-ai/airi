@@ -314,21 +314,6 @@
       "count": 3
     }
   },
-  "integrations/telegram-bot/src/bots/telegram/index.ts": {
-    "ts/no-explicit-any": {
-      "count": 1
-    }
-  },
-  "integrations/telegram-bot/src/index.ts": {
-    "ts/no-explicit-any": {
-      "count": 1
-    }
-  },
-  "integrations/telegram-bot/src/models/chat-completions-history.ts": {
-    "ts/no-explicit-any": {
-      "count": 2
-    }
-  },
   "integrations/twitter-services/src/adapters/mcp-adapter.ts": {
     "ts/no-explicit-any": {
       "count": 2
