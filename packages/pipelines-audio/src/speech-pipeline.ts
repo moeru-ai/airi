@@ -132,6 +132,8 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
     const tokenStream = intent.stream
     const segmentStream = segmenter(tokenStream, { streamId: intent.streamId, intentId: intent.intentId, turnId: intent.turnId })
     const completedRequests = new Map<number, TtsResult<TAudio> | null>()
+    // Special-only segments share the request sequence, so they wait for the speech before them.
+    const pendingSpecials = new Map<number, TextSegment>()
     const inFlightTasks = new Set<Promise<void>>()
     let nextRequestSequence = 0
     let nextSequenceToSchedule = 0
@@ -179,7 +181,15 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
     }
 
     function scheduleCompletedRequests() {
-      while (completedRequests.has(nextSequenceToSchedule)) {
+      while (completedRequests.has(nextSequenceToSchedule) || pendingSpecials.has(nextSequenceToSchedule)) {
+        const special = pendingSpecials.get(nextSequenceToSchedule)
+        if (special) {
+          pendingSpecials.delete(nextSequenceToSchedule)
+          enqueueSpecial(special)
+          nextSequenceToSchedule += 1
+          continue
+        }
+
         const completedRequest = completedRequests.get(nextSequenceToSchedule) ?? null
         completedRequests.delete(nextSequenceToSchedule)
 
@@ -273,7 +283,8 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
         context.emit(speechPipelineEventMap.onSegment, value)
 
         if (value.text === '' && value.special) {
-          enqueueSpecial(value)
+          pendingSpecials.set(nextRequestSequence++, value)
+          scheduleCompletedRequests()
           continue
         }
 

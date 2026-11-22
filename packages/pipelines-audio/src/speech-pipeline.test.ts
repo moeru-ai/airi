@@ -260,6 +260,62 @@ describe('createSpeechPipeline', () => {
     ])
   })
 
+  it('keeps a special control behind the preceding speech while its synthesis is still running', async () => {
+    // ROOT CAUSE:
+    //
+    // A special-only segment went onto the timeline as soon as the segmenter produced it,
+    // while the speech before it went onto the timeline only when its synthesis finished.
+    // A reply that streamed faster than the speech engine ran its expression markers first.
+    const { scheduled, playback, end } = createPlaybackSpy({ autoEnd: false })
+    const events: string[] = []
+    const synthesis = deferred<string>()
+
+    const pipeline = createSpeechPipeline<string>({
+      ttsMaxConcurrent: 2,
+      segmenter: (_tokens, meta) => new ReadableStream<TextSegment>({
+        start(controller) {
+          const segment = (index: number, text: string, special: string | null) => ({
+            turnId: meta.turnId,
+            streamId: meta.streamId,
+            intentId: meta.intentId,
+            segmentId: `segment:${index}`,
+            text,
+            special,
+            reason: special ? 'special' as const : 'flush' as const,
+            createdAt: Date.now(),
+          })
+          controller.enqueue(segment(0, 'before', null))
+          controller.enqueue(segment(1, '', '<|ACT {"emotion":"angry"}|>'))
+          controller.enqueue(segment(2, 'after', null))
+          controller.close()
+        },
+      }),
+      playback,
+      async tts(request) {
+        events.push(`tts:${request.text}`)
+        return request.text === 'before' ? synthesis.promise : request.text
+      },
+    })
+
+    pipeline.on('onSpecial', segment => events.push(`special:${segment.special}`))
+
+    const intent = pipeline.openIntent({ turnId: 'turn-1' })
+    intent.end()
+
+    await delay(0)
+    expect(events).toEqual(['tts:before', 'tts:after'])
+
+    synthesis.resolve('before')
+    await delay(0)
+    expect(scheduled.map(item => item.text)).toEqual(['before'])
+    expect(events).not.toContain('special:<|ACT {"emotion":"angry"}|>')
+
+    end(scheduled[0]!)
+    await delay(0)
+    expect(events.at(-1)).toBe('special:<|ACT {"emotion":"angry"}|>')
+    expect(scheduled.map(item => item.text)).toEqual(['before', 'after'])
+  })
+
   it('does not schedule queued timeline playback after the owning intent is cancelled', async () => {
     const { scheduled, playback, end } = createPlaybackSpy({ autoEnd: false })
 
