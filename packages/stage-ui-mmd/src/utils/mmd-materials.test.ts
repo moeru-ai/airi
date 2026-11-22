@@ -1,4 +1,4 @@
-import type { MMDMaterialDescriptor } from '@moeru/three-mmd/materials'
+import type { MMDMaterialParameters } from '@moeru/three-mmd/materials'
 
 import { MMDToonMaterial } from '@moeru/three-mmd/materials/toon'
 import {
@@ -22,25 +22,16 @@ import {
   setMMDMaterialGlow,
 } from './mmd-materials'
 
-function createDescriptor(name: string, opacity = 1): MMDMaterialDescriptor {
+function createDescriptor(name: string, opacity = 1): MMDMaterialParameters {
   return {
     ambient: new Color(0.1, 0.2, 0.3),
-    diffuse: new Color(0.4, 0.5, 0.6),
-    doubleSided: false,
-    fog: true,
-    isDefaultToonTexture: true,
+    color: new Color(0.4, 0.5, 0.6),
     name,
     opacity,
-    outline: {
-      alpha: 0.35,
-      color: new Color(0.1, 0.1, 0.1),
-      visible: true,
-      width: 0.01,
-    },
     shininess: 16,
     specular: new Color(0.2, 0.3, 0.4),
     toonMap: new Texture(),
-    toonMapFileName: 'toon01.bmp',
+    transparent: opacity < 1,
   }
 }
 

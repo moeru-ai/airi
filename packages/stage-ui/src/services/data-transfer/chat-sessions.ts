@@ -37,6 +37,12 @@ const chatSessionsSchema = v.strictObject({
       activeSessionId: v.string(),
       sessions: v.record(v.string(), chatSessionMetaSchema),
     })),
+    // An export carries the folders of the conversation list. An export without a folder has no field.
+    folders: v.optional(v.record(v.string(), v.strictObject({
+      id: v.string(),
+      name: v.string(),
+      createdAt: v.number(),
+    }))),
   }),
   sessions: v.record(v.string(), v.strictObject({
     meta: chatSessionMetaSchema,
