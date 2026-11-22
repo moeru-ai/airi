@@ -97,6 +97,13 @@ const EnvSchema = intersect([S3EnvironmentSchema, object({
   DB_POOL_MAX: optionalIntegerFromString(20, 'DB_POOL_MAX', 1),
 
   HOST: optional(string(), '0.0.0.0'),
+
+  // LiveKit media server for realtime calls. When one of the three is unset, the call access route stays
+  // mounted and returns 503 REALTIME_CALLS_DISABLED.
+  LIVEKIT_API_KEY: optional(string()),
+  LIVEKIT_API_SECRET: optional(string()),
+  // The WebSocket URL that clients connect to, for example wss://livekit.example.com.
+  LIVEKIT_URL: optional(string()),
   // Envelope-encryption master key for in-process LLM/TTS router (KTD-5).
   // Stored as base64-encoded 32 random bytes. Validator decodes + asserts the
   // 32-byte length at parse time so a misconfigured key fails the deploy
