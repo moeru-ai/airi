@@ -4,7 +4,7 @@ import type { SessionRow } from './session-row-model'
 
 import { errorMessageFrom } from '@moeru/std'
 import { useNow } from '@vueuse/core'
-import { intlFormatDistance } from 'date-fns'
+import { compareAsc, compareDesc, intlFormatDistance, max } from 'date-fns'
 import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -104,15 +104,15 @@ const folders = computed<readonly ChatSessionFolder[]>(() => {
   const owned = index.value?.userId === effectiveUserId.value ? index.value.folders : undefined
   if (!owned)
     return NO_FOLDERS
-  return Object.values(owned).sort((first, second) => first.createdAt - second.createdAt)
+  return Object.values(owned).sort((first, second) => compareAsc(first.createdAt, second.createdAt))
 })
 
 const rows = computed<SessionRow[]>(() => {
-  const referenceTime = Math.max(now.value.getTime(), Date.now())
+  const referenceTime = max([now.value, Date.now()])
   const folderIds = new Set(folders.value.map(folder => folder.id))
   return ownedSessions.value
     .map(meta => ({ meta, activityAt: activityAtFor(meta) }))
-    .sort((first, second) => second.activityAt - first.activityAt)
+    .sort((first, second) => compareDesc(first.activityAt, second.activityAt))
     .map(({ meta, activityAt }) => ({
       // A conversation is in a folder only while the folder exists. A deleted folder can stay on its record.
       meta: meta.folderId === undefined || folderIds.has(meta.folderId) ? meta : { ...meta, folderId: undefined },
