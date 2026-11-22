@@ -310,8 +310,8 @@ chat:
     selected: '{count} selected'
     empty-folder: '{folder} is empty. Use the button above to start a conversation here, or choose Move to folder in the menu of a conversation.'
     empty-folder-character: '{folder} has no conversations with {name} yet. Use the button above to start one.'
-    empty-archive: No archived conversations. Archived conversations stay here and are not deleted.
-    empty-archive-character: No archived conversations with {name}. Archived conversations stay here and are not deleted.
+    empty-archive: No archived conversations. Archived conversations stay here.
+    empty-archive-character: No archived conversations with {name}. Archived conversations stay here.
     empty-character: No conversations with {name} yet. Use the button above to start the first one.
     save-failed: The change could not be saved
 avatar-model-missing:
