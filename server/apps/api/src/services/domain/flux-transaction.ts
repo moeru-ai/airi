@@ -44,11 +44,6 @@ export function createFluxTransactionService(db: Database) {
       // Start one UTC day early to include local midnight in zones ahead of UTC.
       const scanStart = subDays(firstDay, 1)
 
-      // NOTICE:
-      // Read created_at as UTC before grouping fees by local day.
-      // The fee ledger stores UTC values in a timestamp without a time zone.
-      // Source: src/schemas/flux-usage.ts.
-      // Remove the UTC interpretation when created_at uses timestamptz.
       const localDay = sql<string>`to_char((${fluxUsage.createdAt} AT TIME ZONE 'UTC') AT TIME ZONE ${timeZone}, 'YYYY-MM-DD')`.as('local_date')
       const fluxRows = await db.select({
         date: localDay,
@@ -78,11 +73,6 @@ export function createFluxTransactionService(db: Database) {
     async getHistory(userId: string, limit: number, offset: number) {
       const metadata = schema.fluxTransaction.metadata
       const turnId = sql`${metadata}->>'turnId'`
-      // NOTICE:
-      // Combine old per-request speech debits into one row for each chat turn.
-      // Debits from 2026-04 to 2026-10 used 'tts_request'. Settlement now writes 'usage_settlement'.
-      // Source: 0040675e8 (#2491) added the grouping. 41335077e (#2783) stopped the 'tts_request' writes.
-      // Remove the grouping when the wallet history no longer needs to show those debits.
       const transactions = db.select({
         ...getTableColumns(schema.fluxTransaction),
         groupKey: sql`CASE WHEN
