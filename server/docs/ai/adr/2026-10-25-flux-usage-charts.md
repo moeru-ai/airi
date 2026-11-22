@@ -16,8 +16,8 @@ The activity chart reads `/usage/daily`. The balance card reads `/stats`, and tr
 The account page owns the usage overview. Its details link opens the separate `/settings/usage` history page.
 The charging page at `/settings/flux` reads neither usage endpoint. Its details link also opens `/settings/usage`.
 Wallet history metadata remains opaque JSON.
-The history client retains collapsible groups for consecutive TTS debits, request details, token counts, and model labels.
-The existing server query also groups TTS transactions by turn.
+The history client shows one row for each record, with its description and token counts.
+The server query groups old `tts_request` debits by chat turn. The client adds no grouping.
 `BillingService` owns ledger writes. The Flux transaction service exposes reads only.
 The usage components mount after session verification. Navigation and sign-out unmount them and cancel their requests.
 
