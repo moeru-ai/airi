@@ -117,7 +117,7 @@ docs:
     title: 上下文用量
     empty: 这个会话还没有向模型发送过请求。
     bytes: 序列化大小
-    bytes-note: 分类大小是序列化投影的 UTF-8 字节数，不是 token。
+    bytes-note: 彩条显示发给模型的数据量。
     text: 文本
     images: 图像
     framing: JSON 结构
@@ -130,13 +130,11 @@ docs:
     window-usage: 上下文窗口的 {percent}%，来自提供方回报的输入 token
     tokens: tokens
     reported-usage: 最近一次请求的回报用量
-    reported-note: 下面的 token 数是提供方对最近一次已完成请求的回报。它们不是由上面的字节估算出来的，也不是更早消息的累计。
     input: 输入
     output: 输出
     total: 合计
-    usage-unavailable: 这次请求没有提供方回报的 token 用量。
+    usage-unavailable: 提供方没有返回这次的 token 用量。
     budget: 压缩阈值
-    budget-note: 这是用来安排压缩的序列化字节阈值，不是上下文窗口已经占用了多少。
     expand: 展开内容
     collapse: 收起内容
     kind:

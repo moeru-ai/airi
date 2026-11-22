@@ -407,6 +407,8 @@ pages:
     login: Sign in
     logout: Sign out
     fluxBalance: Flux Balance
+    usage:
+      tab: Usage
     signedInAs: Signed in as
     profile:
       tab: Profile
@@ -637,7 +639,7 @@ pages:
         systemprompt: You will receive messages, answer to them like a real human.
         posthistoryinstructions: Remember to imitate an human.
       modules_info: >-
-        Configure modules for this character. Empty chat, vision, and speech fields inherit global settings. No Body Model disables the renderer.
+        Configure modules for this character. Empty chat, vision, and speech fields inherit global settings. No model leaves the stage empty.
       sections:
         chat: Chat
         vision: Vision
@@ -1512,7 +1514,7 @@ pages:
         placeholder: Paste a token from your Home Assistant profile
         description: Create one in your Home Assistant profile, under Security.
         saved: A token is stored. Leave the field empty to keep it. Enter the token again when the address changes.
-      note: The token stays on this device. It does not sync to your account.
+      note: The token stays on this device.
       actions:
         save: Save
         test: Test
@@ -1524,10 +1526,10 @@ pages:
         failed: 'Could not connect. {message}'
         rejected-token: Enter a Home Assistant access token.
         rejected-address: The address changed. Enter the access token for the new address.
-        failed-policy: The device list did not reach the window that runs the tools, so the address did not change. Try again.
-        failed-policy-edit: The change did not reach the window that runs the tools. The model still holds the list from before the change. Try again.
-        failed-policy-move: The address changed, but the device lists did not reach the window that runs the tools. Try again.
-        failed-policy-rollback: The save was refused. The device list did not reach the window that runs the tools, so the model reaches no device. Try again.
+        failed-policy: AIRI could not apply the device list, so the address did not change. Try again.
+        failed-policy-edit: The change did not take effect. The model still uses the earlier device list. Try again.
+        failed-policy-move: The address changed, but the device lists did not take effect. Try again.
+        failed-policy-rollback: The save was refused, and the device list did not take effect. The model now reaches no device. Try again.
       access:
         label: Device access
         description: Choose which devices AIRI reads and controls.
@@ -1718,7 +1720,7 @@ pages:
         approve: Approve once
         reject: Reject
         details: Full executor report
-        pending: Waiting for your approval. This command has not been authorized.
+        pending: Waiting for your approval.
         scope: This command can change files, start applications, and affect the desktop. Approval applies once to this exact operation.
         session: Session
         server: Server
@@ -1741,13 +1743,13 @@ pages:
           executed: Command finished. Review the requested result before continuing.
           failed: Command failed. Earlier effects can remain. Check the executor report before running another command.
           unknown: Result unknown. Earlier effects can remain. Check current state before repeating the command.
-          rejected: Rejected. This request did not dispatch a new command.
-          cancelled: Cancelled before dispatch. This request did not execute.
-          expired: Approval expired before dispatch. This request did not execute.
+          rejected: Rejected.
+          cancelled: Cancelled before the command ran.
+          expired: The approval expired before the command ran.
       description: Configure MCP servers and bring their tools into AIRI.
       config-path: Config file
       runtime-title: Runtime status
-      empty: No MCP servers yet — click "Add server" below to create one, or paste a config via "Edit JSON".
+      empty: No MCP servers yet. Click "Add server" below to create one, or paste a config in "Edit JSON".
       error-title: Oops
       success-title: Done!
       existing:
@@ -1756,7 +1758,7 @@ pages:
         empty: Nothing here yet. Add one below!
       add:
         title: New
-        description: "Fill in a new server, then click \"Save and restart\" — it'll move into \"Configured\" above."
+        description: 'Fill in a new server, then click "Save and restart". It then moves to "Configured" above.'
         pending-badge: Unsaved
       status:
         unknown: not loaded
@@ -1828,7 +1830,7 @@ pages:
         pick-server-label: Server
         no-servers: Nothing to test yet
         no-server-selected: Pick a server first.
-        server-disabled: '"{name}" is disabled — enable it on the card first.'
+        server-disabled: '"{name}" is disabled. Enable it on its card first.'
         disabled-suffix: disabled
         untitled: untitled
         running: Testing…
@@ -1836,11 +1838,11 @@ pages:
         failure: Connection failed after {ms}ms
       errors:
         empty-identifier: Server # {index} is missing an identifier.
-        duplicate-identifier: Identifier "{name}" is used more than once — names need to be unique.
+        duplicate-identifier: Identifier "{name}" is used more than once. Each server needs its own name.
         empty-command: '"{name}" is missing a command.'
         empty-url: '"{name}" is missing a URL.'
         invalid-url: '"{name}" needs an absolute http or https URL.'
-        invalid-shape: That doesn't look like a valid mcp.json — the root needs an "mcpServers" field.
+        invalid-shape: mcp.json needs an "mcpServers" field at its root.
       messages:
         opened: Opened {path} in your file manager
         json-applied: JSON applied to the form. Click "Save and restart" to persist it to disk.
@@ -1872,7 +1874,32 @@ pages:
       empty: No transaction records yet.
       loadMore: Load More
       delayHint: Usage records may be delayed by up to 1 minute
-      ttsRequests: requests
+      tokenCount: '{prompt}+{completion} tokens'
+    usage:
+      title: Flux activity
+      details: View detailed usage
+      loadError: Failed to load usage data. Try again.
+      retry: Retry
+      signIn: Sign in to view your usage records
+      empty: No usage yet.
+      fluxAmount: '{amount} Flux'
+      viewLabel: Activity view
+      chartLabel: Flux activity for the last 365 days
+      keyboardHint: Use the arrow keys to explore usage. Home and End select the first and last period. Escape hides the details.
+      throughDate: 'Through {date}'
+      views:
+        daily: Daily
+        weekly: Weekly
+        cumulative: Cumulative
+      labels:
+        daily: Daily Flux usage
+        weekly: Weekly Flux usage
+        cumulative: Cumulative Flux usage
+      summary:
+        peakFlux: Peak daily Flux
+        flux: Flux used
+        longestStreak: Longest streak
+        currentStreak: Current streak
     packages:
       title: Flux top-up packs
       buy: Charge
@@ -2009,12 +2036,10 @@ pages:
                   openai-compatible-check-connectivity:
                     label: Extra configuration needed for Ollama
                     content: >-
-                      Sorry to hear that Connectivity check failed for Ollama.
-                      Don't worry, for Ollama instances, extra configuration is
-                      needed for making it pass for Ollama. You need to set
-                      <code>OLLAMA_HOST</code> explicitly when start the Ollama
-                      application or Ollama CLI server, for detailed
-                      information, check <a
+                      The connectivity check for Ollama failed. Ollama needs
+                      one more setting: set <code>OLLAMA_HOST</code> when you
+                      start the Ollama app or the Ollama CLI server. For
+                      details, see the <a
                       href="https://airi.moeru.ai/docs/en/docs/manual/integrations/providers/chat/ollama">Ollama
                       integration guide</a>.
     common:
@@ -2634,13 +2659,13 @@ pages:
         account: Available to your account
       features:
         conversation_compact:
-          title: Conversation Compact
-          description: Off by default. Summarize older observations while retaining exact tool receipts. Limits measure bytes, not the model token window.
+          title: Conversation compaction
+          description: Off by default. When a conversation gets long, AIRI summarizes its older replies and images.
           mode:
-            title: Scheduling
-            description: Turning this experiment off discards pending summaries. The hard request byte limit stays active.
+            title: When to summarize
+            description: Turning this off drops the summaries that are not ready yet.
             synchronous: 'Synchronous: wait before the next request'
-            background: 'Background: continue below the hard byte limit'
+            background: 'Background: summarize while you chat, and wait only at the size limit'
         fullscreen_workspace:
           title: Fullscreen workspace
           description: Open settings and the chat in a workspace that covers the screen, with the character on the left. Off by default.
@@ -2737,7 +2762,7 @@ pages:
                   bypassed: Not checked
               tool-payloads-as-json:
                 title: Show tool data as JSON
-                description: Show the arguments and results of chat tool calls as a JSON tree, not as formatted fields. Cards in replies also offer their raw data.
+                description: Show the arguments and results of chat tool calls as a JSON tree. Cards in replies also offer their raw data.
               plugin-host:
                 actions:
                   enable-and-load: Enable and Load

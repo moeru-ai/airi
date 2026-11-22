@@ -99,7 +99,7 @@ export class TtsUpstreamResponseError extends Error {
  * `./index.ts` — the union is intentionally tight so unknown ids fail at the
  * type level (router config validation handles runtime).
  */
-export type TtsAdapterId = 'azure' | 'dashscope-cosyvoice' | 'stepfun' | 'volcengine'
+export type TtsAdapterId = 'azure' | 'dashscope-cosyvoice' | 'fishaudio' | 'stepfun' | 'volcengine'
 
 /**
  * Per-call context for {@link TtsAdapter.getVoiceCatalog}.

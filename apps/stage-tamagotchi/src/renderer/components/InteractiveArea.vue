@@ -11,7 +11,7 @@ import { errorMessageFrom } from '@moeru/std'
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { useChatInterruption } from '@proj-airi/stage-layouts/composables/use-chat-interruption'
 import { ChatBackgroundTasks, ChatHistory, JournalPreviewModal } from '@proj-airi/stage-ui/components'
-import { ChatImageAttachmentPreview, ChatProviderSetupCallout, ChatReplyPreview, ChatSendButton, useChatComposer, useChatImages, VoiceInputButton } from '@proj-airi/stage-ui/components/scenarios/chat'
+import { ChatArchivedSessionCallout, ChatImageAttachmentPreview, ChatProviderSetupCallout, ChatReplyPreview, ChatSendButton, useChatComposer, useChatImages, VoiceInputButton } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { useLlmToolsStore } from '@proj-airi/stage-ui/stores/ai/chat-llm/tools'
 import { useBackgroundStore } from '@proj-airi/stage-ui/stores/background'
@@ -123,7 +123,7 @@ const { activeSessionId, messages } = storeToRefs(chatSession)
 const { streamingMessage } = storeToRefs(chatStream)
 const { activeTurns, backgroundTasks } = storeToRefs(chatStore)
 const { activeCard, activeCardId } = storeToRefs(airiCardStore)
-const { activeChatReady: chatReady } = storeToRefs(chatStore)
+const { activeChatReady: chatReady, activeChatArchived: chatArchived } = storeToRefs(chatStore)
 const { t } = useI18n()
 const openSettings = useElectronEventaInvoke(electronOpenSettings)
 const startLogin = useElectronEventaInvoke(electronAuthStartLogin)
@@ -268,8 +268,8 @@ const { showStopAction, stopActiveResponse, submitInterruptingResponse } = useCh
 })
 
 async function handleSend() {
-  // The draft stays in the composer while the setup callout is shown.
-  if (voiceActive.value || pendingImages.value || !chatReady.value)
+  // The draft stays in the composer while the setup callout or the archived callout is shown.
+  if (voiceActive.value || pendingImages.value || !chatReady.value || chatArchived.value)
     return
 
   // A waiting voice message takes the composer text into the same user message.
@@ -340,7 +340,7 @@ const visibleStreamingMessage = streamingMessage
 
 async function handleDeleteMessage(payload: { message: ChatHistoryItem, index: number }) {
   const { index, message } = payload
-  await chatSession.deleteMessage({
+  await chatStore.deleteMessage({
     sessionId: chatSession.activeSessionId,
     index,
   })
@@ -519,6 +519,7 @@ defineExpose({
         :class="['transition-[padding] duration-300 ease-out motion-reduce:transition-none', props.dockSide && { left: 'pl-12', right: 'pr-12' }[props.dockSide]]"
         :style="props.rightResizeBand ? { width: `calc(100% - ${props.rightResizeBand}px)` } : undefined"
         :expired-before="props.expiredBefore"
+        :readonly="chatArchived"
         @delete-message="handleDeleteMessage"
         @reply-message="handleReplyMessage"
         @retry-message="handleRetryMessage($event.index)"
@@ -548,6 +549,7 @@ defineExpose({
         @configure="openSettings({ route: '/settings/providers' })"
         @sign-in="startLogin()"
       />
+      <ChatArchivedSessionCallout v-else-if="chatArchived" :class="['mx-2 mb-1']" />
       <div
         ref="message-composer"
         :class="[
@@ -574,7 +576,7 @@ defineExpose({
           <ChatBackgroundTasks :tasks="backgroundTasks" @stop="task => chatStore.stopBackgroundTask(task.sessionId)" @dismiss="task => chatStore.dismissBackgroundTask(task.sessionId)" />
           <div ref="voice-attachment" :class="['px-2 pt-1 empty:hidden']" />
           <!-- Journal Preview Chips -->
-          <div v-if="latestImageEntries.length > 0" class="flex gap-2 overflow-x-auto px-2 py-1 scrollbar-none">
+          <div v-if="latestImageEntries.length > 0" :class="['flex gap-2 overflow-x-auto px-2 py-1', 'scrollbar-none']">
             <div
               v-for="entry in latestImageEntries"
               :key="entry.id"
@@ -585,9 +587,9 @@ defineExpose({
               ]"
               @click="openImagePreview(entry)"
             >
-              <img :src="entry.url || ''" class="h-full w-full object-cover">
+              <img :src="entry.url || ''" :class="['h-full w-full object-cover']">
               <div :class="['absolute inset-0 flex items-end p-1', 'bg-gradient-to-t from-black/60 to-transparent']">
-                <span class="truncate text-[8px] text-white font-medium">{{ entry.title }}</span>
+                <span :class="['truncate text-[8px] font-medium', 'text-white']">{{ entry.title }}</span>
               </div>
 
               <!-- Save Button (Top Right, Hover Only) -->
@@ -599,7 +601,7 @@ defineExpose({
                 title="Save to computer"
                 @click.stop="journalPreviewStore.downloadImage(entry.url || '', entry.title)"
               >
-                <div class="i-solar:download-minimalistic-bold-duotone text-[10px]" />
+                <div :class="['i-solar:download-minimalistic-bold-duotone text-[10px]']" />
               </button>
             </div>
           </div>
