@@ -12,7 +12,7 @@ import {
   createTerminalState,
   createTestConfig,
 } from '../test-fixtures'
-import { registerChromeSessionTools } from './register-chrome-session'
+import { executeChromeEnsure, registerChromeSessionTools } from './register-chrome-session'
 
 type ToolHandler = (args: Record<string, unknown>) => Promise<CallToolResult>
 
@@ -112,6 +112,44 @@ describe('registerChromeSessionTools', () => {
         addOwnedWindow: vi.fn(),
       },
     } as unknown as ComputerUseServerRuntime
+  })
+
+  it('passes the abort signal into Chrome startup', async () => {
+    const controller = new AbortController()
+    vi.mocked(runtime.chromeSessionManager.ensureAgentWindow).mockResolvedValue({
+      ensureOutcome: 'launched',
+      wasAlreadyRunning: false,
+      windowId: 'chrome-window-1',
+      pid: 4242,
+      agentOwned: true,
+      cdpUrl: 'http://127.0.0.1:9333',
+      initialUrl: 'https://example.com',
+      createdAt: new Date().toISOString(),
+    })
+    vi.mocked(runtime.cdpBridgeManager.probeAvailability).mockResolvedValue({
+      endpoint: 'ws://127.0.0.1/devtools/browser/1',
+      connected: false,
+      connectable: true,
+    })
+
+    await executeChromeEnsure(runtime, { url: 'https://example.com', cdpPort: 9333 }, 2, controller.signal)
+
+    expect(runtime.chromeSessionManager.ensureAgentWindow).toHaveBeenCalledWith({
+      url: 'https://example.com',
+      cdpPort: 9333,
+      signal: controller.signal,
+    })
+  })
+
+  it('does not start Chrome when the abort signal is already aborted', async () => {
+    const controller = new AbortController()
+    controller.abort(new Error('Host approval was cancelled'))
+
+    await expect(executeChromeEnsure(runtime, { url: 'https://example.com' }, 2, controller.signal))
+      .rejects
+      .toThrow('Host approval was cancelled')
+
+    expect(runtime.chromeSessionManager.ensureAgentWindow).not.toHaveBeenCalled()
   })
 
   it('returns approval_required instead of launching Chrome when approvals are enabled', async () => {

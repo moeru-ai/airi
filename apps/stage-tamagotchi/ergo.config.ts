@@ -15,7 +15,7 @@ export default defineConfig({
   // The app can switch to another channel at run time, see `src/main/services/electron/auto-updater.ts`.
   channel: env.AIRI_UPDATE_CHANNEL || channelOfVersion(version),
   // Steam updates the Steam build. Flatpak and Nix are known only at runtime, see src/launcher/index.ts.
-  disabled: env.VITE_DISTRIBUTION === 'steam',
+  disabled: env.VITE_DISTRIBUTION === 'steam' || env.AIRI_DISTRIBUTION === 'terminal-beta',
   // A test build can point at another feed and key, for example a local S3.
   feedUrl: env.AIRI_UPDATE_FEED_URL || 'https://release-updates.airi.build',
   // 3: requires an installer with Electron 43.8.4 to fix CVE-2026-111497. Bundle updates cannot replace Electron.

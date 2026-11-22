@@ -5,14 +5,14 @@ import { computed, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
-import { useDisplayModelsStore } from '../../stores/display-models'
+import { useCharacterPreviews } from '../../composables/use-character-previews'
 import { useAiriCardStore } from '../../stores/modules/airi-card'
 
 const { t } = useI18n()
 const router = useRouter()
 const cardStore = useAiriCardStore()
 const { cards, activeCard, activeCardId } = storeToRefs(cardStore)
-const { displayModels } = storeToRefs(useDisplayModelsStore())
+const previews = useCharacterPreviews()
 const open = shallowRef(false)
 const switching = shallowRef(false)
 const failed = shallowRef(false)
@@ -20,7 +20,7 @@ const manageAfterClose = shallowRef(false)
 const entries = computed(() => Array.from(cards.value, ([id, card]) => ({
   id,
   name: card.name,
-  preview: displayModels.value.find(model => model.id === card.extensions.airi.avatarModels.find(avatarModel => avatarModel.id === card.extensions.airi.defaultAvatarModelId)?.displayModelId)?.previewImage,
+  preview: previews.value.get(id),
 })))
 
 async function selectCharacter(id: string) {

@@ -3,12 +3,15 @@ import type { DesktopSessionController } from '../desktop-session'
 import type { ComputerUseConfig, DesktopExecutor, TerminalRunner } from '../types'
 import type { CdpBridgeManager } from './cdp-manager'
 
-import { platform } from 'node:process'
+import { env, platform } from 'node:process'
+
+import { computerUseControlEnabledEnv, computerUseControlNonceEnv, terminalControlEnabledEnv, terminalControlNonceEnv } from '@proj-airi/stage-shared/terminal-approval'
 
 import { BrowserDomExtensionBridge } from '../browser-dom/extension-bridge'
 import { createChromeSessionManager } from '../chrome-session-manager'
 import { resolveComputerUseConfig } from '../config'
 import { createDesktopSessionController } from '../desktop-session'
+import { createAuvExecutor } from '../executors/auv'
 import { createDryRunExecutor } from '../executors/dry-run'
 import { createLinuxX11Executor } from '../executors/linux-x11'
 import { createMacOSLocalExecutor } from '../executors/macos-local'
@@ -21,6 +24,10 @@ import { createCdpBridgeManager } from './cdp-manager'
 export interface ComputerUseServerOptions {
   executorFactory?: (config: ComputerUseConfig) => DesktopExecutor
   terminalRunnerFactory?: (config: ComputerUseConfig) => TerminalRunner
+  /** Only the controlling Host or a mock Host supplies this private-connection credential. It never comes from tool arguments. */
+  terminalControlNonce?: string
+  /** Computer Use uses its own Host credential, so it never depends on Terminal enablement. */
+  computerUseControlNonce?: string
 }
 
 export interface ComputerUseServerRuntime {
@@ -28,6 +35,8 @@ export interface ComputerUseServerRuntime {
   session: ComputerUseSession
   executor: DesktopExecutor
   terminalRunner: TerminalRunner
+  terminalControlNonce?: string
+  computerUseControlNonce?: string
   browserDomBridge: BrowserDomExtensionBridge
   cdpBridgeManager: CdpBridgeManager
   /** Unified run-level state manager. */
@@ -48,6 +57,13 @@ function createExecutor(config: ComputerUseConfig, options: ComputerUseServerOpt
     throw new Error(`macos-local executor requires a darwin host, current platform is ${platform}`)
   }
 
+  if (config.executor === 'auv') {
+    if (platform !== 'win32') {
+      throw new Error(`auv executor requires a win32 host, current platform is ${platform}`)
+    }
+    return createAuvExecutor(config)
+  }
+
   if (config.executor === 'linux-x11')
     return createLinuxX11Executor(config)
   if (config.executor === 'macos-local')
@@ -64,6 +80,21 @@ function createTerminal(config: ComputerUseConfig, options: ComputerUseServerOpt
 }
 
 export async function createRuntime(config = resolveComputerUseConfig(), options: ComputerUseServerOptions = {}) {
+  const terminalControlNonce = options.terminalControlNonce
+    ?? (env[terminalControlEnabledEnv] === '1' ? env[terminalControlNonceEnv] : undefined)
+  const computerUseControlNonce = options.computerUseControlNonce
+    ?? (env[computerUseControlEnabledEnv] === '1' ? env[computerUseControlNonceEnv] : undefined)
+  if (terminalControlNonce !== undefined && !/^[a-f0-9]{64}$/.test(terminalControlNonce))
+    throw new Error('Host Terminal control requires a valid private connection credential.')
+  if (computerUseControlNonce !== undefined && !/^[a-f0-9]{64}$/.test(computerUseControlNonce))
+    throw new Error('Host Computer Use control requires a valid private connection credential.')
+  if (terminalControlNonce && config.approvalMode === 'never')
+    throw new Error('Host-controlled Terminal requires server approval mode actions or all.')
+  if (computerUseControlNonce && config.approvalMode === 'never')
+    throw new Error('Host-controlled Computer Use requires server approval mode actions or all.')
+  // Capture once so no executor or browser child inherits this private connection credential.
+  delete env[terminalControlNonceEnv]
+  delete env[computerUseControlNonceEnv]
   const session = new ComputerUseSession(config)
   await session.init()
   const executor = createExecutor(config, options)
@@ -81,6 +112,8 @@ export async function createRuntime(config = resolveComputerUseConfig(), options
     session,
     executor,
     terminalRunner,
+    terminalControlNonce,
+    computerUseControlNonce,
     browserDomBridge,
     cdpBridgeManager,
     stateManager,

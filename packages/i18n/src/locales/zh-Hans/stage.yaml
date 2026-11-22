@@ -49,6 +49,10 @@ chat:
     sign-in-description: 登录即可使用 AIRI 官方 Provider，也可以在设置中配置你自己的 Provider。
     sign-in-description-official-only: 登录即可使用 AIRI 官方 Provider。
     sign-in-action: 登录
+  archived-session:
+    description: 这个对话已归档，取消归档后才能继续。
+    restore: 取消归档
+    restore-failed: 没能取消归档
   voice-message:
     recording: 正在录制
     starting: 正在启动麦克风
@@ -266,7 +270,7 @@ chat:
     current: 当前
     confirm-delete: 删除此对话及其中的消息？
     cancel: 取消
-    empty: 暂无对话
+    empty: 还没有对话。点上面的“新建对话”开始。
     cloud-badge: 已同步到云
     new-chat-fallback: 新建对话
     delete: 删除对话
@@ -281,6 +285,41 @@ chat:
     done-selecting: 完成
     delete-selected: 删除 {count} 个对话
     confirm-delete-selected: 确认删除 {count} 个对话
+    all: 全部
+    all-conversations: 全部对话
+    switch-place: 切换位置
+    filter-by-character: 按角色筛选
+    unknown-character: 未知角色
+    pinned: 置顶
+    folders: 文件夹
+    archived: 归档
+    more-actions: 更多操作
+    pin: 置顶
+    unpin: 取消置顶
+    archive: 归档
+    unarchive: 取消归档
+    move-to-folder: 移到文件夹
+    no-folder: 不放进文件夹
+    new-folder: 新建文件夹
+    create-folder: 创建
+    new-in-folder: 在“{folder}”新建对话
+    new-with-character: 新建 {name} 的对话
+    new-in-folder-with-character: 在“{folder}”新建 {name} 的对话
+    folder-name: 文件夹名称
+    folder-name-placeholder: 输入文件夹名称
+    save-folder: 保存文件夹
+    cancel-folder: 取消
+    folder-actions: 文件夹操作
+    rename-folder: 重命名文件夹
+    delete-folder: 删除文件夹（保留对话）
+    confirm-delete-folder: 确认删除文件夹
+    selected: 已选 {count} 个
+    empty-folder: “{folder}”还是空的。点上面的按钮新建，或在对话的菜单里选“移到文件夹”。
+    empty-folder-character: “{folder}”里还没有和 {name} 的对话。点上面的按钮开始。
+    empty-archive: 没有归档的对话。归档的对话放在这里，不会被删除。
+    empty-archive-character: 没有和 {name} 的归档对话。归档的对话放在这里，不会被删除。
+    empty-character: 还没有和 {name} 的对话。点上面的按钮开始第一段。
+    save-failed: 这次修改没能保存
 avatar-model-missing:
   title: 还没有选择模型
   unavailable-title: 这台设备上没有这个模型
@@ -401,9 +440,6 @@ websocket-status:
   connected: 已连接
   disconnected: 无网络连接
   open-settings: 打开连接设置
-computer-use:
-  label: 使用电脑
-  description: 允许此聊天窗口查看和操作本机应用。
 status:
   preparing: 正在准备麦克风
   listening: 正在听

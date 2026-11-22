@@ -30,6 +30,8 @@ function createTestI18n() {
               'empty': 'No chats',
               'delete': 'Delete',
               'delete-short': 'Delete',
+              'confirm-delete-short': 'Confirm delete',
+              'more-actions': 'More actions',
               'current': 'Current',
               'cancel': 'Cancel',
               'confirm-delete': 'Delete this conversation and its messages?',
@@ -168,7 +170,8 @@ describe('sessions drawer orchestration', () => {
     vi.spyOn(chatSession, 'loadSession').mockResolvedValue(true)
 
     await screen.rerender({ modelValue: true })
-    await screen.getByRole('button', { name: 'Rename conversation: Chat B' }).click()
+    await screen.getByRole('button', { name: 'More actions: Chat B' }).click()
+    await screen.getByRole('menuitem', { name: 'Rename conversation' }).click()
     const input = screen.getByRole('textbox', { name: 'Conversation name' })
     await input.fill('Project notes')
     await screen.getByRole('button', { name: 'Save conversation name' }).click()

@@ -49,6 +49,10 @@ chat:
     sign-in-description: Sign in to use the official AIRI provider, or set up your own provider in Settings.
     sign-in-description-official-only: Sign in to use the official AIRI provider.
     sign-in-action: Sign in
+  archived-session:
+    description: This conversation is archived. Restore it to continue.
+    restore: Restore
+    restore-failed: The conversation could not be restored
   voice-message:
     recording: Recording
     starting: Starting microphone
@@ -260,7 +264,7 @@ chat:
     current: Current
     confirm-delete: Delete this conversation and its messages?
     cancel: Cancel
-    empty: No conversations yet
+    empty: No conversations yet. Use New conversation above to start one.
     cloud-badge: Synced to cloud
     new-chat-fallback: New chat
     delete: Delete conversation
@@ -275,6 +279,41 @@ chat:
     done-selecting: Done
     delete-selected: Delete {count}
     confirm-delete-selected: Confirm delete {count}
+    all: All
+    all-conversations: All conversations
+    switch-place: Switch view
+    filter-by-character: Filter by character
+    unknown-character: Unknown character
+    pinned: Pinned
+    folders: Folders
+    archived: Archived
+    more-actions: More actions
+    pin: Pin
+    unpin: Unpin
+    archive: Archive
+    unarchive: Restore
+    move-to-folder: Move to folder
+    no-folder: No folder
+    new-folder: New folder
+    create-folder: Create
+    new-in-folder: New conversation in {folder}
+    new-with-character: New conversation with {name}
+    new-in-folder-with-character: New conversation with {name} in {folder}
+    folder-name: Folder name
+    folder-name-placeholder: Enter a folder name
+    save-folder: Save folder
+    cancel-folder: Cancel
+    folder-actions: Folder actions
+    rename-folder: Rename folder
+    delete-folder: Delete folder, keep conversations
+    confirm-delete-folder: Confirm delete folder
+    selected: '{count} selected'
+    empty-folder: '{folder} is empty. Use the button above to start a conversation here, or choose Move to folder in the menu of a conversation.'
+    empty-folder-character: '{folder} has no conversations with {name} yet. Use the button above to start one.'
+    empty-archive: No archived conversations. Archived conversations stay here and are not deleted.
+    empty-archive-character: No archived conversations with {name}. Archived conversations stay here and are not deleted.
+    empty-character: No conversations with {name} yet. Use the button above to start the first one.
+    save-failed: The change could not be saved
 avatar-model-missing:
   title: No model selected
   unavailable-title: This model is not on this device
@@ -402,10 +441,6 @@ websocket-status:
   connected: Connected
   disconnected: No connection
   open-settings: Open connection settings
-
-computer-use:
-  label: Use computer
-  description: Allow this chat window to inspect and control native apps on this computer.
 
 status:
   preparing: Preparing microphone

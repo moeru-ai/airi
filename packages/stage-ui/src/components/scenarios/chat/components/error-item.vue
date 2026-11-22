@@ -16,12 +16,14 @@ const props = withDefaults(defineProps<{
   retryLabel?: string
   scrollContainer?: HTMLElement | null
   canRetry?: boolean
+  canDelete?: boolean
   showPlaceholder?: boolean
   variant?: 'desktop' | 'mobile'
   /** How the bubble paints its background; see `ChatHistory`'s `surface`. */
   surface?: 'translucent' | 'opaque'
 }>(), {
   canRetry: false,
+  canDelete: true,
   scrollContainer: null,
   showPlaceholder: false,
   variant: 'desktop',
@@ -67,7 +69,7 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
   >
     <ChatActionMenu
       :copy-text="copyText"
-      :can-delete="!showPlaceholder"
+      :can-delete="canDelete && !showPlaceholder"
       :can-retry="canRetry && !showPlaceholder"
       :scroll-container="scrollContainer"
       @copy="emit('copy')"
@@ -96,7 +98,7 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
             <MarkdownRenderer
               v-else-if="!hasDetails"
               :content="message.content"
-              class="break-words text-violet-500 dark:text-violet-300"
+              :class="['break-words', 'text-violet-500 dark:text-violet-300']"
             />
             <template v-else>
               <p :class="['mt-1 mb-0 break-words text-sm text-neutral-800 font-medium leading-relaxed dark:text-neutral-100']">

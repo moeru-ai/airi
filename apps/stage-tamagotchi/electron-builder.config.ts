@@ -30,6 +30,7 @@ function hasXcode26OrAbove() {
  * This is friendly to developers whose macOS and/or Xcode versions are below 26.
  */
 const useIconFormattedMacAppIcon = hasXcode26OrAbove()
+const terminalBeta = env.AIRI_DISTRIBUTION === 'terminal-beta'
 if (!useIconFormattedMacAppIcon) {
   console.warn('[electron-builder/config] Warning: Xcode version is below 26. Using .icns format for macOS app icon.')
 }
@@ -42,8 +43,8 @@ else {
 }
 
 export default {
-  appId: 'ai.moeru.airi',
-  productName: 'AIRI',
+  appId: terminalBeta ? 'ai.moeru.airi.terminal-beta' : 'ai.moeru.airi',
+  productName: terminalBeta ? 'AIRI Terminal Beta' : 'AIRI',
   directories: {
     output: 'dist',
     buildResources: 'build',
@@ -121,10 +122,11 @@ export default {
     },
   ],
   extraMetadata: {
+    ...(terminalBeta ? { airiDistribution: 'terminal-beta', productName: 'AIRI Terminal Beta' } : {}),
     // CI names each build in `ERGOSPHERE_IT_VERSION`, for example `0.13.1-nightly.45.1bf946f`. The installer and its
     // electron-updater feed must have the version of the installer manifest, so the app takes the installer.
     ...(env.ERGOSPHERE_IT_VERSION ? { version: env.ERGOSPHERE_IT_VERSION } : {}),
-    name: 'ai.moeru.airi',
+    name: terminalBeta ? 'ai.moeru.airi.terminal-beta' : 'ai.moeru.airi',
     main: 'out/launcher/index.mjs',
     homepage: 'https://airi.moeru.ai/docs/',
     repository: 'https://github.com/moeru-ai/airi',
