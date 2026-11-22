@@ -4,12 +4,14 @@ import { createBadRequestError } from '@proj-airi/http-error-shared'
 
 import { azureAdapter } from './azure'
 import { dashscopeCosyvoiceAdapter } from './dashscope-cosyvoice'
+import { fishAudioAdapter } from './fishaudio'
 import { stepfunAdapter } from './stepfun'
 import { volcengineAdapter } from './volcengine'
 
 const ADAPTERS: Record<TtsAdapterId, TtsAdapter> = {
   'azure': azureAdapter,
   'dashscope-cosyvoice': dashscopeCosyvoiceAdapter,
+  'fishaudio': fishAudioAdapter,
   'stepfun': stepfunAdapter,
   'volcengine': volcengineAdapter,
 }
