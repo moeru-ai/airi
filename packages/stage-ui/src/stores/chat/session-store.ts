@@ -755,8 +755,10 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     const normalizedName = name.trim()
     if (!normalizedName)
       return undefined
-    if (!index.value)
-      index.value = { userId: getCurrentUserId(), characters: {} }
+    // A folder goes into the loaded index of the current account. While an account change loads it, a new index here
+    // has no conversations, and its save replaces the stored index.
+    if (!index.value || index.value.userId !== getCurrentUserId())
+      throw new Error('Chat sessions are not ready')
 
     const folder: ChatSessionFolder = { id: nanoid(), name: normalizedName, createdAt: Date.now() }
     index.value.folders = { ...index.value.folders, [folder.id]: folder }
