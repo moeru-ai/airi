@@ -24,6 +24,11 @@ const reducedMotion = usePreferredReducedMotion()
 let animation: ReturnType<typeof waapi.animate> | undefined
 
 const views: ActivityView[] = ['daily', 'weekly', 'cumulative']
+const viewLabels = computed<Record<ActivityView, { option: string, chart: string }>>(() => ({
+  daily: { option: t('settings.pages.flux.usage.views.daily'), chart: t('settings.pages.flux.usage.labels.daily') },
+  weekly: { option: t('settings.pages.flux.usage.views.weekly'), chart: t('settings.pages.flux.usage.labels.weekly') },
+  cumulative: { option: t('settings.pages.flux.usage.views.cumulative'), chart: t('settings.pages.flux.usage.labels.cumulative') },
+}))
 const levelClasses = [
   'bg-neutral-100 dark:bg-neutral-800',
   'bg-primary-200 dark:bg-primary-900',
@@ -171,7 +176,7 @@ onMounted(() => {
           :class="['min-h-9']"
           @click="selectView(option)"
         >
-          {{ t(`settings.pages.flux.usage.views.${option}`) }}
+          {{ viewLabels[option].option }}
         </GhostButton>
       </div>
     </header>
@@ -183,7 +188,7 @@ onMounted(() => {
           ref="grid"
           role="listbox"
           tabindex="0"
-          :aria-label="t(`settings.pages.flux.usage.labels.${view}`)"
+          :aria-label="viewLabels[view].chart"
           :aria-describedby="`${chartId}-hint`"
           :aria-activedescendant="activeGroup ? `${chartId}-${activeGroup.date}` : undefined"
           :class="[
@@ -204,7 +209,7 @@ onMounted(() => {
             :aria-label="groupLabels[index]"
             :aria-selected="activeIndex === index"
             :class="[
-              'grid min-h-0 min-w-0 motion-reduce:opacity-100!',
+              'grid min-h-0 min-w-0',
               view === 'daily' ? 'grid-rows-1' : 'grid-rows-7',
               activeIndex === index && 'bg-neutral-950/8 dark:bg-white/10',
             ]"
