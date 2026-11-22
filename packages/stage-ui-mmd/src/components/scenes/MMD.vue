@@ -128,6 +128,8 @@ let animation: MMDAnimationManager | undefined
 let emote: ReturnType<typeof useMMDEmote> | undefined
 // Motion names already bound to the current model runtime.
 const registeredMotions = new Set<string>()
+// Identifies the latest model load. A source change or unmount supersedes the loads before it.
+let loadSequence = 0
 const clock = new Clock()
 let rafHandle = 0
 
@@ -406,7 +408,9 @@ function disposeModel() {
  * already-registered motions are skipped.
  */
 async function syncMotions() {
-  if (!animation || !mesh)
+  const owner = animation
+  const target = mesh
+  if (!owner || !target)
     return
 
   for (const descriptor of availableMotions.value) {
@@ -416,14 +420,18 @@ async function syncMotions() {
       // The VMD file lives in IndexedDB (shared across windows); build a
       // window-local object URL to load it, then revoke it once parsed.
       const file = await mmdStore.getMotionFile(descriptor.id)
+      if (animation !== owner)
+        return
       if (!file) {
         console.warn(`[mmd] motion file "${descriptor.name}" (${descriptor.id}) not found in storage`)
         continue
       }
       const url = URL.createObjectURL(file)
       try {
-        const clip = await loadMMDAnimationClip(url, mesh)
-        animation.registerClip(descriptor.name, clip)
+        const clip = await loadMMDAnimationClip(url, target)
+        if (animation !== owner)
+          return
+        owner.registerClip(descriptor.name, clip)
         registeredMotions.add(descriptor.name)
         if (clip.tracks.length === 0) {
           console.warn(
@@ -443,18 +451,35 @@ async function syncMotions() {
   }
 
   if (idleMotionName.value && registeredMotions.has(idleMotionName.value))
-    animation.setIdleMotion(idleMotionName.value)
+    owner.setIdleMotion(idleMotionName.value)
+}
+
+/** Disposes a model whose load a newer source or the unmount superseded before it reached the scene. */
+function discardResolvedModel(model: ResolvedMMDModel) {
+  model.mmd.dispose()
+  disposeMMDObject(model.mesh)
+  model.dispose()
 }
 
 async function loadModel(src: string) {
   if (!scene)
     return
 
+  const requestId = ++loadSequence
   componentState.value = 'loading'
   disposeModel()
 
+  let next: ResolvedMMDModel | undefined
+  // After adoption, disposeModel() owns the model, including when a newer load supersedes it.
+  let adopted = false
   try {
-    resolved = await loadMMDModelFromSource(src, { cacheKey: props.modelId })
+    next = await loadMMDModelFromSource(src, { cacheKey: props.modelId })
+    if (requestId !== loadSequence || !scene) {
+      discardResolvedModel(next)
+      return
+    }
+    resolved = next
+    adopted = true
     mesh = resolved.mesh
 
     modelGroup = new Group()
@@ -479,6 +504,9 @@ async function loadModel(src: string) {
     // No preset idle VMD ships yet; the runtime still advances solvers and
     // physics without an animation action.
     await animation.init()
+    // A newer load or the unmount has already disposed this model through disposeModel().
+    if (requestId !== loadSequence)
+      return
     animation.setIKEnabled(ikEnabled.value)
     animation.setGrantEnabled(grantEnabled.value)
     animation.setGravity(physicsGravity.value)
@@ -497,6 +525,12 @@ async function loadModel(src: string) {
     await syncMotions()
   }
   catch (err) {
+    // A superseded load can fail on its revoked object URL. Its result is no longer wanted.
+    if (requestId !== loadSequence) {
+      if (next && !adopted)
+        discardResolvedModel(next)
+      return
+    }
     disposeModel()
     componentState.value = 'pending'
     console.error('[mmd] failed to load model:', errorMessageFrom(err))
@@ -532,6 +566,7 @@ onMounted(() => {
 onUnmounted(() => {
   cancelAnimationFrame(rafHandle)
   resizeObserver?.disconnect()
+  loadSequence += 1
   disposeModel()
   controls?.dispose()
   backgroundTexture?.dispose()
@@ -549,10 +584,13 @@ onUnmounted(() => {
 })
 
 watch(() => props.modelSrc, (src) => {
-  if (src)
+  if (src) {
     loadModel(src)
-  else
+  }
+  else {
+    loadSequence += 1
     disposeModel()
+  }
 })
 
 watch(() => props.enableOrbitControls, (enabled) => {

@@ -27,6 +27,7 @@
     "./utils/mmd-preview": "./src/utils/mmd-preview.ts",
     "./utils/mmd-validator": "./src/utils/mmd-validator.ts",
     "./utils/mmd-zip-loader": "./src/utils/mmd-zip-loader.ts",
+    "./testing/empty-pmx": "./src/testing/empty-pmx.ts",
     "./utils/opfs-loader": "./src/utils/opfs-loader.ts"
   },
   "scripts": {
