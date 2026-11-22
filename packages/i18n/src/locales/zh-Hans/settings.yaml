@@ -1791,7 +1791,6 @@ pages:
       description: 单次购买，不会过期。
   billing:
     refresh: 刷新
-    description: 管理订阅、Flux 购买和收据
     receipts: Flux 充值收据
     receiptsHint: 请在上方订阅区域管理订阅账单。
     date: 日期
@@ -1811,7 +1810,6 @@ pages:
     loadMore: 加载更多
   usage:
     title: 使用记录
-    description: 查看 Flux 使用记录
     signIn: 登录后查看 Flux 使用记录。
     signInAction: 登录
     viewDetails: 查看详细数据

@@ -1879,7 +1879,6 @@ pages:
       description: One-time purchase. It does not expire.
   billing:
     refresh: Refresh
-    description: Manage subscriptions, Flux purchases, and receipts
     receipts: Flux top-up receipts
     receiptsHint: Manage subscription billing in the subscription section above.
     date: Date
@@ -1899,7 +1898,6 @@ pages:
     loadMore: Load more
   usage:
     title: Usage
-    description: View your Flux transaction history
     signIn: Sign in to view your Flux usage.
     signInAction: Sign in
     viewDetails: View details
