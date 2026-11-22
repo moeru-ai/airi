@@ -40,7 +40,7 @@ describe('getAdapter', () => {
       expect(apiErr.details).toEqual(
         expect.objectContaining({
           id: 'unknown-provider',
-          available: expect.arrayContaining(['azure', 'dashscope-cosyvoice', 'stepfun', 'volcengine']),
+          available: expect.arrayContaining(['azure', 'dashscope-cosyvoice', 'fishaudio', 'stepfun', 'volcengine']),
         }),
       )
     }
@@ -648,5 +648,104 @@ describe('volcengineAdapter.send', () => {
         fetchImpl,
       },
     )).rejects.toMatchObject({ statusCode: 500 })
+  })
+})
+
+describe('fishAudioAdapter', () => {
+  function okAudio() {
+    return vi.fn(async () => new Response(new Uint8Array([1, 2, 3]), {
+      status: 200,
+      headers: { 'content-type': 'audio/mpeg' },
+    })) as unknown as typeof fetch
+  }
+
+  function calls(fetchImpl: typeof fetch) {
+    return (fetchImpl as unknown as { mock: { calls: [string, RequestInit][] } }).mock.calls
+  }
+
+  /**
+   * @example
+   * getAdapter('fishaudio').send({ text, voice }, ctx)
+   */
+  it('posts fishaudio/s2.1-pro with balanced latency by default', async () => {
+    const fetchImpl = okAudio()
+
+    const result = await getAdapter('fishaudio').send(
+      { text: '你好呀', voice: 'voice-model-1', speed: 1.1 },
+      {
+        keyPlaintext: Buffer.from('fish-key', 'utf8'),
+        baseURL: 'https://api.fish.audio',
+        unspeechBaseURL: 'http://unspeech.local:5933',
+        adapterParams: {},
+        fetchImpl,
+      },
+    )
+
+    const [calledURL, init] = calls(fetchImpl)[0]
+    expect(calledURL).toBe('http://unspeech.local:5933/v1/audio/speech')
+    expect(init.headers).toMatchObject({ Authorization: 'Bearer fish-key' })
+    expect(JSON.parse(init.body as string)).toEqual({
+      model: 'fishaudio/s2.1-pro',
+      input: '你好呀',
+      voice: 'voice-model-1',
+      response_format: 'mp3',
+      speed: 1.1,
+      extra_body: { latency: 'balanced' },
+    })
+    expect(result.contentType).toBe('audio/mpeg')
+  })
+
+  it('uses the default voice, model, and tuning from adapter params', async () => {
+    const fetchImpl = okAudio()
+
+    await getAdapter('fishaudio').send(
+      { text: 'hi' },
+      {
+        keyPlaintext: Buffer.from('fish-key', 'utf8'),
+        baseURL: '',
+        unspeechBaseURL: 'http://unspeech.local',
+        adapterParams: { model: 's2-pro', defaultVoice: 'voice-default', latency: 'low', responseFormat: 'pcm', sampleRate: 24000, temperature: 0.7 },
+        fetchImpl,
+      },
+    )
+
+    expect(JSON.parse(calls(fetchImpl)[0][1].body as string)).toMatchObject({
+      model: 'fishaudio/s2-pro',
+      voice: 'voice-default',
+      response_format: 'pcm',
+      extra_body: { latency: 'low', sample_rate: 24000, temperature: 0.7 },
+    })
+  })
+
+  it('rejects a request without a voice', async () => {
+    await expect(getAdapter('fishaudio').send(
+      { text: 'hi' },
+      { keyPlaintext: Buffer.from('k'), baseURL: '', unspeechBaseURL: 'http://unspeech.local', adapterParams: {}, fetchImpl: okAudio() },
+    )).rejects.toMatchObject({ statusCode: 400 })
+  })
+
+  it('rejects invalid adapter params', async () => {
+    await expect(getAdapter('fishaudio').send(
+      { text: 'hi', voice: 'v' },
+      { keyPlaintext: Buffer.from('k'), baseURL: '', unspeechBaseURL: 'http://unspeech.local', adapterParams: { latency: 'fastest' }, fetchImpl: okAudio() },
+    )).rejects.toMatchObject({ statusCode: 400 })
+  })
+
+  it('lists voices through unspeech with the key and catalog filters', async () => {
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({
+      voices: [{ id: 'voice-model-1', name: 'Calm narrator' }],
+    }), { status: 200 })) as unknown as typeof fetch
+
+    const voices = await getAdapter('fishaudio').getVoiceCatalog({
+      keyPlaintext: Buffer.from('fish-key', 'utf8'),
+      adapterParams: { voiceLanguage: 'zh', voiceSelf: true },
+      unspeechBaseURL: 'http://unspeech.local',
+      fetchImpl,
+    })
+
+    expect(voices).toEqual([{ id: 'voice-model-1', name: 'Calm narrator' }])
+    const [calledURL, init] = calls(fetchImpl)[0]
+    expect(calledURL).toBe('http://unspeech.local/api/voices?provider=fishaudio&language=zh&self=true')
+    expect(new Headers(init.headers).get('authorization')).toBe('Bearer fish-key')
   })
 })

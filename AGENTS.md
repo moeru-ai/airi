@@ -161,7 +161,8 @@ These rules name the standard implementation for common helpers. The [`enforce-r
 ## Writing
 
 - For text, obey the [`simple-english`](.agents/skills/simple-english/SKILL.md) skill. Text includes documentation, code comments, commit messages, and PR and issue text.
-- Do not apply the skill to code, identifiers, commands, or quoted errors.
+- For text and for strings that users see, also obey the [`enforce-rules-for-ai-tone`](.agents/skills/enforce-rules-for-ai-tone/SKILL.md) skill. It covers AI boilerplate in English and Chinese.
+- Do not apply these skills to code, identifiers, commands, or quoted errors.
 - This repository breaks these rules most often:
   - Do not write "should", "may", "might", "could", or "would". Write "must" or "can", or state the fact.
   - Do not use semicolons. Write two sentences.
@@ -192,10 +193,10 @@ Skills are in `.agents/skills/<name>/SKILL.md`. Read the listed file before you 
 | Set or change a font, or add `font-family`, `@font-face`, or a font package | [`enforce-rules-for-fonts`](.agents/skills/enforce-rules-for-fonts/SKILL.md) |
 | Build or review a page, panel, list, or form. Also add a border, a loading, empty, or error state, or a new component. | [`enforce-rules-for-ui-components`](.agents/skills/enforce-rules-for-ui-components/SKILL.md) |
 | Add `synced` to a Pinia store, or change a synced store | [`enforce-rules-for-pinia-synced`](.agents/skills/enforce-rules-for-pinia-synced/SKILL.md) |
-| Write or change a string that users see, or a glossary term | [`packages/i18n/AGENTS.md`](packages/i18n/AGENTS.md) |
+| Write or change a string that users see, or a glossary term | [`packages/i18n/AGENTS.md`](packages/i18n/AGENTS.md) and [`enforce-rules-for-ai-tone`](.agents/skills/enforce-rules-for-ai-tone/SKILL.md) |
 | Review pending Crowdin translations, or find why approved translations did not reach the repository | [`enforce-rules-for-i18n`](.agents/skills/enforce-rules-for-i18n/SKILL.md) |
 | Work under `server/` | [`server/AGENTS.md`](server/AGENTS.md). For `server/apps/api`, also read [`server/apps/api/AGENTS.md`](server/apps/api/AGENTS.md). |
-| Write documentation, code comments, commit messages, or PR and issue text | [`simple-english`](.agents/skills/simple-english/SKILL.md) |
+| Write documentation, code comments, commit messages, or PR and issue text | [`simple-english`](.agents/skills/simple-english/SKILL.md) and [`enforce-rules-for-ai-tone`](.agents/skills/enforce-rules-for-ai-tone/SKILL.md) |
 | Analyze why a chat, speech, or audio turn was slow or failed, using saved IO traces | [`analyze-io-traces`](.agents/skills/analyze-io-traces/SKILL.md) |
 | Continue AIRI Agent, Computer Use, or AUV execution work | [Agent execution project memory](docs/ai/references/agent-execution-memory.md) and [maintenance handoff](docs/ai/handoffs/airi-agent-execution-maintenance.md) |
 | Create or prepare a pull request or an issue, or write commit messages for one | [`create-pr`](.agents/skills/create-pr/SKILL.md) |
