@@ -64,14 +64,7 @@ function describeMetadata(record: AuditRecord): string {
 }
 
 function formatDate(iso: string): string {
-  return intlFormat(parseISO(iso), {
-    year: 'numeric',
-    month: 'numeric',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: 'numeric',
-    second: 'numeric',
-  }, { locale: locale.value })
+  return intlFormat(parseISO(iso), { dateStyle: 'medium', timeStyle: 'short' }, { locale: locale.value })
 }
 
 onMounted(fetchAuditHistory)
