@@ -10,7 +10,9 @@ import type {
 import type { Cubism4ModelSettings } from 'pixi-live2d-display/cubism4'
 
 import type { Live2DFocusTarget, Live2DTouch, PixiLive2DInternalModel } from '../../../composables/live2d'
+import type { Live2DInputMappingMode } from '../../../controls/input-mapping'
 import type { Live2DExpressionControl } from '../../../controls/manifest'
+import type { Live2DInputMappingSettings } from '../../../utils/live2d-zip-loader'
 
 import { Point } from '@pixi/math'
 import { listenBeatSyncBeatSignal } from '@proj-airi/stage-shared/beat-sync'
@@ -38,6 +40,7 @@ import {
   isPointInLive2DMesh,
   live2DCanvasRectToParent,
   live2DFocusTargetFromModelPoint,
+  Live2DInputMapper,
   resolveLive2DFocusTargetMode,
   resolveLive2DTouchRegion,
   useLive2DMotionManagerUpdate,
@@ -55,6 +58,7 @@ import {
 import { useFitModel } from '../../../composables/live2d/fit-model'
 import { Emotion, EmotionNeutralMotionName } from '../../../constants/emotions'
 import { useLive2D } from '../../../contexts/live2d'
+import { emptyLive2DInputMapping } from '../../../controls/input-mapping'
 import { ScreenAmbientLightFilter } from '../../../filters/screen-ambient-light'
 import { getLive2DMotionControlModelOffset, useL2dViewControl, useLive2DMotionControl, useLive2dParams } from '../../../stores'
 
@@ -80,6 +84,7 @@ const props = withDefaults(defineProps<{
   live2dAutoBlinkEnabled?: boolean
   live2dForceAutoBlinkEnabled?: boolean
   live2dExpressionEnabled?: boolean
+  live2dInputMappingMode?: Live2DInputMappingMode
   live2dShadowEnabled?: boolean
   screenAmbientLightActive?: boolean
   screenAmbientLightFilterOptions?: AmbientLightFilterOptions
@@ -105,6 +110,7 @@ const props = withDefaults(defineProps<{
   live2dAutoBlinkEnabled: true,
   live2dForceAutoBlinkEnabled: false,
   live2dExpressionEnabled: true,
+  live2dInputMappingMode: 'default',
   live2dShadowEnabled: true,
   screenAmbientLightActive: false,
   screenAmbientLightFilterOptions: () => ({ ...ambientLightDefaults.filter }),
@@ -236,11 +242,15 @@ function setScaleAndPosition(animated = false) {
   })
 }
 
+let modelInputMapper: Live2DInputMapper<PixiLive2DInternalModel['coreModel']> | undefined
+
 function destroyRenderedModel() {
   const renderedModel = model.value
   if (!renderedModel)
     return
 
+  modelInputMapper?.reset()
+  modelInputMapper = undefined
   try {
     pixiApp.value?.stage?.removeChild(renderedModel)
     destroyModel(renderedModel)
@@ -401,6 +411,24 @@ async function performModelLoad() {
     const coreModel = internalModel.coreModel
     const motionManager = internalModel.motionManager
     disableLive2DSdkBreath(internalModel)
+    const mapping = (internalModel.settings as Live2DInputMappingSettings)._inputMapping ?? emptyLive2DInputMapping
+    const inputMapper = new Live2DInputMapper(coreModel, mapping, coreModel.getModel().parameters.ids)
+    modelInputMapper = inputMapper
+    inputMapper.beginFrame(props.live2dInputMappingMode === 'model')
+    const parameterInternalModel = new Proxy(internalModel, {
+      get(target, property, receiver) {
+        return property === 'coreModel' ? inputMapper.model : Reflect.get(target, property, receiver)
+      },
+    })
+    const updateFocus = internalModel.updateFocus
+    internalModel.updateFocus = () => {
+      updateFocus.call(parameterInternalModel)
+      // SDK saves motion parameters before focus. Commit inputs here so SDK restoration prevents feedback on the next frame.
+      inputMapper.flush()
+      // Expressions retain their priority over the mapped input writes.
+      if (inputMapper.active)
+        live2d.expressions.apply(coreModel)
+    }
     coreModel.setParameterValueById('ParamMouthOpenY', mouthOpenSize.value)
 
     availableMotions.value = Object
@@ -465,6 +493,8 @@ async function performModelLoad() {
     // This is hacky too
     const motionManagerUpdate = useLive2DMotionManagerUpdate({
       internalModel,
+      parameterModel: inputMapper.model,
+      parameterInternalModel,
       motionManager,
       modelParameters,
       live2dEyeTrackingEnabled,
@@ -484,7 +514,11 @@ async function performModelLoad() {
     // Expression first: sets desired parameter values (e.g. closed eyes = 0).
     // Blink second: reads post-expression eye values, Multiply-modulates on top.
     // This ensures blink respects expression state (0 × blinkFactor = 0).
-    motionManagerUpdate.register(useMotionUpdatePluginExpression(live2d.expressions), 'final')
+    const applyExpressions = useMotionUpdatePluginExpression(live2d.expressions)
+    motionManagerUpdate.register((ctx) => {
+      if (!inputMapper.active)
+        applyExpressions({ ...ctx, model: coreModel })
+    }, 'final')
     motionManagerUpdate.register(useMotionUpdatePluginAutoEyeBlink(live2dExpressionEnabled), 'final')
     // After the blink plugin, so that it only narrows the value a blink returns
     // to. The signal is the light behind the character, not the screen level:
@@ -508,6 +542,7 @@ async function performModelLoad() {
 
     const hookedUpdate = motionManager.update as (model: PixiLive2DInternalModel['coreModel'], now: number) => boolean
     motionManager.update = function (model: PixiLive2DInternalModel['coreModel'], now: number) {
+      inputMapper.beginFrame(props.live2dInputMappingMode === 'model')
       return motionManagerUpdate.hookUpdate(model, now, hookedUpdate)
     }
 
@@ -534,27 +569,27 @@ async function performModelLoad() {
     })
 
     // Apply all stored parameters to the model
-    coreModel.setParameterValueById('ParamAngleX', modelParameters.value.angleX)
-    coreModel.setParameterValueById('ParamAngleY', modelParameters.value.angleY)
-    coreModel.setParameterValueById('ParamAngleZ', modelParameters.value.angleZ)
-    coreModel.setParameterValueById('ParamEyeLOpen', modelParameters.value.leftEyeOpen)
-    coreModel.setParameterValueById('ParamEyeROpen', modelParameters.value.rightEyeOpen)
-    coreModel.setParameterValueById('ParamEyeSmile', modelParameters.value.leftEyeSmile)
-    coreModel.setParameterValueById('ParamBrowLX', modelParameters.value.leftEyebrowLR)
-    coreModel.setParameterValueById('ParamBrowRX', modelParameters.value.rightEyebrowLR)
-    coreModel.setParameterValueById('ParamBrowLY', modelParameters.value.leftEyebrowY)
-    coreModel.setParameterValueById('ParamBrowRY', modelParameters.value.rightEyebrowY)
-    coreModel.setParameterValueById('ParamBrowLAngle', modelParameters.value.leftEyebrowAngle)
-    coreModel.setParameterValueById('ParamBrowRAngle', modelParameters.value.rightEyebrowAngle)
-    coreModel.setParameterValueById('ParamBrowLForm', modelParameters.value.leftEyebrowForm)
-    coreModel.setParameterValueById('ParamBrowRForm', modelParameters.value.rightEyebrowForm)
-    coreModel.setParameterValueById('ParamMouthOpenY', modelParameters.value.mouthOpen)
-    coreModel.setParameterValueById('ParamMouthForm', modelParameters.value.mouthForm)
-    coreModel.setParameterValueById('ParamCheek', modelParameters.value.cheek)
-    coreModel.setParameterValueById('ParamBodyAngleX', modelParameters.value.bodyAngleX)
-    coreModel.setParameterValueById('ParamBodyAngleY', modelParameters.value.bodyAngleY)
-    coreModel.setParameterValueById('ParamBodyAngleZ', modelParameters.value.bodyAngleZ)
-    coreModel.setParameterValueById('ParamBreath', modelParameters.value.breath)
+    inputMapper.setBaseParameterValue('ParamAngleX', modelParameters.value.angleX)
+    inputMapper.setBaseParameterValue('ParamAngleY', modelParameters.value.angleY)
+    inputMapper.setBaseParameterValue('ParamAngleZ', modelParameters.value.angleZ)
+    inputMapper.setBaseParameterValue('ParamEyeLOpen', modelParameters.value.leftEyeOpen)
+    inputMapper.setBaseParameterValue('ParamEyeROpen', modelParameters.value.rightEyeOpen)
+    inputMapper.setBaseParameterValue('ParamEyeSmile', modelParameters.value.leftEyeSmile)
+    inputMapper.setBaseParameterValue('ParamBrowLX', modelParameters.value.leftEyebrowLR)
+    inputMapper.setBaseParameterValue('ParamBrowRX', modelParameters.value.rightEyebrowLR)
+    inputMapper.setBaseParameterValue('ParamBrowLY', modelParameters.value.leftEyebrowY)
+    inputMapper.setBaseParameterValue('ParamBrowRY', modelParameters.value.rightEyebrowY)
+    inputMapper.setBaseParameterValue('ParamBrowLAngle', modelParameters.value.leftEyebrowAngle)
+    inputMapper.setBaseParameterValue('ParamBrowRAngle', modelParameters.value.rightEyebrowAngle)
+    inputMapper.setBaseParameterValue('ParamBrowLForm', modelParameters.value.leftEyebrowForm)
+    inputMapper.setBaseParameterValue('ParamBrowRForm', modelParameters.value.rightEyebrowForm)
+    inputMapper.setBaseParameterValue('ParamMouthOpenY', modelParameters.value.mouthOpen)
+    inputMapper.setBaseParameterValue('ParamMouthForm', modelParameters.value.mouthForm)
+    inputMapper.setBaseParameterValue('ParamCheek', modelParameters.value.cheek)
+    inputMapper.setBaseParameterValue('ParamBodyAngleX', modelParameters.value.bodyAngleX)
+    inputMapper.setBaseParameterValue('ParamBodyAngleY', modelParameters.value.bodyAngleY)
+    inputMapper.setBaseParameterValue('ParamBodyAngleZ', modelParameters.value.bodyAngleZ)
+    inputMapper.setBaseParameterValue('ParamBreath', modelParameters.value.breath)
 
     // Save SDK manager references so they can be restored if expression is
     // toggled off at runtime.
@@ -578,7 +613,7 @@ async function performModelLoad() {
       }
     }
 
-    live2d.setModel(internalModel)
+    live2d.setModel(internalModel, inputMapper.mapping)
     emits('modelLoaded')
   }
   catch (error) {
@@ -765,142 +800,122 @@ watch(paused, value => value ? pixiApp.value?.stop() : pixiApp.value?.start())
 // Watch and apply model parameters
 watch(() => modelParameters.value.angleX, (value) => {
   if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamAngleX', value)
+    modelInputMapper?.setBaseParameterValue('ParamAngleX', value)
   }
 })
 
 watch(() => modelParameters.value.angleY, (value) => {
   if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamAngleY', value)
+    modelInputMapper?.setBaseParameterValue('ParamAngleY', value)
   }
 })
 
 watch(() => modelParameters.value.angleZ, (value) => {
   if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamAngleZ', value)
+    modelInputMapper?.setBaseParameterValue('ParamAngleZ', value)
   }
 })
 
 watch(() => modelParameters.value.leftEyeOpen, (value) => {
   if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamEyeLOpen', value)
+    modelInputMapper?.setBaseParameterValue('ParamEyeLOpen', value)
   }
 })
 
 watch(() => modelParameters.value.rightEyeOpen, (value) => {
   if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamEyeROpen', value)
+    modelInputMapper?.setBaseParameterValue('ParamEyeROpen', value)
   }
 })
 
 watch(() => modelParameters.value.mouthOpen, (value) => {
   if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamMouthOpenY', value)
+    modelInputMapper?.setBaseParameterValue('ParamMouthOpenY', value)
   }
 })
 
 watch(() => modelParameters.value.mouthForm, (value) => {
   if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamMouthForm', value)
+    modelInputMapper?.setBaseParameterValue('ParamMouthForm', value)
   }
 })
 
 watch(() => modelParameters.value.cheek, (value) => {
   if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamCheek', value)
+    modelInputMapper?.setBaseParameterValue('ParamCheek', value)
   }
 })
 
 watch(() => modelParameters.value.bodyAngleX, (value) => {
   if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamBodyAngleX', value)
+    modelInputMapper?.setBaseParameterValue('ParamBodyAngleX', value)
   }
 })
 
 watch(() => modelParameters.value.bodyAngleY, (value) => {
   if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamBodyAngleY', value)
+    modelInputMapper?.setBaseParameterValue('ParamBodyAngleY', value)
   }
 })
 
 watch(() => modelParameters.value.bodyAngleZ, (value) => {
   if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamBodyAngleZ', value)
+    modelInputMapper?.setBaseParameterValue('ParamBodyAngleZ', value)
   }
 })
 
 watch(() => modelParameters.value.breath, (value) => {
   if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamBreath', value)
+    modelInputMapper?.setBaseParameterValue('ParamBreath', value)
   }
 })
 
 // Watch eyebrow parameters
 watch(() => modelParameters.value.leftEyebrowLR, (value) => {
   if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamBrowLX', value)
+    modelInputMapper?.setBaseParameterValue('ParamBrowLX', value)
   }
 })
 
 watch(() => modelParameters.value.rightEyebrowLR, (value) => {
   if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamBrowRX', value)
+    modelInputMapper?.setBaseParameterValue('ParamBrowRX', value)
   }
 })
 
 watch(() => modelParameters.value.leftEyebrowY, (value) => {
   if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamBrowLY', value)
+    modelInputMapper?.setBaseParameterValue('ParamBrowLY', value)
   }
 })
 
 watch(() => modelParameters.value.rightEyebrowY, (value) => {
   if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamBrowRY', value)
+    modelInputMapper?.setBaseParameterValue('ParamBrowRY', value)
   }
 })
 
 watch(() => modelParameters.value.leftEyebrowAngle, (value) => {
   if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamBrowLAngle', value)
+    modelInputMapper?.setBaseParameterValue('ParamBrowLAngle', value)
   }
 })
 
 watch(() => modelParameters.value.rightEyebrowAngle, (value) => {
   if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamBrowRAngle', value)
+    modelInputMapper?.setBaseParameterValue('ParamBrowRAngle', value)
   }
 })
 
 watch(() => modelParameters.value.leftEyebrowForm, (value) => {
   if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamBrowLForm', value)
+    modelInputMapper?.setBaseParameterValue('ParamBrowLForm', value)
   }
 })
 
 watch(() => modelParameters.value.rightEyebrowForm, (value) => {
   if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamBrowRForm', value)
+    modelInputMapper?.setBaseParameterValue('ParamBrowRForm', value)
   }
 })
 

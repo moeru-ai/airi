@@ -21,6 +21,7 @@ export type PixiLive2DInternalModel = InternalModel & {
   breath?: unknown
   eyeBlink?: CubismEyeBlink
   coreModel: CubismModel
+  updateFocus: Cubism4InternalModel['updateFocus']
 }
 
 export interface MotionManagerUpdateContext {
@@ -35,7 +36,7 @@ export interface MotionManagerUpdateContext {
 export type MotionManagerPluginContext = MotionManagerUpdateContext & {
   internalModel: PixiLive2DInternalModel
   motionManager: PixiLive2DInternalModel['motionManager']
-  modelParameters: Ref<any>
+  modelParameters: Ref<Record<string, number>>
   live2dEyeTrackingEnabled: Ref<boolean>
   live2dEyeFocusSourceActive: Ref<boolean>
   live2dIdleAnimationEnabled: Ref<boolean>
@@ -54,7 +55,11 @@ const clamp01 = (value: number) => Math.min(1, Math.max(0, value))
 export interface UseLive2DMotionManagerUpdateOptions {
   internalModel: PixiLive2DInternalModel
   motionManager: PixiLive2DInternalModel['motionManager']
-  modelParameters: Ref<any>
+  modelParameters: Ref<Record<string, number>>
+  /** AIRI writes use this facade. Authored motions keep the original model. */
+  parameterModel?: CubismModel
+  /** Routes idle focus writes through the same parameter facade. */
+  parameterInternalModel?: PixiLive2DInternalModel
   live2dEyeTrackingEnabled: Ref<boolean>
   live2dEyeFocusSourceActive: Ref<boolean>
   live2dIdleAnimationEnabled: Ref<boolean>
@@ -142,11 +147,11 @@ export function useLive2DMotionManagerUpdate(options: UseLive2DMotionManagerUpda
       || (!!selectedMotionGroup && motionManager.state.currentGroup === selectedMotionGroup)
 
     const ctx: MotionManagerPluginContext = {
-      model,
+      model: options.parameterModel ?? model,
       now,
       timeDelta,
       hookedUpdate,
-      internalModel,
+      internalModel: options.parameterInternalModel ?? internalModel,
       motionManager,
       modelParameters,
       live2dEyeTrackingEnabled,

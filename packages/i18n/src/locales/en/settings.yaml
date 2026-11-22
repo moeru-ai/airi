@@ -312,6 +312,19 @@ live2d:
       title: Extract
   animation:
     title: Animation
+    input-mapping:
+      title: Control mapping
+      description: If AIRI cannot control this model correctly, use its input mapping. Both options keep the model's physics.
+      options:
+        default: AIRI default
+        model: Model configuration
+      loading: Loading model input mappings.
+      available: 'Input mappings available: {count}'
+      missing: No input mapping found. Include the matching .vtube.json file in the model archive.
+      invalid: The input mapping is invalid. Check the .vtube.json file and import the model again.
+      unsupported: This model has no input mappings that AIRI supports.
+      partial: Some input settings are unsupported. AIRI keeps its own motion smoothing.
+      limitations: AIRI uses its own control signals. External tracking and VBridger calculations are not reproduced.
     motion-driver:
       title: Motion driver
       description: Select how AIRI creates idle body and eye motion.

@@ -75,6 +75,7 @@
     "pixi-filters": "catalog:",
     "pixi-live2d-display": "catalog:",
     "three": "catalog:",
+    "valibot": "catalog:",
     "vue": "catalog:",
     "zod": "catalog:"
   },

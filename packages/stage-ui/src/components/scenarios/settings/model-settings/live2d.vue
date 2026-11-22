@@ -12,6 +12,7 @@ import { useI18n } from 'vue-i18n'
 
 import MagicMotionSettings from '../../../../features/motions/live2d/components/magic-settings.vue'
 import Live2DExpressionList from './live2d-expression-list.vue'
+import Live2DInputMappingSettings from './live2d-input-mapping-settings.vue'
 
 import { PropertyPoint } from '../../../data-pane'
 import { Section } from '../../../layouts'
@@ -35,6 +36,7 @@ const { t } = useI18n()
 const settings = useSettingsLive2d()
 const {
   live2dMotionDriver,
+  live2dInputMappingMode,
   live2dEyeTracking,
   live2dModelEyeOffset,
   live2dAutoBlinkEnabled,
@@ -263,6 +265,12 @@ const blinkModeOptions = computed(() => [
     size="sm"
     :expand="false"
   >
+    <Live2DInputMappingSettings
+      v-model="live2dInputMappingMode"
+      :mapping="props.live2dContext?.inputMapping.value"
+      :loading="props.runtimeSnapshot.phase === 'pending' || props.runtimeSnapshot.phase === 'loading' || props.runtimeSnapshot.phase === 'binding'"
+      :disabled="props.runtimeSnapshot.controlsLocked"
+    />
     <label :class="['flex flex-wrap gap-4']">
       <div :class="['min-w-0 flex-1']">
         <div :class="['flex items-center gap-1 text-sm font-medium']">

@@ -1,9 +1,13 @@
+import type { Live2DInputMappingMode } from '../../controls/input-mapping'
+
 import { useLocalStorageManualReset, useModelScopedLocalStorageManualReset, useVersionedLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { defineStore } from 'pinia'
 
 export type Live2DMotionDriver = 'magic' | 'universal'
 
 const live2dMotionDriver = useModelScopedLocalStorageManualReset<Live2DMotionDriver>('live2d', 'settings/live2d/motion-driver', 'universal')
+/** Routes AIRI control signals through the input bindings of the active model. */
+const live2dInputMappingMode = useModelScopedLocalStorageManualReset<Live2DInputMappingMode>('live2d', 'settings/live2d/input-mapping-mode', 'default')
 const live2dEyeTracking = useModelScopedLocalStorageManualReset<boolean>('live2d', 'settings/live2d/eye-tracking', true)
 /** Offset from model center to the eyes of the model, in percentages of full model width/height */
 const live2dModelEyeOffset = useModelScopedLocalStorageManualReset('live2d', 'settings/live2d/model-eye-offset', { x: 0, y: 0 })
@@ -37,6 +41,7 @@ const live2dRenderScale = useLocalStorageManualReset<number>('settings/live2d/re
 
 function resetState() {
   live2dMotionDriver.reset()
+  live2dInputMappingMode.reset()
   live2dEyeTracking.reset()
   live2dModelEyeOffset.reset()
   live2dIdleAnimationEnabled.reset()
@@ -52,6 +57,7 @@ function resetState() {
 export const useSettingsLive2d = defineStore('settings-live2d', () => {
   return {
     live2dMotionDriver,
+    live2dInputMappingMode,
     live2dEyeTracking,
     live2dModelEyeOffset,
     live2dIdleAnimationEnabled,

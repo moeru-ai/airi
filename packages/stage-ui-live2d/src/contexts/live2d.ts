@@ -1,12 +1,14 @@
-import type { InjectionKey, MaybeRefOrGetter } from 'vue'
+import type { InjectionKey, MaybeRefOrGetter, ShallowRef } from 'vue'
 
 import type { PixiLive2DInternalModel } from '../composables/live2d/motion-manager'
+import type { Live2DInputMapping } from '../controls/input-mapping'
 import type { Live2DControlPolicy } from '../types/avatar-model'
 import type { Live2DExpressionsContext } from './expressions'
 import type { Live2DMotionsContext } from './motions'
 
-import { inject, provide, toValue } from 'vue'
+import { inject, provide, shallowRef, toValue } from 'vue'
 
+import { emptyLive2DInputMapping } from '../controls/input-mapping'
 import { createLive2DControlPolicy, isLive2DControlEnabled } from '../controls/policy'
 import { createLive2DExpressionsContext } from './expressions'
 import { createLive2DMotionsContext } from './motions'
@@ -15,9 +17,11 @@ import { createLive2DMotionsContext } from './motions'
 export interface Live2DContext {
   expressions: Live2DExpressionsContext
   motions: Live2DMotionsContext
+  /** Input bindings of the loaded model, cleared before each model load. */
+  inputMapping: Readonly<ShallowRef<Live2DInputMapping>>
   /** Clears the controls of the previous model. */
   beginModelLoad: () => void
-  setModel: (internalModel: PixiLive2DInternalModel) => void
+  setModel: (internalModel: PixiLive2DInternalModel, mapping: Live2DInputMapping) => void
   dispose: () => void
 }
 
@@ -31,6 +35,7 @@ const live2DContextKey: InjectionKey<Live2DContext> = Symbol('live2d-context')
 /** Creates one isolated Live2D runtime for a Root component. */
 export function createLive2D(options: CreateLive2DOptions = {}): Live2DContext {
   let internalModel: PixiLive2DInternalModel | undefined
+  const inputMapping = shallowRef<Live2DInputMapping>(emptyLive2DInputMapping)
   const defaultControlPolicy = createLive2DControlPolicy()
 
   function controlPolicy() {
@@ -67,15 +72,18 @@ export function createLive2D(options: CreateLive2DOptions = {}): Live2DContext {
     expressions.clear()
     motions.clear()
     internalModel = undefined
+    inputMapping.value = emptyLive2DInputMapping
   }
 
-  function setModel(nextInternalModel: PixiLive2DInternalModel) {
+  function setModel(nextInternalModel: PixiLive2DInternalModel, mapping: Live2DInputMapping) {
     internalModel = nextInternalModel
+    inputMapping.value = mapping
   }
 
   return {
     expressions,
     motions,
+    inputMapping,
     beginModelLoad,
     setModel,
     dispose: beginModelLoad,
