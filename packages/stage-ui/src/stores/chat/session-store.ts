@@ -234,11 +234,12 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   }
 
   async function persistIndex() {
-    // The snapshot happens when the save runs, like in the other saves of the queue. A snapshot from the call can be
-    // older than a save that queued before it, and it would overwrite that save.
+    // An account change replaces the index while the save waits in the queue, so the save keeps the index of the call.
+    // The copy happens when the save runs. Thus it also has the changes of the saves that queued before it.
+    const target = index.value
     await enqueuePersist(async () => {
-      if (index.value)
-        await chatSessionsRepo.saveIndex(cloneDeep(index.value))
+      if (target)
+        await chatSessionsRepo.saveIndex(cloneDeep(target))
     })
   }
 
@@ -283,19 +284,23 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   /**
    * Persists the metadata of several sessions without loading their messages. Each record saves, then the index saves
    * once, so a batch action writes the index one time. A session that another window deleted is skipped.
+   *
+   * Like the index save, the save keeps the state of the account that called it, and it reads that state when it runs.
    */
   async function persistSessionMetas(sessionIds: string[]) {
+    const metas = sessionMetas.value
+    const target = index.value
     await enqueuePersist(async () => {
       const updatedAt = Date.now()
       let changed = false
       for (const sessionId of sessionIds) {
-        const meta = sessionMetas.value[sessionId]
+        const meta = metas[sessionId]
         if (!meta)
           continue
 
         const updatedMeta = { ...cloneDeep(meta), updatedAt }
-        sessionMetas.value[sessionId] = updatedMeta
-        const characterIndex = index.value?.characters[meta.characterId]
+        metas[sessionId] = updatedMeta
+        const characterIndex = target?.characters[meta.characterId]
         if (characterIndex)
           characterIndex.sessions[sessionId] = updatedMeta
         changed = true
@@ -309,8 +314,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
         }
       }
 
-      if (changed && index.value)
-        await chatSessionsRepo.saveIndex(cloneDeep(index.value))
+      if (changed && target)
+        await chatSessionsRepo.saveIndex(cloneDeep(target))
     })
   }
 
@@ -1150,8 +1155,10 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       // locally persisted title waiting for delivery.
       const remoteById = new Map(remoteChats.map(chat => [chat.id, chat]))
       const titleSyncSessions: string[] = []
-      for (const meta of Object.values(sessionMetas.value)) {
-        if (meta.userId !== currentUserId || staysLocal(meta))
+      for (const sessionId of Object.keys(sessionMetas.value)) {
+        // Each title save waits. An archive, a pin, or a move during the wait replaces the metadata, so read the latest.
+        const meta = sessionMetas.value[sessionId]
+        if (!meta || meta.userId !== currentUserId || staysLocal(meta))
           continue
         const remote = remoteById.get(meta.cloudChatId ?? meta.sessionId)
         if (!remote)
