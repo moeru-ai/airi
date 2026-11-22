@@ -3632,13 +3632,6 @@
     {
       "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
       "code": "unused-key",
-      "key": "tamagotchi.stage.chat-window.context-inspector.budget-note",
-      "message": "\"tamagotchi.stage.chat-window.context-inspector.budget-note\" is not used.",
-      "count": 1
-    },
-    {
-      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
-      "code": "unused-key",
       "key": "tamagotchi.stage.chat-window.context-inspector.bytes",
       "message": "\"tamagotchi.stage.chat-window.context-inspector.bytes\" is not used.",
       "count": 1
@@ -3690,13 +3683,6 @@
       "code": "unused-key",
       "key": "tamagotchi.stage.chat-window.context-inspector.provider",
       "message": "\"tamagotchi.stage.chat-window.context-inspector.provider\" is not used.",
-      "count": 1
-    },
-    {
-      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
-      "code": "unused-key",
-      "key": "tamagotchi.stage.chat-window.context-inspector.reported-note",
-      "message": "\"tamagotchi.stage.chat-window.context-inspector.reported-note\" is not used.",
       "count": 1
     },
     {
