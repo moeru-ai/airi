@@ -41,6 +41,7 @@ mobile-tools:
 chat:
   audio:
     hearing-disabled: '[Audio recording: transcription is disabled.]'
+    transcription-unavailable: '[Audio recording: transcription is unavailable.]'
   provider-configuration:
     title: Chat provider isn't configured
     description: Choose and validate a provider in Settings before sending a message.
