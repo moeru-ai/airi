@@ -161,7 +161,7 @@ function isTextDelta(event: StreamEvent): event is Extract<StreamEvent, { type: 
   return event.type === 'text-delta'
 }
 
-function ownsProjectedTurn(message: ChatHistoryItem, turnId: string) {
+function ownsProjectedTurn(message: Pick<ChatHistoryItem, 'id'>, turnId: string) {
   if (!message.id)
     return false
 
@@ -816,7 +816,10 @@ export const useChatStore = defineStore('chat', () => {
 
       // Project a request copy. Stored messages retain recordings and reusable ASR results.
       const projected = structuredClone(source)
-      const sessionId = options?.requestCorrelation?.conversationId
+      const sessionId = correlation?.conversationId
+      const currentTurn = correlation
+        ? projected.turns.find(turn => turn.type === 'user' && ownsProjectedTurn({ id: correlation.turnId }, turn.id))
+        : projected.turns.findLast(turn => turn.type === 'user')
       let transcriber: ReturnType<typeof hearing.createTranscriber> | undefined
 
       for (const turn of projected.turns) {
@@ -863,8 +866,13 @@ export const useChatStore = defineStore('chat', () => {
                 completed = true
             }
 
-            if (!completed || !text?.trim())
-              throw new Error('The recording has no completed transcription')
+            if (!completed || !text?.trim()) {
+              if (turn === currentTurn)
+                throw new Error('The recording has no completed transcription')
+
+              turn.content[index] = { type: 'text', text: '[Audio recording: no transcript available.]' }
+              continue
+            }
 
             if (sessionId && stored?.id)
               await writeAudioTranscript(sessionId, stored.id, sourceIndex, text)

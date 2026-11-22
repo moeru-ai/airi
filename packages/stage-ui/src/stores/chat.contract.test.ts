@@ -1,4 +1,4 @@
-import type { ChatOrchestratorSessionPort, Conversation, StreamOptions, Turn } from '@proj-airi/core-agent'
+import type { ChatOrchestratorSessionPort, Conversation, StreamingTranscriber, StreamOptions, TranscriptionEvent, Turn } from '@proj-airi/core-agent'
 import type { GenerationProvider } from '@proj-airi/provider-inference'
 import type { TraceRecord, TraceSpanBegin, TraceSpanEnd } from '@proj-airi/trace-kit'
 import type { Tool, ToolExecuteOptions } from '@xsai/shared-chat'
@@ -50,6 +50,20 @@ function spanEnds(spanId: string) {
 }
 
 const llmStreamMock = vi.fn()
+const hearingMocks = vi.hoisted(() => ({
+  enabled: false,
+  transcribe: vi.fn<StreamingTranscriber['transcribe']>(),
+}))
+
+vi.mock('./modules/hearing', () => ({
+  useHearingStore: () => ({
+    get enabled() {
+      return hearingMocks.enabled
+    },
+    configured: true,
+    createTranscriber: () => ({ transcribe: hearingMocks.transcribe }),
+  }),
+}))
 const trackFirstMessageMock = vi.fn()
 const chatAnalyticsMocks = vi.hoisted(() => ({
   trackMessageRound: vi.fn(),
@@ -349,6 +363,8 @@ describe('chat store contract', () => {
     })
     vi.spyOn(getAnalytics(), 'recordFirstMessage').mockImplementation(trackFirstMessageMock)
     llmStreamMock.mockReset()
+    hearingMocks.enabled = false
+    hearingMocks.transcribe.mockReset()
     trackFirstMessageMock.mockReset()
     for (const analyticsMock of Object.values(chatAnalyticsMocks))
       analyticsMock.mockReset()
@@ -535,6 +551,50 @@ describe('chat store contract', () => {
     // The turn ends without a reply or an error message.
     expect(sessionMessages['session-1']).toEqual([{ role: 'system', content: 'system prompt', createdAt: 1, id: 'system' }])
     expect(llmStreamMock).not.toHaveBeenCalled()
+  })
+
+  // https://github.com/moeru-ai/airi/issues/3552
+  // ROOT CAUSE:
+  //
+  // An empty transcript from an earlier recording threw during every text-only request.
+  // Replace the historical audio in the request with a placeholder and keep the stored recording.
+  it('lets a text turn follow an older recording with no transcript (Issue #3552)', async () => {
+    const recording: ChatHistoryItem = {
+      role: 'user',
+      id: 'old-recording',
+      createdAt: 1,
+      content: [{ type: 'input_audio', input_audio: { data: 'UklGRg==', format: 'wav' } }],
+    }
+    sessionMessages['session-1'].push(recording)
+    hearingMocks.enabled = true
+    hearingMocks.transcribe.mockImplementation(({ audio }) => {
+      void audio.cancel()
+      return new ReadableStream<TranscriptionEvent>({
+        start(controller) {
+          controller.enqueue({ type: 'update', revision: 1, segments: [] })
+          controller.enqueue({ type: 'complete', revision: 1 })
+          controller.close()
+        },
+      })
+    })
+    llmStreamMock.mockImplementation(async (model: string, provider: GenerationProvider, context: Conversation, options: LlmStreamOptions) => {
+      const projection = await options.prepareConversation!(context, {
+        model,
+        providerId: options.providerId,
+        request: provider.generation(model),
+        scope: 'audio-model',
+        measureContextBytes: () => 0,
+      })
+      expect(projection.turns.find(turn => turn.id === 'old-recording-0')).toMatchObject({
+        content: expect.arrayContaining([{ type: 'text', text: '[Audio recording: no transcript available.]' }]),
+      })
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+
+    await useChatStore().send({ sessionId: 'session-1', text: 'Continue the conversation.' })
+
+    expect(llmStreamMock).toHaveBeenCalledOnce()
+    expect(sessionMessages['session-1'].find(message => message.id === recording.id)).toEqual(recording)
   })
 
   it('uses the target character settings for a text send to another session', async () => {
