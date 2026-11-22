@@ -67,7 +67,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
   const hasEverConnected = ref(false)
   const pendingSend = ref<Array<WebSocketEvent>>([])
   const pendingSendCount = computed(() => pendingSend.value.length)
-  const reconnectedCallbacks = new Set<() => void>()
+  const readyCallbacks = new Set<() => void>()
 
   const defaultWebSocketUrl = import.meta.env.VITE_AIRI_WS_URL || 'ws://localhost:6121/ws'
   const websocketUrl = useLocalStorage('settings/connection/websocket-url', defaultWebSocketUrl)
@@ -206,15 +206,8 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
           flush()
           initializeListeners()
 
-          if (isReconnect) {
-            for (const callback of reconnectedCallbacks) {
-              try {
-                callback()
-              }
-              catch (error) {
-                console.error('Error in reconnected callback:', error)
-              }
-            }
+          for (const callback of readyCallbacks) {
+            invokeReadyCallback(callback)
           }
           if (isReconnect && import.meta.env.DEV) {
             // eslint-disable-next-line no-console
@@ -229,12 +222,11 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
 
         if (event.data.authenticated) {
           if (!hasEverConnected.value) {
-            // First connection can flush immediately after authentication.
+            // Authenticated arrives while the transport is still `preparing`.
+            // Sends stay queued until the flush in `onReady` (#2305).
             connected.value = true
-            flush()
             initializeListeners()
           }
-          // On reconnect, wait for onReady (after announce) before flushing business events.
           resolve()
 
           return
@@ -307,21 +299,25 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     if (!client.value && !initializing.value)
       void initialize()
 
-    if (client.value && connected.value) {
-      client.value.send(data as WebSocketEvent)
-    }
-    else {
+    // `connected` turns true at `module:authenticated`. The transport is still
+    // `preparing` then, and `Client.send()` returns false until `ready`. Queue a
+    // refused event so that the flush in `onReady` sends it (#2305).
+    if (!client.value || !connected.value || !client.value.send(data as WebSocketEvent))
       pendingSend.value.push(data as WebSocketEvent)
-    }
   }
 
   function flush() {
     if (client.value && connected.value) {
+      // Keep the events that the transport refused, so that a later flush sends
+      // them. For example, the flush in `onReady` (#2305).
+      const unsent: WebSocketEvent[] = []
       for (const update of pendingSend.value) {
-        client.value.send(update)
+        if (!client.value.send(update)) {
+          unsent.push(update)
+        }
       }
 
-      pendingSend.value = []
+      pendingSend.value = unsent
     }
   }
 
@@ -336,11 +332,31 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     return registerListener(type, callback)
   }
 
-  function onReconnected(callback: () => void) {
-    reconnectedCallbacks.add(callback)
+  function invokeReadyCallback(callback: () => void) {
+    try {
+      callback()
+    }
+    catch (error) {
+      console.error('Error in ready callback:', error)
+    }
+  }
+
+  /**
+   * Runs `callback` every time the transport reaches `ready`: first connect,
+   * reconnects, and connections replaced after a URL/token change. Runs it
+   * immediately when the transport is already ready.
+   *
+   * Use this for per-connection server state (for example, consumer registration)
+   * rather than `ensureConnected()`, which resolves at `module:authenticated`
+   * while sends are still refused (#2305).
+   */
+  function onReady(callback: () => void) {
+    readyCallbacks.add(callback)
+    if (client.value?.isReady)
+      invokeReadyCallback(callback)
 
     return () => {
-      reconnectedCallbacks.delete(callback)
+      readyCallbacks.delete(callback)
     }
   }
 
@@ -393,7 +409,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     sendContextUpdate,
     onContextUpdate,
     onEvent,
-    onReconnected,
+    onReady,
     getPendingSendSnapshot: () => [...pendingSend.value],
     dispose,
   }

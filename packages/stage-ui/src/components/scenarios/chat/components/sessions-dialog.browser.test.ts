@@ -16,6 +16,8 @@ function createTestI18n() {
   return createI18n({
     legacy: false,
     locale: 'en',
+    missingWarn: false,
+    fallbackWarn: false,
     messages: {
       en: {
         stage: {
@@ -27,6 +29,8 @@ function createTestI18n() {
               'delete': 'Delete conversation',
               'delete-short': 'Delete',
               'confirm-delete-short': 'Confirm delete',
+              'more-actions': 'More actions',
+              'archive': 'Archive',
               'current': 'Current',
               'cancel': 'Cancel',
               'confirm-delete': 'Delete this conversation and its messages?',
@@ -55,8 +59,8 @@ function sessionMeta(sessionId: string, updatedAt: number): ChatSessionMeta {
 }
 
 function createHarness(rows = [
-  { meta: sessionMeta('session-one', 2), preview: 'First chat', isActive: true, activityAtLabel: 'now' },
-  { meta: sessionMeta('session-two', 1), preview: 'Second chat', isActive: false, activityAtLabel: 'yesterday' },
+  { meta: sessionMeta('session-one', 2), preview: 'First chat', isActive: true, activityAtLabel: 'now', characterName: 'Airi' },
+  { meta: sessionMeta('session-two', 1), preview: 'Second chat', isActive: false, activityAtLabel: 'yesterday', characterName: 'Airi' },
 ], isDesktop = false) {
   return defineComponent({
     name: 'SessionsDialogHarness',
@@ -80,6 +84,8 @@ function createHarness(rows = [
       <SessionsDialog
         :open="true"
         :rows="rows"
+        :folders="[]"
+        :characters="[]"
         :is-desktop="isDesktop"
         :is-creating-session="false"
         @new-session="created += 1"
@@ -97,7 +103,7 @@ function createHarness(rows = [
 describe('sessions dialog actions', () => {
   it('opens the compact desktop list from its conversation trigger', async () => {
     const rows = [
-      { meta: sessionMeta('session-one', 2), preview: 'First chat', isActive: true, activityAtLabel: 'now' },
+      { meta: sessionMeta('session-one', 2), preview: 'First chat', isActive: true, activityAtLabel: 'now', characterName: 'Airi' },
     ]
     const screen = await render(defineComponent({
       components: { SessionsDialog },
@@ -108,6 +114,8 @@ describe('sessions dialog actions', () => {
         <SessionsDialog
           v-model:open="open"
           :rows="rows"
+          :folders="[]"
+          :characters="[]"
           :is-desktop="true"
           :is-creating-session="false"
           desktop-mode="popover"
@@ -132,8 +140,8 @@ describe('sessions dialog actions', () => {
           deleted: ref('none'),
           open: ref(false),
           rows: [
-            { meta: sessionMeta('session-one', 2), preview: 'First chat', isActive: true, activityAtLabel: 'now' },
-            { meta: sessionMeta('session-two', 1), preview: 'Second chat', isActive: false, activityAtLabel: 'yesterday' },
+            { meta: sessionMeta('session-one', 2), preview: 'First chat', isActive: true, activityAtLabel: 'now', characterName: 'Airi' },
+            { meta: sessionMeta('session-two', 1), preview: 'Second chat', isActive: false, activityAtLabel: 'yesterday', characterName: 'Airi' },
           ],
         }
       },
@@ -141,6 +149,8 @@ describe('sessions dialog actions', () => {
         <SessionsDialog
           v-model:open="open"
           :rows="rows"
+          :folders="[]"
+          :characters="[]"
           :is-desktop="true"
           :is-creating-session="false"
           desktop-mode="popover"
@@ -468,16 +478,18 @@ describe('sessions dialog actions', () => {
       wheel(260)
       await expect.poll(() => actions.getBoundingClientRect().width).toBeCloseTo(row.getBoundingClientRect().width, 0)
       expect(screen.getByLabelText('deleted-session-id').element().textContent).toBe('none')
-      const icon = actions.querySelector('[data-swipe-action-icon]')!
-      const label = actions.querySelector('[data-swipe-action-label]')!
+      const deleteAction = actions.querySelector('[data-value="delete"]')!
+      const icon = deleteAction.querySelector('[data-swipe-action-icon]')!
+      const label = deleteAction.querySelector('[data-swipe-action-label]')!
       await expect.poll(() => icon.getBoundingClientRect().left - actions.getBoundingClientRect().left).toBeLessThan(32)
       await expect.poll(() => Number(getComputedStyle(label).opacity)).toBe(0)
       wheel(-160)
       await expect.poll(() => row.getAttribute('data-armed')).toBe('false')
-      await expect.poll(() => actions.getBoundingClientRect().width).toBeLessThan(130)
+      // Archive and Delete settle at 176px together, so the released takeover falls back near that width.
+      await expect.poll(() => actions.getBoundingClientRect().width).toBeLessThan(220)
       await expect.poll(() => Number(getComputedStyle(label).opacity)).toBe(1)
       await expect.poll(() => {
-        const bounds = actions.getBoundingClientRect()
+        const bounds = deleteAction.getBoundingClientRect()
         const iconBounds = icon.getBoundingClientRect()
         return Math.abs(iconBounds.left + iconBounds.width / 2 - bounds.left - bounds.width / 2)
       }).toBeLessThan(2)
@@ -549,7 +561,8 @@ describe('sessions dialog actions', () => {
     await expect.poll(() => actions.getBoundingClientRect().width).toBeLessThan(stretched)
     expect(row.getBoundingClientRect().height).toBe(height)
     await expect.poll(() => row.getAttribute('data-state')).toBe('open')
-    await expect.poll(() => actions.getBoundingClientRect().width).toBeCloseTo(88, 0)
+    // Each of the two actions, Archive and Delete, settles at 88px.
+    await expect.poll(() => actions.getBoundingClientRect().width).toBeCloseTo(176, 0)
     expect(screen.getByLabelText('deleted-session-id').element().textContent).toBe('none')
     wheel(-100)
     await expect.poll(() => row.getAttribute('data-state')).toBe('closed')
@@ -577,12 +590,14 @@ describe('sessions dialog actions', () => {
     await page.viewport(320, 740)
     const screen = await render(createHarness(), { global: { plugins: [createTestI18n()] } })
     const dialog = screen.getByRole('dialog').element()
-    await expect.poll(() => Math.round(dialog.getBoundingClientRect().height)).toBe(370)
+    await expect.poll(() => Math.round(dialog.getBoundingClientRect().height)).toBeGreaterThanOrEqual(370)
+    const dialogHeight = Math.round(dialog.getBoundingClientRect().height)
     const row = screen.getByRole('button', { name: /^Second chat/ }).element().closest('li')!
     const height = row.getBoundingClientRect().height
     await screen.getByRole('button', { name: 'Delete conversation: Second chat' }).click()
+    await expect.element(screen.getByRole('button', { name: 'Delete conversation', exact: true })).toBeVisible()
     expect(row.getBoundingClientRect().height).toBe(height)
-    expect(Math.round(dialog.getBoundingClientRect().height)).toBe(370)
+    expect(Math.round(dialog.getBoundingClientRect().height)).toBe(dialogHeight)
   })
 
   it('keeps the current marker and deletion actions usable at 320 pixels', async () => {
@@ -597,7 +612,13 @@ describe('sessions dialog actions', () => {
     await remove.click()
     await expect.element(screen.getByRole('button', { name: 'Delete conversation', exact: true })).toBeVisible()
     await expect.element(screen.getByLabelText('deleted-session-id')).toHaveTextContent('none')
-    await screen.getByRole('button', { name: /^Second chat/ }).click()
+    // Archive and Delete take 176px, so most of the row leaves the view. A tap on the part that stays visible closes the
+    // actions and selects nothing. A tap on the center of the row scrolls it into view first, and that closes them.
+    const row = screen.getByRole('button', { name: /^Second chat/ }).element().closest<HTMLElement>('[data-swipe-actions]')!
+    const actions = row.querySelector<HTMLElement>('[data-swipe-actions-list]')!
+    await expect.poll(() => actions.getBoundingClientRect().width).toBeCloseTo(176, 0)
+    const rowBounds = row.getBoundingClientRect()
+    await userEvent.click(row, { position: { x: (rowBounds.width - actions.getBoundingClientRect().width) / 2, y: rowBounds.height / 2 } })
     await expect.element(remove).toHaveAttribute('aria-expanded', 'false')
     await expect.element(screen.getByLabelText('selected-session-id')).toHaveTextContent('none')
     await expect.element(screen.getByRole('button', { name: 'Delete conversation', exact: true })).not.toBeInTheDocument()
@@ -606,7 +627,7 @@ describe('sessions dialog actions', () => {
   })
 
   // https://github.com/moeru-ai/airi/pull/2536#discussion_r3999211068
-  it('moves keyboard focus from the fading trigger to Delete', async () => {
+  it('moves keyboard focus from the fading trigger into the actions', async () => {
     // ROOT CAUSE:
     // The trigger fades and leaves the tab order while List precedes Content.
     // Opening with the keyboard must focus an action before the trigger hides.
@@ -614,11 +635,15 @@ describe('sessions dialog actions', () => {
     const trigger = screen.getByRole('button', { name: 'Delete conversation: Second chat' })
     trigger.element().focus()
     await userEvent.keyboard('{Enter}')
-    const action = screen.getByRole('button', { name: 'Delete conversation', exact: true })
-    await expect.element(action).toBeVisible()
-    await expect.poll(() => document.activeElement).toBe(action.element())
+    const remove = screen.getByRole('button', { name: 'Delete conversation', exact: true })
+    await expect.element(remove).toBeVisible()
+    const row = trigger.element().closest<HTMLElement>('[data-swipe-actions]')!
+    // The first action takes the focus. Archive comes before Delete.
+    await expect.poll(() => document.activeElement).toBe(row.querySelector('[data-swipe-actions-item][data-value="archive"]'))
+    await userEvent.keyboard('{Tab}')
+    await expect.poll(() => document.activeElement).toBe(remove.element())
     await userEvent.keyboard('{Enter}')
-    expect(screen.getByLabelText('deleted-session-id').element().textContent).toBe('session-two')
+    await expect.element(screen.getByLabelText('deleted-session-id')).toHaveTextContent('session-two')
   })
 
   it('keeps only one action area open and consumes Escape before drawer dismissal', async () => {
@@ -652,6 +677,7 @@ describe('sessions dialog actions', () => {
       preview: `Chat ${index}`,
       isActive: index === 0,
       activityAtLabel: 'now',
+      characterName: 'Airi',
     }))
 
     await render(createHarness(rows), {

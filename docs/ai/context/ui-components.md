@@ -19,6 +19,9 @@ finishes. It can compose with Reka UI content primitives through `as-child`, but
 does not depend on a specific menu, popover, or presence implementation. Visual
 styling remains caller-owned. The content slides 4px from its trigger. With
 `data-side="top"`, which Reka sets on content above its trigger, it slides up.
+Content with any `data-side` keeps its final height from the first frame and
+only fades and slides. Its positioning owner measures it on each frame to
+choose a side, so a growing height makes a menu near an edge flip sides.
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
@@ -500,6 +503,7 @@ items and their business actions.
 
 **Models**: `open` (`boolean`, default `false`). Bind it to open the menu from code, for example after a hover delay.
 **Slots**: `trigger` (one interactive element), `default` (Reka dropdown-menu items).
+**Emits**: `closeAutoFocus(event)` when the closed menu returns focus to its trigger. Cancel it to move focus elsewhere, for example into a field that a menu item opened.
 
 ### Menu items
 

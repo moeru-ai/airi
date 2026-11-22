@@ -510,7 +510,8 @@ function moveByKeyboard(delta: WindowDelta) {
         ref="panel"
         :class="[
           'absolute inset-0 flex flex-col gap-1 rounded-3xl pt-3',
-          danmaku ? '' : 'bg-white/80 dark:bg-neutral-900/80',
+          // macOS draws native glass behind this fill. Other platforms have no glass, so the same 80% fill shows the desktop.
+          danmaku ? '' : glassBackdrop ? 'bg-white/80 dark:bg-neutral-900/80' : 'bg-neutral-50 dark:bg-neutral-950',
         ]"
       >
         <!--

@@ -6,6 +6,7 @@ import type { StreamEvent, StreamFromOptions, StreamOptions } from '../types/llm
 import { APICallError } from '@xsai/shared'
 
 import { streamChatCompletions } from './chat-completions'
+import { DecisionStepLimitReached, DEFAULT_MAX_STEPS } from './decision-budget'
 import { createContinuationScope, supportsContentArray, supportsTools } from './request-context'
 import { RequestSwitch } from './request-switch'
 import { streamResponses } from './responses'
@@ -84,13 +85,6 @@ async function streamOnce({
   const currentProvider = initialStep?.chatProvider ?? chatProvider
   // Resolve before async tool loading so all decisions use this request's configuration.
   const request = currentProvider.generation(currentModel)
-  if (options?.prepareConversation) {
-    conversation = await options.prepareConversation(conversation, {
-      model: currentModel,
-      providerId: initialStep?.providerId ?? options.providerId,
-      request,
-    })
-  }
   const supportedTools = supportsTools(currentModel, request, options)
   const contentArraySupported = supportsContentArray(currentModel, request, options)
   if (request.protocol === 'chat-completions' && !contentArraySupported && options?.prepareStringContent)
@@ -125,7 +119,9 @@ async function streamOnce({
     // A request switch retries the request, and a caller abort is a cancellation that the caller already knows about.
     // Logging either one as a failure fills the console during normal speech, for example when a voice plugin
     // cancels a judgement because the speaker continued.
-    const reportsFailure = (error: unknown) => !(error instanceof RequestSwitch) && !options?.abortSignal?.aborted
+    const reportsFailure = (error: unknown) => !(error instanceof RequestSwitch)
+      && !(error instanceof DecisionStepLimitReached)
+      && !options?.abortSignal?.aborted
 
     const onEvent = async (streamEvent: StreamEvent) => {
       try {
@@ -275,14 +271,65 @@ function mergeGenerationUsage(rounds: GenerationRound[], last?: Parameters<NonNu
   }
 }
 
+async function finishAtDecisionStepLimit(options: StreamOptions | undefined, reached: DecisionStepLimitReached, previousRounds: GenerationRound[] = []) {
+  options?.abortSignal?.throwIfAborted()
+  const turn: AssistantTurn = {
+    ...reached.partialTurn,
+    rounds: [...previousRounds, ...reached.partialTurn.rounds],
+    stopReason: {
+      type: 'step-limit',
+      maxSteps: reached.maxSteps,
+      completedSteps: reached.completedSteps,
+    },
+  }
+
+  // Settle the checkpoint before notifying observers. Observer failures cannot undo completed tool calls.
+  await options?.onGeneratedTurn?.(turn)
+  try {
+    await options?.onStreamEvent?.({ type: 'step-limit', maxSteps: reached.maxSteps, completedSteps: reached.completedSteps })
+  }
+  catch (error) {
+    console.error('Step-limit event callback error:', error)
+  }
+  try {
+    await options?.onStreamEvent?.({ type: 'finish' })
+  }
+  catch (error) {
+    console.error('Stream finish callback error:', error)
+  }
+  try {
+    await options?.onUsage?.(mergeGenerationUsage(turn.rounds) ?? { source: 'unavailable' })
+  }
+  catch (error) {
+    console.error('Stream usage callback error:', error)
+  }
+}
+
 /** Keeps one assistant turn across xsAI tool loops when the next request changes provider scope. */
 export async function streamFrom(input: StreamFromOptions): Promise<void> {
-  if (!input.options?.resolveStep)
-    return streamWithTransientRetry(input)
+  const maxSteps = input.options?.maxSteps ?? DEFAULT_MAX_STEPS
+  if (!Number.isSafeInteger(maxSteps) || maxSteps < 1)
+    throw new RangeError('maxSteps must be a positive safe integer')
+
+  const requestInput: StreamFromOptions = {
+    ...input,
+    options: { ...input.options, maxSteps },
+  }
+  if (!requestInput.options?.resolveStep) {
+    try {
+      await streamWithTransientRetry(requestInput)
+    }
+    catch (error) {
+      if (!(error instanceof DecisionStepLimitReached))
+        throw error
+      await finishAtDecisionStepLimit(input.options, error)
+    }
+    return
+  }
 
   const completedRounds: GenerationRound[] = []
-  let turnId = input.options.requestCorrelation?.turnId
-  let request = input
+  let turnId = requestInput.options.requestCorrelation?.turnId
+  let request = requestInput
   while (true) {
     let finalTurn: AssistantTurn | undefined
     let lastUsage: Parameters<NonNullable<StreamOptions['onUsage']>>[0] | undefined
@@ -298,25 +345,29 @@ export async function streamFrom(input: StreamFromOptions): Promise<void> {
         },
       })
       if (finalTurn)
-        await input.options.onGeneratedTurn?.({ ...finalTurn, rounds: [...completedRounds, ...finalTurn.rounds] })
+        await requestInput.options.onGeneratedTurn?.({ ...finalTurn, rounds: [...completedRounds, ...finalTurn.rounds] })
       const usage = mergeGenerationUsage(completedRounds, lastUsage)
       if (usage)
-        await input.options.onUsage?.(usage)
+        await requestInput.options.onUsage?.(usage)
       return
     }
     catch (error) {
+      if (error instanceof DecisionStepLimitReached) {
+        await finishAtDecisionStepLimit(requestInput.options, error, completedRounds)
+        return
+      }
       if (!(error instanceof RequestSwitch))
         throw error
       turnId = error.partialTurn.id
       completedRounds.push(...error.partialTurn.rounds)
       request = {
-        ...input,
+        ...requestInput,
         model: error.next.model,
         chatProvider: error.next.chatProvider,
-        options: { ...input.options, providerId: error.next.providerId, headers: error.next.headers },
+        options: { ...requestInput.options, providerId: error.next.providerId, headers: error.next.headers },
         conversation: {
           turns: [
-            ...input.conversation.turns,
+            ...requestInput.conversation.turns,
             { ...error.partialTurn, rounds: [...completedRounds] },
           ],
         },
@@ -343,17 +394,9 @@ export function isToolRelatedError(error: unknown): boolean {
   return TOOLS_RELATED_ERROR_PATTERNS.some(pattern => pattern.test(message))
 }
 
-// Runtime auto-degrade: patterns that indicate the provider rejected
-// content-part arrays and only accepts a plain string for `messages[].content`.
-//
-// The first pattern matches the Rust/serde wire-level error format used by
-// many strict OpenAI-compatible gateways (e.g. DeepSeek-style servers):
-//   "Failed to deserialize the JSON body into the target type:
-//    messages[7]: invalid type: sequence, expected a string at line 1 column …"
-// The second pattern covers Python/Pydantic-style errors like
-//   "messages.0.content: Input should be a valid string"
-// and other variants that surface the same root cause.
-//
+// Some OpenAI-compatible providers reject content-part arrays.
+// Strict Rust gateways can return `invalid type: sequence, expected a string`.
+// Python gateways can return `messages.0.content: Input should be a valid string`.
 // See: https://github.com/moeru-ai/airi/issues/1500
 const CONTENT_ARRAY_RELATED_ERROR_PATTERNS: RegExp[] = [
   /messages\[\d+\][^"]*invalid type:\s*sequence,\s*expected\s+a\s+string/i,

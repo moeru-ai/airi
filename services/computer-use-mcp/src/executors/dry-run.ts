@@ -21,6 +21,7 @@ import { platform } from 'node:process'
 
 import { probeDisplayInfo, probePermissionInfo } from '../runtime-probes'
 import { captureScreenshotArtifact } from '../utils/screenshot'
+import { sleep } from '../utils/sleep'
 
 async function getBestEffortForegroundContext(): Promise<ForegroundContext> {
   return {
@@ -68,7 +69,10 @@ export function createDryRunExecutor(config: ComputerUseConfig): DesktopExecutor
       kind: 'dry-run',
       notes: [
         'desktop input is not injected',
-        'screenshots are still attempted on the current host for debugging',
+        'window observation returns no native windows',
+        platform === 'darwin'
+          ? 'screenshots attempt the local macOS screencapture utility and return a placeholder on failure'
+          : 'screenshots return a placeholder image, not native screen pixels',
       ],
     }),
     getExecutionTarget: async () => executionTarget,
@@ -90,7 +94,7 @@ export function createDryRunExecutor(config: ComputerUseConfig): DesktopExecutor
     pressKeys: async (_input: PressKeysActionInput) => result(['dry-run: shortcut not injected'], executionTarget),
     scroll: async (_input: ScrollActionInput) => result(['dry-run: scroll not injected'], executionTarget),
     wait: async (input: WaitActionInput) => {
-      await new Promise(resolve => setTimeout(resolve, Math.max(input.durationMs, 0)))
+      await sleep(Math.max(input.durationMs, 0))
       return {
         performed: true,
         backend: 'dry-run',
