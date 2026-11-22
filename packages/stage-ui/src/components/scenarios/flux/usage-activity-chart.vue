@@ -2,7 +2,7 @@
 import type { ActivityView, DailyUsage } from './usage-stats'
 
 import { GhostButton } from '@proj-airi/ui'
-import { useElementBounding, usePreferredReducedMotion } from '@vueuse/core'
+import { onKeyStroke, useElementBounding, usePreferredReducedMotion } from '@vueuse/core'
 import { stagger, waapi } from 'animejs'
 import { intlFormat, parseISO } from 'date-fns'
 import { computed, nextTick, onBeforeUnmount, onMounted, shallowRef, useId, useTemplateRef, watch } from 'vue'
@@ -90,43 +90,41 @@ function clearPointerSelection() {
     activeIndex.value = null
 }
 
-function navigate(event: KeyboardEvent) {
+const arrowKeyOffsets = new Map([
+  ['ArrowLeft', { columns: -1, rows: 0 }],
+  ['ArrowRight', { columns: 1, rows: 0 }],
+  ['ArrowUp', { columns: 0, rows: -1 }],
+  ['ArrowDown', { columns: 0, rows: 1 }],
+])
+
+onKeyStroke([...arrowKeyOffsets.keys(), 'Home', 'End', 'Escape'], (event) => {
+  const offset = arrowKeyOffsets.get(event.key)
+  if (offset?.rows && view.value !== 'daily')
+    return
+
+  event.preventDefault()
+  if (event.key === 'Escape') {
+    activeIndex.value = null
+    return
+  }
+
   const { groups } = layout.value
   const last = groups.length - 1
-  const current = activeIndex.value ?? last
-  const columnStep = view.value === 'daily' ? 7 : 1
-  let next: number
-  switch (event.key) {
-    case 'ArrowLeft':
-      next = current - columnStep
-      break
-    case 'ArrowRight':
-      next = current + columnStep
-      break
-    case 'ArrowUp':
-    case 'ArrowDown':
-      if (view.value !== 'daily')
-        return
-      next = current + (event.key === 'ArrowUp' ? -1 : 1)
-      if (groups[next]?.column !== groups[current]?.column)
-        next = current
-      break
-    case 'Home':
-      next = 0
-      break
-    case 'End':
-      next = last
-      break
-    case 'Escape':
-      activeIndex.value = null
-      event.preventDefault()
-      return
-    default:
-      return
+  if (!offset) {
+    selectGroup(event.key === 'Home' ? 0 : last, true)
+    return
   }
-  event.preventDefault()
-  selectGroup(groups[next] ? next : current, true)
-}
+
+  const currentIndex = activeIndex.value ?? last
+  const currentGroup = groups[currentIndex]
+  if (!currentGroup)
+    return
+
+  const nextColumn = currentGroup.column + offset.columns
+  const nextRow = currentGroup.row + offset.rows
+  const nextIndex = groups.findIndex(group => group.column === nextColumn && group.row === nextRow)
+  selectGroup(nextIndex === -1 ? currentIndex : nextIndex, true)
+}, { target: grid })
 
 async function selectView(nextView: ActivityView) {
   if (view.value === nextView)
@@ -196,7 +194,6 @@ onMounted(() => {
             'focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset--2',
           ]"
           :style="{ gridTemplateColumns: columns, aspectRatio: layout.weekCount ? `${layout.weekCount} / 7` : undefined }"
-          @keydown="navigate"
           @focus="focusChart"
           @blur="activeIndex = null"
           @pointerleave="clearPointerSelection"

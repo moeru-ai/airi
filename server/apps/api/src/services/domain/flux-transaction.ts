@@ -32,15 +32,16 @@ export function createFluxTransactionService(db: Database) {
 
     /** Returns 365 local calendar days, with zero fees on days without usage. */
     async getDailyUsage(userId: string, timeZone: string, now = new Date()) {
-      const { rows: [zone] } = await db.execute<{ last_date: string }>(sql`
-        SELECT to_char(${now.toISOString()}::timestamptz AT TIME ZONE name, 'YYYY-MM-DD') AS last_date
-        FROM pg_timezone_names
-        WHERE name = ${timeZone}
-      `)
+      const timeZoneName = sql`name`
+      const [zone] = await db.select({
+        lastDate: sql<string>`to_char(${now.toISOString()}::timestamptz AT TIME ZONE ${timeZoneName}, 'YYYY-MM-DD')`,
+      })
+        .from(sql`pg_timezone_names`)
+        .where(eq(timeZoneName, timeZone))
       if (!zone)
         throw createBadRequestError('Invalid time zone', 'INVALID_TIME_ZONE')
 
-      const firstDay = subDays(zone.last_date, DAILY_USAGE_DAYS - 1, { in: utc })
+      const firstDay = subDays(zone.lastDate, DAILY_USAGE_DAYS - 1, { in: utc })
       // Start one UTC day early to include local midnight in zones ahead of UTC.
       const scanStart = subDays(firstDay, 1)
 
