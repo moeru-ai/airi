@@ -78,6 +78,11 @@ export function createFluxTransactionService(db: Database) {
     async getHistory(userId: string, limit: number, offset: number) {
       const metadata = schema.fluxTransaction.metadata
       const turnId = sql`${metadata}->>'turnId'`
+      // NOTICE:
+      // Combine old per-request speech debits into one row for each chat turn.
+      // Debits from 2026-04 to 2026-10 used 'tts_request'. Settlement now writes 'usage_settlement'.
+      // Source: 0040675e8 (#2491) added the grouping. 41335077e (#2783) stopped the 'tts_request' writes.
+      // Remove the grouping when the wallet history no longer needs to show those debits.
       const transactions = db.select({
         ...getTableColumns(schema.fluxTransaction),
         groupKey: sql`CASE WHEN
