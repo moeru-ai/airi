@@ -2,16 +2,12 @@ import type { TtsAdapter, TtsAdapterId } from './types'
 
 import { createBadRequestError } from '@proj-airi/http-error-shared'
 
-import { azureAdapter } from './azure'
 import { dashscopeCosyvoiceAdapter } from './dashscope-cosyvoice'
 import { stepfunAdapter } from './stepfun'
-import { volcengineAdapter } from './volcengine'
 
 const ADAPTERS: Record<TtsAdapterId, TtsAdapter> = {
-  'azure': azureAdapter,
   'dashscope-cosyvoice': dashscopeCosyvoiceAdapter,
   'stepfun': stepfunAdapter,
-  'volcengine': volcengineAdapter,
 }
 
 /**

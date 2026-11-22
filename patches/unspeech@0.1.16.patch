@@ -1,0 +1,73 @@
+diff --git a/dist/index.d.mts b/dist/index.d.mts
+index b1fa6c5..4d5cee7 100644
+--- a/dist/index.d.mts
++++ b/dist/index.d.mts
+@@ -355,6 +355,12 @@ declare function createUnElevenLabs(apiKey: string, baseURL?: string): SpeechPro
+ //#endregion
+ //#region src/backend/stepfun.d.ts
+ interface UnStepfunOptions {
++  /**
++   * Provider-owned endpoint profile such as `step-plan`.
++   */
++  endpointProfile?: string;
++  /** The host selects a supported StepFun language code. */
++  language?: string;
+   /**
+    * Audio volume. Range: 0.1 to 2.0.
+    *
+diff --git a/dist/index.mjs b/dist/index.mjs
+index a211de3..497adc7 100644
+--- a/dist/index.mjs
++++ b/dist/index.mjs
+@@ -328,3 +328,46 @@
++//#endregion
++//#region src/backend/stepfun.ts
++/**
++* [StepFun](https://platform.stepfun.com/) provider for [UnSpeech](https://github.com/moeru-ai/unspeech).
++*
++* @param apiKey - StepFun API key
++* @param baseURL - UnSpeech Instance URL
++* @returns SpeechProviderWithExtraOptions & VoiceProviderWithExtraOptions
++*/
++function createUnStepfun(apiKey, baseURL = "http://localhost:5933/v1/") {
++	const toUnSpeechOptions = (options) => {
++		const { endpointProfile, instruction, language, markdownFilter, pronunciationMap, sampleRate, voiceLabel, volume } = options;
++		const extraBody = {
++			endpointProfile,
++			instruction,
++			language,
++			markdownFilter,
++			pronunciationMap,
++			sampleRate,
++			voiceLabel,
++			volume
++		};
++		Object.keys(extraBody).forEach((key) => extraBody[key] === void 0 && delete extraBody[key]);
++		return { extraBody: objCamelToSnake(extraBody) };
++	};
++	return merge({ speech: (model, options) => ({
++		...options ? toUnSpeechOptions(options) : {},
++		apiKey,
++		baseURL,
++		model: `stepfun/${model}`
++	}) }, { voice: (options) => {
++		let adjustedBaseURL = baseURL;
++		if (adjustedBaseURL.endsWith("v1/")) adjustedBaseURL = adjustedBaseURL.slice(0, -3);
++		else if (adjustedBaseURL.endsWith("v1")) adjustedBaseURL = adjustedBaseURL.slice(0, -2);
++		return {
++			query: "provider=stepfun",
++			...options ? toUnSpeechOptions(options) : {},
++			apiKey,
++			baseURL: adjustedBaseURL
++		};
++	} });
++}
++
+ //#endregion
+ //#region src/backend/index.ts
+ /** @see {@link https://github.com/moeru-ai/unspeech} */
+@@ -450,2 +493,2 @@
+ //#endregion
+-export { UnSpeechAPIError, buildMicrosoftSsml, createUnAlibabaCloud, createUnDeepgram, createUnElevenLabs, createUnMicrosoft, createUnSpeech, createUnVolcengine, escapeMicrosoftSsmlText, generateSpeechResponse, inferMicrosoftContentType, isMicrosoftVoiceId, listVoices, microsoftSpeedToProsodyRate, resolveMicrosoftOutputFormat };
+\ No newline at end of file
++export { UnSpeechAPIError, buildMicrosoftSsml, createUnAlibabaCloud, createUnDeepgram, createUnElevenLabs, createUnMicrosoft, createUnSpeech, createUnStepfun, createUnVolcengine, escapeMicrosoftSsmlText, generateSpeechResponse, inferMicrosoftContentType, isMicrosoftVoiceId, listVoices, microsoftSpeedToProsodyRate, resolveMicrosoftOutputFormat };
