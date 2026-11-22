@@ -316,8 +316,8 @@ chat:
     selected: 已选 {count} 个
     empty-folder: “{folder}”还是空的。点上面的按钮新建，或在对话的菜单里选“移到文件夹”。
     empty-folder-character: “{folder}”里还没有和 {name} 的对话。点上面的按钮开始。
-    empty-archive: 没有归档的对话。归档的对话放在这里，不会被删除。
-    empty-archive-character: 没有和 {name} 的归档对话。归档的对话放在这里，不会被删除。
+    empty-archive: 没有归档的对话。归档的对话放在这里。
+    empty-archive-character: 没有和 {name} 的归档对话。归档的对话放在这里。
     empty-character: 还没有和 {name} 的对话。点上面的按钮开始第一段。
     save-failed: 这次修改没能保存
 avatar-model-missing:
