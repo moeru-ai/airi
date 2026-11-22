@@ -14,7 +14,7 @@ export type AutoDecision
     | { outcome: 'review', reason: string, card: AutoApprovalCard }
 
 const READ_ONLY_LIST = new Set(['pwd', 'ls', 'get-location', 'get-childitem'])
-const READ_ONLY_GIT = new Set(['status', 'log', 'show'])
+const READ_ONLY_GIT = new Set(['log'])
 const DELETE_COMMANDS = new Set(['rm', 'del', 'remove-item'])
 const WRITE_COMMANDS = new Set(['mkdir', 'mv', 'cp', 'move-item', 'copy-item', 'set-content', 'out-file', 'new-item'])
 const REFUSE_COMMANDS = new Set([
@@ -182,6 +182,8 @@ export function decideCommandAuto(snapshot: TerminalSnapshot, workspaceRoot: str
     return { outcome: 'refuse', reason: 'The command could not be checked safely.' }
   if (mentionsSecret(tokens) || isPrivilegeCommand(tokens))
     return { outcome: 'refuse', reason: 'The command reaches secrets or a privileged operation.' }
+  if (tokens.some(token => /[*?[]/.test(token)))
+    return { outcome: 'refuse', reason: 'The command uses a shell pattern that Auto cannot check.' }
   const platform = snapshot.executorPlatform
   const workspace = resolveExistingPath(workspaceRoot, platform)
   const effectiveCwd = resolveExistingPath(snapshot.effectiveCwd, platform)
@@ -391,8 +393,16 @@ function gitReadOnlyArgs(tokens: string[]): boolean {
       return false
     if (token.includes('=') || token === '-c' || token.startsWith('--output') || token.startsWith('--textconv') || token.startsWith('--ext-diff'))
       return false
+    if (isGitPatchFlag(token))
+      return false
   }
   return true
+}
+
+function isGitPatchFlag(token: string): boolean {
+  if (token === '-p' || token === '-u' || token === '--patch' || token === '--unified')
+    return true
+  return token.startsWith('-') && !token.startsWith('--') && /[pu]/.test(token.slice(1))
 }
 
 function isPrivilegeCommand(tokens: string[]): boolean {
@@ -410,15 +420,26 @@ function commandName(token: string): string {
   return token.toLowerCase()
 }
 
+/** Reads a path glued to an option, for example `-t/tmp/out` or `-t../out`. */
+function attachedOptionPath(token: string): string | undefined {
+  const body = token.startsWith('--') ? token.slice(2) : token.slice(1)
+  const match = body.match(/(?:[/\\]|\.\.|[a-z]:[/\\]).*$/i)
+  return match?.[0]
+}
+
 function resolvePathToken(token: string, cwd: string, platform: string, checkBareExisting = false): string | 'skip' | 'unsafe' {
   if (token === '--')
     return 'skip'
   if (token.startsWith('-')) {
     const separator = token.indexOf('=')
-    if (separator === -1)
+    if (separator !== -1) {
+      const value = token.slice(separator + 1)
+      return value ? resolvePathToken(value, cwd, platform, checkBareExisting) : 'skip'
+    }
+    const attached = attachedOptionPath(token)
+    if (attached === undefined)
       return 'skip'
-    const value = token.slice(separator + 1)
-    return value ? resolvePathToken(value, cwd, platform, checkBareExisting) : 'skip'
+    return attached ? resolvePathToken(attached, cwd, platform, true) : 'unsafe'
   }
   if (token.startsWith('~') || token.startsWith('\\\\?\\'))
     return 'unsafe'

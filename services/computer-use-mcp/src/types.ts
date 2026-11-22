@@ -721,6 +721,8 @@ export interface ExecutorCallOptions {
   targetWindowId?: string
   targetWindowContext?: ForegroundContext
   boundGrounding?: PreparedGroundingBinding
+  /** Foreground captured when Host approval was requested. Checked again at input. */
+  approvedForeground?: ForegroundContext
 }
 
 export interface DesktopExecutor {

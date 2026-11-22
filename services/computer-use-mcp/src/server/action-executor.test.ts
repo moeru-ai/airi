@@ -1,3 +1,4 @@
+import type { CdpBridge } from '../browser-dom/cdp-bridge'
 import type { ComputerUseConfig, ExecutorKind } from '../types'
 import type { ComputerUseServerRuntime } from './runtime'
 
@@ -13,6 +14,8 @@ import {
 } from '../test-fixtures'
 import { createExecuteAction } from './action-executor'
 import { resolvePendingAction } from './register-tools'
+
+import * as desktopGrounding from '../desktop-grounding'
 
 function createRuntimeForActionTest(configOverrides: Partial<ComputerUseConfig> = {}) {
   const stateManager = new RunStateManager()
@@ -86,6 +89,11 @@ function createRuntimeForActionTest(configOverrides: Partial<ComputerUseConfig> 
     triggerEvent: vi.fn().mockResolvedValue([]),
   }
   const cdpBridgeManager = {
+    ensureBridge: vi.fn().mockResolvedValue({}),
+    getStatus: vi.fn().mockReturnValue({
+      cdpUrl: 'http://localhost:9222',
+      connected: false,
+    }),
     probeAvailability: vi.fn().mockResolvedValue({
       endpoint: 'http://localhost:9222',
       connected: false,
@@ -108,7 +116,9 @@ function createRuntimeForActionTest(configOverrides: Partial<ComputerUseConfig> 
     stateManager,
     taskMemory: {},
     desktopSessionController,
-    chromeSessionManager: {},
+    chromeSessionManager: {
+      getSessionInfo: vi.fn().mockReturnValue(undefined),
+    },
   } as unknown as ComputerUseServerRuntime
 
   return {
@@ -337,8 +347,37 @@ describe('createExecuteAction', () => {
     expect(executor.click).not.toHaveBeenCalled()
   })
 
-  it('clicks a bound target after the unbound snapshot freshness window', async () => {
-    const { runtime, executor, stateManager } = createRuntimeForActionTest()
+  it('clicks a bound target after refreshing a stale snapshot that still matches', async () => {
+    const { runtime, executor, stateManager, cdpBridgeManager } = createRuntimeForActionTest()
+    const bounds = { x: 100, y: 200, width: 80, height: 30 }
+    const cdpBridge = { getStatus: vi.fn().mockReturnValue({ connected: true }) } as unknown as CdpBridge
+    cdpBridgeManager.getStatus.mockReturnValue({ cdpUrl: 'http://localhost:9222', connected: true })
+    cdpBridgeManager.ensureBridge.mockResolvedValue(cdpBridge)
+    vi.spyOn(desktopGrounding, 'captureDesktopGrounding').mockResolvedValue({
+      snapshotId: 'dg_fresh',
+      capturedAt: new Date().toISOString(),
+      foregroundApp: 'Google Chrome',
+      windows: [],
+      screenshot: {
+        dataBase64: '',
+        mimeType: 'image/png',
+        path: '',
+        capturedAt: new Date().toISOString(),
+      },
+      targetCandidates: [
+        {
+          id: 't_fresh',
+          source: 'ax',
+          appName: 'Google Chrome',
+          role: 'AXButton',
+          label: 'Save',
+          bounds,
+          confidence: 0.95,
+          interactable: true,
+        },
+      ],
+      staleFlags: { screenshot: false, ax: false, chromeSemantic: false },
+    } as any)
     stateManager.updateGroundingSnapshot({
       snapshotId: 'dg_aged',
       capturedAt: new Date(Date.now() - 30_000).toISOString(),
@@ -376,6 +415,100 @@ describe('createExecuteAction', () => {
 
     expect(result.isError).not.toBe(true)
     expect(executor.click).toHaveBeenCalledOnce()
+    expect(desktopGrounding.captureDesktopGrounding).toHaveBeenCalledOnce()
+    expect(cdpBridgeManager.ensureBridge).toHaveBeenCalledWith('http://localhost:9222')
+    expect(desktopGrounding.captureDesktopGrounding).toHaveBeenCalledWith(expect.objectContaining({ cdpBridge }))
+  })
+
+  it('refuses a stale bound click when the refreshed target moved', async () => {
+    const { runtime, executor, stateManager } = createRuntimeForActionTest()
+    vi.spyOn(desktopGrounding, 'captureDesktopGrounding').mockResolvedValue({
+      snapshotId: 'dg_moved',
+      capturedAt: new Date().toISOString(),
+      foregroundApp: 'Google Chrome',
+      windows: [],
+      screenshot: {
+        dataBase64: '',
+        mimeType: 'image/png',
+        path: '',
+        capturedAt: new Date().toISOString(),
+      },
+      targetCandidates: [
+        {
+          id: 't_moved',
+          source: 'ax',
+          appName: 'Google Chrome',
+          role: 'AXButton',
+          label: 'Save',
+          bounds: { x: 800, y: 800, width: 20, height: 20 },
+          confidence: 0.95,
+          interactable: true,
+        },
+      ],
+      staleFlags: { screenshot: false, ax: false, chromeSemantic: false },
+    } as any)
+    stateManager.updateGroundingSnapshot({
+      snapshotId: 'dg_aged',
+      capturedAt: new Date(Date.now() - 30_000).toISOString(),
+      foregroundApp: 'Google Chrome',
+      windows: [],
+      screenshot: {
+        dataBase64: '',
+        mimeType: 'image/png',
+        path: '',
+        capturedAt: new Date().toISOString(),
+      },
+      targetCandidates: [
+        {
+          id: 't_0',
+          source: 'ax',
+          appName: 'Google Chrome',
+          role: 'AXButton',
+          label: 'Save',
+          bounds: { x: 100, y: 200, width: 80, height: 30 },
+          confidence: 0.95,
+          interactable: true,
+        },
+      ],
+      staleFlags: { screenshot: false, ax: false, chromeSemantic: false },
+    } as any)
+    const executeAction = createExecuteAction(runtime)
+    const result = await executeAction({ kind: 'desktop_click_target', input: { candidateId: 't_0' } }, 'desktop_click_target', {
+      skipApprovalQueue: true,
+      boundGrounding: {
+        snapshotId: 'dg_aged',
+        candidateId: 't_0',
+        candidateLabel: 'Save',
+      },
+    })
+
+    expect(result.isError).toBe(true)
+    expect(result.content.find(item => item.type === 'text')?.text).toContain('moved during approval')
+    expect(executor.click).not.toHaveBeenCalled()
+  })
+
+  it('refuses typed input when the approved foreground window changed', async () => {
+    const { runtime, executor } = createRuntimeForActionTest()
+    executor.getForegroundContext.mockResolvedValue({
+      available: true,
+      appName: 'Terminal',
+      windowTitle: 'Terminal',
+      platform: 'darwin',
+    })
+    const executeAction = createExecuteAction(runtime)
+    const result = await executeAction({ kind: 'type_text', input: { text: 'hello' } }, 'type_text', {
+      skipApprovalQueue: true,
+      approvedContext: {
+        available: true,
+        appName: 'Notes',
+        windowTitle: 'Notes',
+        platform: 'darwin',
+      },
+    })
+
+    expect(result.isError).toBe(true)
+    expect(result.content.find(item => item.type === 'text')?.text).toContain('foreground')
+    expect(executor.typeText).not.toHaveBeenCalled()
   })
 
   it('rejects an approved desktop click that has no prepared grounding', async () => {

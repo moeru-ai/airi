@@ -52,6 +52,7 @@ import {
   readEnvValue,
 } from '../utils/env-file'
 import { errorMessageFromValue } from '../utils/error-message'
+import { assertApprovedForeground } from './approved-foreground'
 import { executeDesktopClickTarget } from './desktop-grounding-actions'
 import { describeExecutionTarget, describeTerminalBackend } from './formatters'
 import { refreshRuntimeRunState } from './refresh-run-state'
@@ -700,6 +701,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
 
           if (!usedBrowserDom) {
             options.executionSignal?.throwIfAborted()
+            await assertApprovedForeground(runtime, options.approvedContext)
             const result = await runtime.executor.typeText(normalizedAction.input, {
               signal: options.executionSignal,
               targetWindowId: targetWindowContext.windowId,
@@ -714,6 +716,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
           // Handle pressEnter even when browser-dom was used
           if (usedBrowserDom && normalizedAction.input.pressEnter) {
             options.executionSignal?.throwIfAborted()
+            await assertApprovedForeground(runtime, options.approvedContext)
             await runtime.executor.pressKeys({ keys: ['Return'] }, {
               signal: options.executionSignal,
               targetWindowId: targetWindowContext.windowId,
@@ -723,6 +726,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
           break
         }
         case 'press_keys': {
+          await assertApprovedForeground(runtime, options.approvedContext)
           const result = await runtime.executor.pressKeys(normalizedAction.input, {
             signal: options.executionSignal,
             targetWindowId: targetWindowContext.windowId,
@@ -883,6 +887,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
             targetWindowId: context.windowId,
             targetWindowContext,
             boundGrounding: options.boundGrounding,
+            approvedForeground: options.approvedContext,
           })
           backendResult = result.backendResult
           summaryOverride = result.summary

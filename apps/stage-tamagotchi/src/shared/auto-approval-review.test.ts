@@ -115,6 +115,31 @@ describe('auto review transcript', () => {
     }])
   })
 
+  it('redacts a spaced API key label and a sensitive window title', () => {
+    const excerpt = buildAutoReviewTranscript([
+      { role: 'user', content: 'API key is sample-token' },
+    ])
+    expect(excerpt.transcript).not.toContain('sample-token')
+    expect(excerpt.excerpt.firstUserMessage).toContain('[redacted]')
+
+    const card = sanitizeAutoApprovalCard({
+      lane: 'computer_use',
+      actionKind: 'type_text',
+      appName: 'Notes',
+      windowTitle: 'Edit /workspace/.env',
+      reviewClass: 'desktop',
+      targetName: 'hello',
+      targetCandidateId: '',
+      groundingSnapshotId: '',
+      detail: '',
+    })
+    if (card.lane === 'computer_use') {
+      expect(card.windowTitle).not.toContain('.env')
+      expect(card.windowTitle).toContain('[redacted]')
+      expect(card.targetName).toBe('hello')
+    }
+  })
+
   it('redacts credential assignments in non-JSON tool arguments', () => {
     const excerpt = buildAutoReviewTranscript([{
       role: 'assistant',

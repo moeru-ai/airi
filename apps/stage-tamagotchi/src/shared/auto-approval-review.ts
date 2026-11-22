@@ -46,7 +46,7 @@ const SENSITIVE_PATH_NAMES = new Set([
   '.gnupg',
   '.netrc',
 ])
-const CREDENTIAL_ASSIGNMENT = /(["']?(?:password|passwd|pwd|api[_-]?key|token|secret|authorization|access[_-]?token|refresh[_-]?token|private[_-]?key|client[_-]?secret|cookie|credentials?)["']?(?:[ \t]*:[ \t]*|[ \t]*=[ \t]*|[ \t]+is[ \t]+))(?:(?:Bearer|Basic)[ \t]+)?(?:"[^"]*"|'[^']*'|[^ \t\r\n,;}&]+)/gi
+const CREDENTIAL_ASSIGNMENT = /(["']?(?:password|passwd|pwd|api[_-]?key|api[ \t]+key|token|secret|authorization|access[_-]?token|refresh[_-]?token|private[_-]?key|client[_-]?secret|cookie|credentials?)["']?(?:[ \t]*:[ \t]*|[ \t]*=[ \t]*|[ \t]+is[ \t]+))(?:(?:Bearer|Basic)[ \t]+)?(?:"[^"]*"|'[^']*'|[^ \t\r\n,;}&]+)/gi
 const SECRET_PHRASE_ASSIGNMENT = /["']?(?:seed[ _-]?phrase|recovery[ _-]?phrase|mnemonic)["']?(?:[ \t]*:[ \t]*|[ \t]*=[ \t]*|[ \t]+is[ \t]+)/gi
 export interface AutoReviewExcerpt {
   firstUserMessage: string
@@ -91,9 +91,6 @@ export function autoApprovalReviewPrompt(card: AutoApprovalCard, stage: AutoAppr
 }
 
 /**
- * Builds the review user message with labeled JSON sections for the model.
- */
-/**
  * Redacts credential-like fields in an approval card before Consciousness review.
  */
 export function sanitizeAutoApprovalCard(card: AutoApprovalCard): AutoApprovalCard {
@@ -105,6 +102,7 @@ export function sanitizeAutoApprovalCard(card: AutoApprovalCard): AutoApprovalCa
   }
   return {
     ...card,
+    windowTitle: sanitizeSensitiveText(card.windowTitle),
     targetName: sanitizeSensitiveText(card.targetName),
     detail: sanitizeAutoApprovalCardDetail(card.detail),
   }

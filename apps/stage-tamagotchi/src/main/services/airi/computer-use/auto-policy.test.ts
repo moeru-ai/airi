@@ -42,10 +42,11 @@ describe('command auto cage', () => {
   it('allows a read-only command inside the workspace', () => {
     expect(decideCommandAuto(snapshot('pwd'), '/workspace/app')).toMatchObject({ outcome: 'allow' })
     expect(decideCommandAuto(snapshot('ls src'), '/workspace/app')).toMatchObject({ outcome: 'allow' })
-    expect(decideCommandAuto(snapshot('git status -sb'), '/workspace/app')).toMatchObject({ outcome: 'allow' })
+    expect(decideCommandAuto(snapshot('git status -sb'), '/workspace/app').outcome).toBe('refuse')
     expect(decideCommandAuto(snapshot('git diff'), '/workspace/app').outcome).toBe('refuse')
     expect(decideCommandAuto(snapshot('git log'), '/workspace/app')).toMatchObject({ outcome: 'allow' })
-    expect(decideCommandAuto(snapshot('git show'), '/workspace/app')).toMatchObject({ outcome: 'allow' })
+    expect(decideCommandAuto(snapshot('git log -p'), '/workspace/app').outcome).toBe('refuse')
+    expect(decideCommandAuto(snapshot('git show'), '/workspace/app').outcome).toBe('refuse')
   })
 
   it('allows PowerShell read-only commands inside the workspace', () => {
@@ -161,6 +162,15 @@ describe('command auto cage', () => {
     }
   })
 
+  it('refuses attached destinations, globs, and patch-producing Git reads', () => {
+    expect(decideCommandAuto(snapshot('cp -t/tmp/out source'), '/workspace/app').outcome).toBe('refuse')
+    expect(decideCommandAuto(snapshot('cp source ./dest*'), '/workspace/app').outcome).toBe('refuse')
+    expect(decideCommandAuto(snapshot('rm *'), '/workspace/app').outcome).toBe('refuse')
+    expect(decideCommandAuto(snapshot('rm *.tmp'), '/workspace/app').outcome).toBe('refuse')
+    expect(decideCommandAuto(snapshot('git status'), '/workspace/app').outcome).toBe('refuse')
+    expect(decideCommandAuto(snapshot('git show HEAD'), '/workspace/app').outcome).toBe('refuse')
+  })
+
   it('refuses a review card that is too long to send', () => {
     const command = `rm ${'a'.repeat(3000)}`
     expect(decideCommandAuto(snapshot(command), '/workspace/app')).toMatchObject({
@@ -174,7 +184,10 @@ describe('ask read-only fast path', () => {
   it('recognizes only flag-only read commands', () => {
     expect(isAskReadOnlyCommand(snapshot('pwd'))).toBe(true)
     expect(isAskReadOnlyCommand(snapshot('ls -la'))).toBe(true)
-    expect(isAskReadOnlyCommand(snapshot('git status -sb'))).toBe(true)
+    expect(isAskReadOnlyCommand(snapshot('git status -sb'))).toBe(false)
+    expect(isAskReadOnlyCommand(snapshot('git log --oneline'))).toBe(true)
+    expect(isAskReadOnlyCommand(snapshot('git show'))).toBe(false)
+    expect(isAskReadOnlyCommand(snapshot('git log -p'))).toBe(false)
     expect(isAskReadOnlyCommand(snapshot('git diff'))).toBe(false)
     expect(isAskReadOnlyCommand(snapshot('ls src'))).toBe(false)
     expect(isAskReadOnlyCommand(snapshot('git status src'))).toBe(false)
