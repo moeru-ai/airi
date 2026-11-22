@@ -153,6 +153,14 @@ describe('fluxRoutes', () => {
     expect(transactions.getDailyUsage).not.toHaveBeenCalled()
   })
 
+  it('rejects unauthenticated fee history requests before reading the database', async () => {
+    const transactions = createMockFluxTransactionService()
+    const app = createTestApp(createMockFluxService(), transactions, false)
+    const response = await app.request('/api/v1/flux/usage')
+    expect(response.status).toBe(401)
+    expect(transactions.getUsageHistory).not.toHaveBeenCalled()
+  })
+
   it('rejects unauthenticated daily usage requests before reading the database', async () => {
     const transactions = createMockFluxTransactionService()
     const app = createTestApp(createMockFluxService(), transactions, false)

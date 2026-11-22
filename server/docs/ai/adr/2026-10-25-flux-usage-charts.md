@@ -87,7 +87,6 @@ sequenceDiagram
 
 Verify local-day boundaries, user isolation, empty days, and time zone validation through PGlite.
 Verify streaks, weekly sums, cumulative totals, partial weeks, and year boundaries with unit tests.
-Verify view changes, tooltip amounts, pointer and keyboard input, and narrow layouts in browser tests.
 Verify that the deployed fee listing keeps its paginated response.
 
 ## Known limits
