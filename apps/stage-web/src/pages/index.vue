@@ -125,8 +125,8 @@ const router = useRouter()
             @select-avatar-model="router.push('/settings/models')"
           />
         </div>
-        <!-- A fixed width keeps the chat panel narrow on wide screens. A percentage minimum overrode the maximum there. -->
-        <InteractiveArea v-if="!isMobile" :class="['absolute right-4 h-[85dvh] w-[min(440px,45%)] flex flex-col']" />
+        <!-- A fixed width keeps the chat panel narrow on wide screens. A percentage minimum overrode the maximum there. The width includes the 56px character rail. -->
+        <InteractiveArea v-if="!isMobile" :class="['absolute right-4 h-[85dvh] w-[min(496px,50%)] flex flex-col']" />
       </div>
       <HoloCoupon />
     </div>

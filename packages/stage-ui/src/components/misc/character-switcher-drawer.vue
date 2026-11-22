@@ -1,50 +1,30 @@
 <script setup lang="ts">
-import { Avatar, BasicButton, BottomDrawer, GhostButton } from '@proj-airi/ui'
+import { Avatar, BasicButton } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { computed, shallowRef } from 'vue'
+import { DrawerContent, DrawerOverlay, DrawerPortal, DrawerRoot, DrawerTitle, DrawerTrigger } from 'vaul-vue'
+import { computed, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
+
+import CharacterRail from './character-rail.vue'
 
 import { useCharacterPreviews } from '../../composables/use-character-previews'
 import { useAiriCardStore } from '../../stores/modules/airi-card'
 
 const { t } = useI18n()
 const router = useRouter()
-const cardStore = useAiriCardStore()
-const { cards, activeCard, activeCardId } = storeToRefs(cardStore)
+const { activeCard, activeCardId } = storeToRefs(useAiriCardStore())
 const previews = useCharacterPreviews()
+const activePreview = computed(() => previews.value.get(activeCardId.value))
 const open = shallowRef(false)
-const switching = shallowRef(false)
-const failed = shallowRef(false)
 const manageAfterClose = shallowRef(false)
-const entries = computed(() => Array.from(cards.value, ([id, card]) => ({
-  id,
-  name: card.name,
-  preview: previews.value.get(id),
-})))
 
-async function selectCharacter(id: string) {
-  if (switching.value)
-    return
-  if (id === activeCardId.value) {
-    open.value = false
-    return
-  }
-  switching.value = true
-  failed.value = false
-  try {
-    if (await cardStore.activateCard(id))
-      open.value = false
-    else
-      failed.value = true
-  }
-  catch {
-    failed.value = true
-  }
-  finally {
-    switching.value = false
-  }
-}
+// Vaul can emit a closed animation event during initialization. Only a real
+// open-to-closed transition completes dismissal.
+let closing = false
+watch(open, (value, previous) => {
+  closing = !value && previous
+}, { flush: 'sync' })
 
 function manageCharacters() {
   // Let the drawer release its focus and scroll locks before changing routes.
@@ -52,8 +32,16 @@ function manageCharacters() {
   open.value = false
 }
 
-function finishClose() {
-  failed.value = false
+function keepFocusForNavigation(event: Event) {
+  // The route changes next. Focus must not return to the trigger of the page that goes away.
+  if (manageAfterClose.value)
+    event.preventDefault()
+}
+
+function finishAnimation(value: boolean) {
+  if (value || open.value || !closing)
+    return
+  closing = false
   if (manageAfterClose.value) {
     manageAfterClose.value = false
     void router.push('/settings/airi-card')
@@ -62,72 +50,54 @@ function finishClose() {
 </script>
 
 <template>
-  <div :class="['min-w-0 flex flex-1 justify-center px-2']">
-    <BottomDrawer
-      v-model="open"
-      :title="t('stage.character-switcher.title')"
-      minimum-height="half"
-      @after-close="finishClose"
-      @close-auto-focus="event => { if (manageAfterClose) event.preventDefault() }"
-    >
-      <template #trigger>
+  <div :class="['min-w-0 flex flex-1 justify-start pr-2']">
+    <DrawerRoot v-model:open="open" direction="left" @animation-end="finishAnimation">
+      <DrawerTrigger as-child>
         <BasicButton
           size="unset"
           data-testid="character-selector-button"
           :aria-label="`${t('stage.character-switcher.title')}: ${activeCard?.name ?? t('stage.character-switcher.empty')}`"
           :title="activeCard?.name"
           :class="[
-            'pointer-events-auto h-11 min-w-0 max-w-full rounded-full px-3',
-            'text-neutral-700 dark:text-neutral-200',
+            'pointer-events-auto h-11 min-w-0 max-w-full rounded-full pl-1.5 pr-3 backdrop-blur-md',
+            'bg-neutral-50/70 text-neutral-700 dark:bg-neutral-900/70 dark:text-neutral-200',
             'focus-visible:outline-2 focus-visible:outline-primary-500',
             '[&_.basic-button-content]:min-w-0',
           ]"
         >
-          <span :class="['truncate text-base font-semibold']">{{ activeCard?.name ?? t('stage.character-switcher.empty') }}</span>
-          <span aria-hidden="true" :class="['i-solar:alt-arrow-down-outline size-4 shrink-0']" />
-        </BasicButton>
-      </template>
-      <div :class="['grid grid-cols-2 gap-3']">
-        <BasicButton
-          v-for="entry in entries"
-          :key="entry.id"
-          size="unset"
-          :aria-pressed="entry.id === activeCardId"
-          :aria-label="entry.name"
-          :disabled="switching"
-          :class="[
-            'relative min-w-0 rounded-2xl p-2',
-            '[&_.basic-button-content]:w-full [&_.basic-button-content]:min-w-0 [&_.basic-button-content]:flex-col',
-            'focus-visible:outline-2 focus-visible:outline-primary-500',
-            entry.id === activeCardId ? 'bg-primary-50 dark:bg-primary-950' : 'bg-neutral-100/70 dark:bg-neutral-800/50',
-          ]"
-          @click="selectCharacter(entry.id)"
-        >
-          <!-- Display model previews are portrait. Align them to the top so the 4:3 crop keeps the head. -->
-          <Avatar :src="entry.preview" :class="['aspect-[4/3] w-full rounded-xl bg-neutral-100 text-neutral-400 dark:bg-neutral-800', '[&_[data-avatar-image]]:object-top']">
+          <!-- Display model previews are portrait. Align them to the top so the circle keeps the head. -->
+          <Avatar :src="activePreview" :class="['size-8 shrink-0 rounded-full bg-neutral-100 text-neutral-500 dark:bg-neutral-800', '[&_[data-avatar-image]]:object-top']">
             <template #fallback>
-              <span aria-hidden="true" :class="['i-solar:user-rounded-outline size-10']" />
+              <span :class="['text-sm font-semibold']">{{ activeCard?.name.slice(0, 1) }}</span>
             </template>
           </Avatar>
-          <span :class="['w-full truncate text-sm']" :title="entry.name">{{ entry.name }}</span>
-          <span v-if="entry.id === activeCardId" aria-hidden="true" :class="['i-solar:check-circle-bold absolute right-3 top-3 size-6 text-primary-500']" />
+          <span :class="['truncate text-base font-semibold']">{{ activeCard?.name ?? t('stage.character-switcher.empty') }}</span>
         </BasicButton>
-      </div>
-      <p v-if="!entries.length" :class="['py-8 text-center text-neutral-500']">
-        {{ t('stage.character-switcher.empty') }}
-      </p>
-      <p v-if="failed" role="alert" :class="['mt-3 text-sm text-red-600 dark:text-red-400']">
-        {{ t('stage.character-switcher.failed') }}
-      </p>
-      <GhostButton
-        block size="unset" :disabled="switching"
-        :class="['mt-4 min-h-11 rounded-xl px-3 [&_.basic-button-content]:w-full']"
-        @click="manageCharacters"
-      >
-        <span aria-hidden="true" :class="['i-solar:users-group-rounded-outline size-5 shrink-0']" />
-        <span :class="['flex-1 text-left']">{{ t('stage.character-switcher.manage') }}</span>
-        <span aria-hidden="true" :class="['i-solar:alt-arrow-right-outline size-4']" />
-      </GhostButton>
-    </BottomDrawer>
+      </DrawerTrigger>
+      <DrawerPortal>
+        <DrawerOverlay :class="['fixed inset-0 z-[9999] bg-black/35']" />
+        <DrawerContent
+          :aria-describedby="undefined"
+          :class="[
+            'pointer-events-auto fixed inset-y-0 left-0 z-[9999] w-[min(16rem,80vw)]',
+            'flex flex-col rounded-r-[32px] outline-none shadow-xl',
+            'bg-neutral-50 text-neutral-900 dark:bg-neutral-900 dark:text-neutral-100',
+            'pb-[max(1rem,env(safe-area-inset-bottom))] pl-[env(safe-area-inset-left)] pt-[max(1rem,env(safe-area-inset-top))]',
+            'motion-reduce:animate-none motion-reduce:transition-none',
+          ]"
+          @close-auto-focus="keepFocusForNavigation"
+        >
+          <DrawerTitle :class="['px-5 pb-3 pt-2 text-xl font-semibold tracking-tight']">
+            {{ t('stage.character-switcher.title') }}
+          </DrawerTitle>
+          <CharacterRail
+            labels
+            :class="['min-h-0 flex-1 w-full! px-3']"
+            @switched="open = false"
+            @manage="manageCharacters"
+          />
+        </DrawerContent>
+      </DrawerPortal>
+    </DrawerRoot>
   </div>
 </template>

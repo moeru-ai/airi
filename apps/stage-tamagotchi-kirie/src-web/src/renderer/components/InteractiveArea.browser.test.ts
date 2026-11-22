@@ -267,19 +267,21 @@ describe('interactive area synchronized state', () => {
     }
   })
 
-  it('places the conversation selector opposite settings in the mobile header', async () => {
+  it('places the character button at the left and the conversation selector next to settings in the mobile header', async () => {
     await page.viewport(390, 844)
     const { screen } = await renderArea(MobileInteractiveArea)
     const composer = screen.getByTestId('mobile-message-composer').element()
     const conversations = screen.getByTestId('conversation-selector-button').element()
     const bounds = conversations.getBoundingClientRect()
     const settingsBounds = screen.getByTestId('mobile-settings-button').element().getBoundingClientRect()
+    const characterBounds = screen.getByTestId('character-selector-button').element().getBoundingClientRect()
     expect(composer.contains(conversations)).toBe(false)
-    expect(bounds.left).toBe(12)
+    expect(characterBounds.left).toBe(12)
     expect(bounds.top).toBe(settingsBounds.top)
     expect(bounds.width).toBe(44)
     expect(bounds.height).toBe(44)
-    expect(bounds.left).toBe(390 - settingsBounds.right)
+    expect(settingsBounds.left - bounds.right).toBe(8)
+    expect(390 - settingsBounds.right).toBe(12)
     expect(conversations.textContent?.trim()).toBe('')
     await screen.getByTestId('conversation-selector-button').click()
     await expect.element(screen.getByRole('dialog')).toBeVisible()

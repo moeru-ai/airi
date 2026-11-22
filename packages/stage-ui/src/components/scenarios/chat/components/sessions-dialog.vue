@@ -12,7 +12,6 @@ import SessionsList from './sessions-list.vue'
 const props = withDefaults(defineProps<{
   open: boolean
   rows: SessionRow[]
-  characters: Array<{ id: string, name: string, preview?: string }>
   folders: readonly ChatSessionFolder[]
   isDesktop: boolean
   isCreatingSession: boolean
@@ -24,7 +23,7 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{
   'deleteSession': [sessionId: string]
   'deleteSessions': [sessionIds: string[]]
-  'newSession': [payload: { folderId?: string, characterId?: string }]
+  'newSession': [payload: { folderId?: string }]
   'renameSession': [payload: { sessionId: string, title: string }]
   'selectSession': [sessionId: string]
   'pinSession': [payload: { sessionId: string, pinned: boolean }]
@@ -36,9 +35,8 @@ const emit = defineEmits<{
   'update:open': [open: boolean]
 }>()
 
-/** The place and the character of the list. The owner can keep them, so the list opens where the user left it. */
+/** The place of the list. The owner can keep it, so the list opens where the user left it. */
 const place = defineModel<ChatSessionsPlace>('place', { default: () => ({ kind: 'all' }) })
-const characterId = defineModel<string>('characterId')
 
 const { t } = useI18n()
 // Every open starts outside selection mode, so a closed list never keeps a selection.
@@ -69,9 +67,7 @@ function preserveTriggerFocus(event: Event) {
     <SessionsList
       v-model:selecting="selecting"
       v-model:place="place"
-      v-model:character-id="characterId"
       :rows="rows"
-      :characters="characters"
       :folders="folders"
       :is-creating-session="isCreatingSession"
       @new-session="emit('newSession', $event)"
@@ -105,10 +101,8 @@ function preserveTriggerFocus(event: Event) {
         <SessionsList
           v-model:selecting="selecting"
           v-model:place="place"
-          v-model:character-id="characterId"
           compact
           :rows="rows"
-          :characters="characters"
           :folders="folders"
           :is-creating-session="isCreatingSession"
           @new-session="emit('newSession', $event)"
@@ -147,9 +141,7 @@ function preserveTriggerFocus(event: Event) {
         <SessionsList
           v-model:selecting="selecting"
           v-model:place="place"
-          v-model:character-id="characterId"
           :rows="rows"
-          :characters="characters"
           :folders="folders"
           :is-creating-session="isCreatingSession"
           @new-session="emit('newSession', $event)"

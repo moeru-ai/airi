@@ -331,11 +331,12 @@ onUnmounted(() => {
       :class="['pointer-events-auto']"
     />
     <MobileHeader v-if="!viewControlsEnabled">
+      <CharacterSwitcherDrawer />
       <BasicButton
         size="unset"
         data-testid="conversation-selector-button"
         :class="[
-          'pointer-events-auto size-11 shrink-0 rounded-full backdrop-blur-md',
+          'pointer-events-auto mr-2 size-11 shrink-0 rounded-full backdrop-blur-md',
           'bg-neutral-50/70 text-neutral-600 dark:bg-neutral-900/70 dark:text-neutral-300',
           'focus-visible:outline-2 focus-visible:outline-primary-500',
         ]"
@@ -347,7 +348,6 @@ onUnmounted(() => {
       >
         <span aria-hidden="true" :class="['i-solar:dialog-2-outline size-6']" />
       </BasicButton>
-      <CharacterSwitcherDrawer />
       <MobileSettingsDrawer
         v-model:character-voice-enabled="characterVoiceEnabled"
         :view-controls-available="viewControlsAvailable"

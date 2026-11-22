@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 
-import { ChatBackgroundTasks, ChatHistory } from '@proj-airi/stage-ui/components'
+import { CharacterRail, ChatBackgroundTasks, ChatHistory } from '@proj-airi/stage-ui/components'
 import { VoiceCallCapsule } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
@@ -11,6 +11,7 @@ import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/conte
 import { useDeferredMount } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
+import { useRouter } from 'vue-router'
 
 import ChatPanelHeader from '../Widgets/chat-panel-header.vue'
 import ChatActionButtons from '../Widgets/ChatActionButtons.vue'
@@ -20,6 +21,7 @@ import ChatContainer from '../Widgets/ChatContainer.vue'
 import { useChatToolCallRerun } from '../../composables/useChatToolCallRerun'
 import { useStageChatComposerStore } from '../../stores/chat-composer'
 
+const router = useRouter()
 const { isReady } = useDeferredMount()
 const chatOrchestrator = useChatStore()
 const { activeTurns, backgroundTasks, activeChatArchived: chatArchived } = storeToRefs(chatOrchestrator)
@@ -71,31 +73,40 @@ async function handleRetryMessage(index: number) {
         >
           <div :class="['animate-scan h-full w-1/3 origin-left', 'bg-primary-500']" />
         </div>
-        <ChatPanelHeader />
-        <div
-          :class="[
-            'relative min-h-0 w-full flex flex-1 flex-col overflow-hidden rounded-lg',
-            'px-2 py-4 <md:px-0 <sm:py-2',
-            '<md:max-h-[60%]',
-          ]"
-        >
-          <ChatHistory
-            v-if="isReady"
-            :messages="historyMessages"
-            :sending="isActiveSessionSending"
-            :streaming-message="visibleStreamingMessage"
-            :readonly="chatArchived"
-            :class="['h-full']"
-            variant="desktop"
-            @delete-message="handleDeleteMessage"
-            @reply-message="selectReply"
-            @retry-message="handleRetryMessage($event.index)"
-            @tool-call-rerun="rerunToolCall"
-            @vue:mounted="isLoading = false"
+        <!-- The character rail is the left column of the panel, and the chat is the right one, as in the desktop chat window. -->
+        <div :class="['min-h-0 w-full flex flex-1']">
+          <CharacterRail
+            :class="['shrink-0 rounded-l-xl bg-primary-100/40 dark:bg-primary-900/30']"
+            @manage="router.push('/settings/airi-card')"
           />
+          <div :class="['min-w-0 flex flex-1 flex-col']">
+            <ChatPanelHeader />
+            <div
+              :class="[
+                'relative min-h-0 w-full flex flex-1 flex-col overflow-hidden rounded-lg',
+                'px-2 py-4 <md:px-0 <sm:py-2',
+                '<md:max-h-[60%]',
+              ]"
+            >
+              <ChatHistory
+                v-if="isReady"
+                :messages="historyMessages"
+                :sending="isActiveSessionSending"
+                :streaming-message="visibleStreamingMessage"
+                :readonly="chatArchived"
+                :class="['h-full']"
+                variant="desktop"
+                @delete-message="handleDeleteMessage"
+                @reply-message="selectReply"
+                @retry-message="handleRetryMessage($event.index)"
+                @tool-call-rerun="rerunToolCall"
+                @vue:mounted="isLoading = false"
+              />
+            </div>
+            <ChatBackgroundTasks :tasks="backgroundTasks" @stop="task => chatOrchestrator.stopBackgroundTask(task.sessionId)" @dismiss="task => chatOrchestrator.dismissBackgroundTask(task.sessionId)" />
+            <ChatArea :composer="composer" :generating="isActiveSessionSending" />
+          </div>
         </div>
-        <ChatBackgroundTasks :tasks="backgroundTasks" @stop="task => chatOrchestrator.stopBackgroundTask(task.sessionId)" @dismiss="task => chatOrchestrator.dismissBackgroundTask(task.sessionId)" />
-        <ChatArea :composer="composer" :generating="isActiveSessionSending" />
       </ChatContainer>
     </div>
 

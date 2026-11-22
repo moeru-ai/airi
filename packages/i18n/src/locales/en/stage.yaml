@@ -279,10 +279,8 @@ chat:
     done-selecting: Done
     delete-selected: Delete {count}
     confirm-delete-selected: Confirm delete {count}
-    all: All
     all-conversations: All conversations
     switch-place: Switch view
-    filter-by-character: Filter by character
     unknown-character: Unknown character
     pinned: Pinned
     folders: Folders
@@ -297,8 +295,6 @@ chat:
     new-folder: New folder
     create-folder: Create
     new-in-folder: New conversation in {folder}
-    new-with-character: New conversation with {name}
-    new-in-folder-with-character: New conversation with {name} in {folder}
     folder-name: Folder name
     folder-name-placeholder: Enter a folder name
     save-folder: Save folder
@@ -309,10 +305,7 @@ chat:
     confirm-delete-folder: Confirm delete folder
     selected: '{count} selected'
     empty-folder: '{folder} is empty. Use the button above to start a conversation here, or choose Move to folder in the menu of a conversation.'
-    empty-folder-character: '{folder} has no conversations with {name} yet. Use the button above to start one.'
     empty-archive: No archived conversations. Archived conversations stay here and are not deleted.
-    empty-archive-character: No archived conversations with {name}. Archived conversations stay here and are not deleted.
-    empty-character: No conversations with {name} yet. Use the button above to start the first one.
     save-failed: The change could not be saved
 avatar-model-missing:
   title: No model selected

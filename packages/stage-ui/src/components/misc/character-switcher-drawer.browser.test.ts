@@ -94,9 +94,10 @@ it('selects a character through the real store and opens character management', 
   await page.viewport(390, 844)
   const { screen, store, router } = await mountSwitcher()
   await screen.getByTestId('character-selector-button').click()
-  await expect.poll(() => page.getByRole('dialog').element().getBoundingClientRect().height).toBeGreaterThanOrEqual(422)
+  // The drawer comes from the left edge and leaves part of the stage visible.
+  await expect.poll(() => Math.round(page.getByRole('dialog').element().getBoundingClientRect().left)).toBe(0)
+  expect(page.getByRole('dialog').element().getBoundingClientRect().width).toBeLessThan(390 * 0.8 + 1)
   await expect.element(page.getByRole('button', { name: 'Iru', exact: true })).toHaveAttribute('aria-pressed', 'true')
-  expect(document.querySelector('[data-vaul-handle]')).not.toBeNull()
   await page.getByRole('button', { name: 'Hiyori', exact: true }).click()
   await expect.poll(() => store.activeCardId).toBe('second')
   await expect.element(screen.getByTestId('character-selector-button')).toHaveTextContent('Hiyori')

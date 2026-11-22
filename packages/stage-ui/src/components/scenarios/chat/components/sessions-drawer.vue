@@ -42,8 +42,8 @@ const chatSession = useChatSessionStore()
 const chat = useChatStore()
 const { sessionMetas, sessionMessages, activeSessionId, index } = storeToRefs(chatSession)
 const { activeCardId, cards } = storeToRefs(useAiriCardStore())
-// The list keeps its place and filter in memory, so a closed and reopened list shows them again.
-const { place: listPlace, characterId: listCharacterId } = storeToRefs(useChatSessionsViewStore())
+// The list keeps its place in memory, so a closed and reopened list shows it again.
+const { place: listPlace } = storeToRefs(useChatSessionsViewStore())
 const characterPreviews = useCharacterPreviews()
 const { userId } = storeToRefs(useAuthStore())
 const { activeModel } = storeToRefs(useConsciousnessStore())
@@ -55,10 +55,13 @@ const isCreatingSession = ref(false)
 
 const effectiveUserId = computed(() => userId.value || 'local')
 
+const currentCharacterId = computed(() => activeCardId.value || 'default')
+
+// The list shows the conversations of the current character only. The user changes the character to see the others.
 // Keep another account's sessions hidden while an account swap rehydrates.
 // Background recipe sessions are hidden too. Their results reach the conversation as notices.
 const ownedSessions = computed(() => Object.values(sessionMetas.value)
-  .filter(meta => meta.userId === effectiveUserId.value && !meta.hidden))
+  .filter(meta => meta.userId === effectiveUserId.value && !meta.hidden && chatSession.characterMembersOf(meta.sessionId).includes(currentCharacterId.value)))
 
 /**
  * Normalizes a session into its one-line drawer preview.
@@ -124,9 +127,6 @@ const rows = computed<SessionRow[]>(() => {
     }))
 })
 
-/** Every character card, so the filter can pick a character that has no conversation yet. */
-const characters = computed(() => [...cards.value].map(([id, card]) => ({ id, name: card.name, preview: characterPreviews.value.get(id) })))
-
 /**
  * Runs an action of the list and explains a failure with a toast, as the other chat controls do. The list keeps its
  * state, so the user can try again.
@@ -154,15 +154,15 @@ async function selectSession(sessionId: string) {
 }
 
 /**
- * Creates a conversation and opens it. Without a character ID, it belongs to the active character.
+ * Creates a conversation with the current character and opens it.
  * A folder ID puts the conversation into that folder.
  */
-async function startNewSession(payload: { folderId?: string, characterId?: string }) {
+async function startNewSession(payload: { folderId?: string }) {
   if (isCreatingSession.value)
     return
   isCreatingSession.value = true
   try {
-    const characterId = payload.characterId ?? (activeCardId.value || 'default')
+    const characterId = currentCharacterId.value
     const selectionBeforeCreation = activeSessionId.value
     // Creation runs in the synchronized leader, while navigation belongs to
     // this window. Activating inside createSession would navigate the leader.
@@ -252,9 +252,7 @@ watch(showDialog, async (open) => {
   <SessionsDialog
     v-model:open="showDialog"
     v-model:place="listPlace"
-    v-model:character-id="listCharacterId"
     :rows="rows"
-    :characters="characters"
     :folders="folders"
     :is-desktop="isDesktop"
     :is-creating-session="isCreatingSession"

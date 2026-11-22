@@ -112,12 +112,12 @@ const router = useRouter()
             @select-avatar-model="router.push('/settings/models')"
           />
         </div>
-        <!-- A fixed width keeps the chat panel narrow on wide screens. A percentage minimum overrode the maximum there. -->
+        <!-- A fixed width keeps the chat panel narrow on wide screens. A percentage minimum overrode the maximum there. The width includes the 56px character rail. -->
         <!-- The action buttons render below the chat and outside this box. The maximum height keeps them above the home indicator. -->
         <InteractiveArea
           v-if="!isMobile"
           :class="[
-            'absolute right-4 h-[85dvh] max-h-[calc(100%-2.5rem)] w-[min(440px,45%)]',
+            'absolute right-4 h-[85dvh] max-h-[calc(100%-2.5rem)] w-[min(496px,50%)]',
             'flex flex-col',
           ]"
         />
