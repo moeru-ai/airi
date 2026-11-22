@@ -4,6 +4,7 @@ import type { ActivityView, DailyUsage } from './usage-stats'
 import { GhostButton } from '@proj-airi/ui'
 import { useElementBounding, usePreferredReducedMotion } from '@vueuse/core'
 import { stagger, waapi } from 'animejs'
+import { intlFormat, parseISO } from 'date-fns'
 import { computed, nextTick, onBeforeUnmount, onMounted, shallowRef, useId, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -32,16 +33,13 @@ const levelClasses = [
 ]
 const layout = computed(() => buildActivity(props.days, view.value))
 const columns = computed(() => `repeat(${Math.max(layout.value.weekCount, 1)}, minmax(0, 1fr))`)
-const monthFormatter = computed(() => new Intl.DateTimeFormat(locale.value, { month: 'short', timeZone: 'UTC' }))
 const monthLabels = computed(() => layout.value.monthLabels.map(label => ({
   ...label,
-  text: monthFormatter.value.format(new Date(`${label.date}T00:00:00Z`)),
+  text: intlFormat(parseISO(label.date), { month: 'short' }, { locale: locale.value }),
 })))
 const groupLabels = computed(() => {
-  // The API already returns local calendar dates. UTC keeps them on the same day.
-  const formatter = new Intl.DateTimeFormat(locale.value, { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
   function formatDate(date: string) {
-    return formatter.format(new Date(`${date}T00:00:00Z`))
+    return intlFormat(parseISO(date), { month: 'short', day: 'numeric', year: 'numeric' }, { locale: locale.value })
   }
   return layout.value.groups.map((group) => {
     if (view.value === 'cumulative')

@@ -1,6 +1,8 @@
 import type { Database } from '../../libs/db'
 
+import { utc } from '@date-fns/utc'
 import { createBadRequestError } from '@proj-airi/http-error-shared'
+import { addDays, formatISO, subDays } from 'date-fns'
 import { and, desc, eq, getTableColumns, gte, inArray, lte, sql, sum } from 'drizzle-orm'
 
 import { fluxUsage } from '../../schemas/flux-usage'
@@ -8,12 +10,6 @@ import { fluxUsage } from '../../schemas/flux-usage'
 import * as schema from '../../schemas/flux-transaction'
 
 const DAILY_USAGE_DAYS = 365
-
-function shiftDate(date: string, days: number): string {
-  const shifted = new Date(`${date}T00:00:00Z`)
-  shifted.setUTCDate(shifted.getUTCDate() + days)
-  return shifted.toISOString().slice(0, 10)
-}
 
 export function createFluxTransactionService(db: Database) {
   return {
@@ -44,10 +40,9 @@ export function createFluxTransactionService(db: Database) {
       if (!zone)
         throw createBadRequestError('Invalid time zone', 'INVALID_TIME_ZONE')
 
-      const lastDate = zone.last_date
-      const firstDate = shiftDate(lastDate, 1 - DAILY_USAGE_DAYS)
+      const firstDay = subDays(zone.last_date, DAILY_USAGE_DAYS - 1, { in: utc })
       // Start one UTC day early to include local midnight in zones ahead of UTC.
-      const scanStart = new Date(`${shiftDate(firstDate, -1)}T00:00:00Z`)
+      const scanStart = subDays(firstDay, 1)
 
       // NOTICE:
       // Read created_at as UTC before grouping fees by local day.
@@ -70,7 +65,7 @@ export function createFluxTransactionService(db: Database) {
 
       const microFluxByDate = new Map(fluxRows.map(row => [row.date, row.microFlux]))
       const days = Array.from({ length: DAILY_USAGE_DAYS }, (_, index) => {
-        const date = shiftDate(firstDate, index)
+        const date = formatISO(addDays(firstDay, index), { representation: 'date' })
         return {
           date,
           microFlux: microFluxByDate.get(date) ?? 0,

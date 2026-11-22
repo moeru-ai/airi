@@ -2,6 +2,8 @@ import type { InferResponseType } from 'hono/client'
 
 import type { StageApiClient } from '../../../composables/api'
 
+import { getISODay, parseISO } from 'date-fns'
+
 export type DailyUsage = InferResponseType<StageApiClient['api']['v1']['flux']['usage']['daily']['$get']>['days'][number]
 
 export type ActivityView = 'daily' | 'weekly' | 'cumulative'
@@ -13,10 +15,6 @@ export interface ActivityGroup {
   microFlux: number
   column: number
   row: number
-}
-
-function weekdayOf(date: string): number {
-  return (new Date(`${date}T00:00:00Z`).getUTCDay() + 6) % 7
 }
 
 /** Empty today preserves yesterday's streak until the current local day ends. */
@@ -46,7 +44,7 @@ export function buildActivity(days: readonly DailyUsage[], view: ActivityView) {
   if (!firstDay)
     return { groups: [], weekCount: 0, monthLabels: [] }
 
-  const offset = weekdayOf(firstDay.date)
+  const offset = getISODay(parseISO(firstDay.date)) - 1
   const weekCount = Math.ceil((offset + days.length) / 7)
   const weeks: ActivityGroup[] = []
   const monthLabels: { column: number, date: string }[] = []
