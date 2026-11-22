@@ -24,12 +24,16 @@ async function drawCallsOfOneFrame(scene: SceneInstance) {
     calls += 1
     return drawElements.apply(this, args)
   }
+  let snapshot: ReturnType<SceneInstance['captureFrame']>
   try {
-    await scene.captureFrame()
+    // captureFrame() renders synchronously. Stop counting before awaiting the PNG,
+    // so frames from the scene's own render loop never enter the measurement.
+    snapshot = scene.captureFrame()
   }
   finally {
     prototype.drawElements = drawElements
   }
+  await snapshot
   return calls
 }
 
