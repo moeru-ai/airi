@@ -38,8 +38,13 @@ const props = withDefaults(defineProps<{
   toolCallRenderers?: ChatToolCallRendererRegistry
   /** Widgets that show tool results inside the unfolded rows of a tool call group. They add to the built-in widgets. */
   toolCallWidgets?: ChatToolCallWidgetRegistry
+  canDelete?: boolean
+  /** Whether the tool call groups offer to run a call again. */
+  canRerun?: boolean
 }>(), {
   canReply: false,
+  canDelete: true,
+  canRerun: true,
   showPlaceholder: false,
   streaming: false,
   scrollContainer: null,
@@ -139,7 +144,7 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
     <ChatActionMenu
       :copy-text="copyText"
       :can-reply="canReply"
-      :can-delete="!showPlaceholder"
+      :can-delete="canDelete && !showPlaceholder"
       :press-feedback-enabled="variant === 'mobile'"
       :scroll-container="scrollContainer"
       @copy="emit('copy')"
@@ -175,6 +180,7 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
                 :widgets="toolCallWidgets"
                 :streaming="streaming"
                 :message-id="message.id"
+                :can-rerun="canRerun"
                 @tool-call-rerun="emitToolCallRerun"
               />
               <component

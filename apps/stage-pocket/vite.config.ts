@@ -215,7 +215,7 @@ export default defineConfig({
     {
       name: 'proj-airi:defines',
       config(ctx) {
-        const define: Record<string, any> = {
+        const define: Record<string, string> = {
           'import.meta.env.RUNTIME_ENVIRONMENT': '\'capacitor\'',
         }
         if (ctx.mode === 'development') {

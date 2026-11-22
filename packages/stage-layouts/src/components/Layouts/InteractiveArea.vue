@@ -22,7 +22,7 @@ import { useStageChatComposerStore } from '../../stores/chat-composer'
 
 const { isReady } = useDeferredMount()
 const chatOrchestrator = useChatStore()
-const { activeTurns, backgroundTasks } = storeToRefs(chatOrchestrator)
+const { activeTurns, backgroundTasks, activeChatArchived: chatArchived } = storeToRefs(chatOrchestrator)
 const { activeSessionId, messages } = storeToRefs(useChatSessionStore())
 const { streamingMessage } = storeToRefs(useChatStreamStore())
 const { isReceivingRemoteStream } = storeToRefs(useContextBridgeStore())
@@ -41,7 +41,7 @@ const { rerunToolCall } = useChatToolCallRerun()
 
 async function handleDeleteMessage(payload: { message: ChatHistoryItem, index: number }) {
   const { index, message } = payload
-  await useChatSessionStore().deleteMessage({
+  await chatOrchestrator.deleteMessage({
     sessionId: activeSessionId.value,
     messageId: message?.id,
     index,
@@ -59,24 +59,33 @@ async function handleRetryMessage(index: number) {
 </script>
 
 <template>
-  <div flex="col" items-center pt-4>
-    <div h-full max-h="[85vh]" w-full py="4">
+  <div :class="['flex-col items-center pt-4']">
+    <div :class="['h-full max-h-[85vh] w-full py-4']">
       <ChatContainer>
         <div
           v-if="isLoading"
-          absolute left-0 top-0 h-1 w-full overflow-hidden rounded-t-xl
-          class="bg-primary-500/20"
+          :class="[
+            'absolute left-0 top-0 h-1 w-full overflow-hidden rounded-t-xl',
+            'bg-primary-500/20',
+          ]"
         >
-          <div h-full w="1/3" origin-left bg-primary-500 class="animate-scan" />
+          <div :class="['animate-scan h-full w-1/3 origin-left', 'bg-primary-500']" />
         </div>
         <ChatPanelHeader />
-        <div w="full" max-h="<md:[60%]" py="<sm:2" flex="~ col" rounded="lg" relative min-h-0 flex-1 overflow-hidden px="2 <md:0" py-4>
+        <div
+          :class="[
+            'relative min-h-0 w-full flex flex-1 flex-col overflow-hidden rounded-lg',
+            'px-2 py-4 <md:px-0 <sm:py-2',
+            '<md:max-h-[60%]',
+          ]"
+        >
           <ChatHistory
             v-if="isReady"
             :messages="historyMessages"
             :sending="isActiveSessionSending"
             :streaming-message="visibleStreamingMessage"
-            h-full
+            :readonly="chatArchived"
+            :class="['h-full']"
             variant="desktop"
             @delete-message="handleDeleteMessage"
             @reply-message="selectReply"

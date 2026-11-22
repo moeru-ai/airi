@@ -120,17 +120,3 @@ export const EMOTION_MORPHS: Record<Emotion, EmotionMorphState> = {
     blendDuration: 0.6,
   },
 }
-
-/**
- * Standard MMD humanoid bone names AIRI manipulates for gaze and head aim.
- *
- * These are the de-facto standard Japanese bone names ("semi-standard bone"
- * convention) shared by the vast majority of MMD models.
- */
-export const MMD_BONE = {
-  bothEyes: '両目',
-  leftEye: '左目',
-  rightEye: '右目',
-  head: '頭',
-  neck: '首',
-} as const

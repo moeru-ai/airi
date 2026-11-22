@@ -7,6 +7,7 @@ import type { SyncedPiniaRuntime } from 'pinia-plugin-synced'
 
 import type { ChatHistoryItem, ChatToolReference } from '../types/chat'
 import type { ChatSessionTaskStatus, StoredVoiceInterruption } from '../types/chat-session'
+import type { DeleteChatMessagePayload } from './chat/session-store'
 import type { ToolCallRerunPayload } from './tool-call-rerun'
 
 import { errorMessageFrom } from '@moeru/std'
@@ -1358,6 +1359,30 @@ export const useChatStore = defineStore('chat', () => {
     liveTranscripts.delete(key)
   }
 
+  /** Whether the user can change the conversation. An archived conversation is read-only until the user restores it. */
+  function isSessionReadOnly(sessionId: string) {
+    return chatSession.sessionMetas[sessionId]?.archivedAt !== undefined
+  }
+
+  /**
+   * Refuses an action of the user that changes a read-only conversation.
+   *
+   * Each such action of this store checks it first: send, submit, retry, the rerun of a tool call, and the deletion of a
+   * message. The refusal comes before the action starts, so the conversation gets no error message, and a voice draft
+   * shows the reason. The history only leaves out the actions that this store refuses. Work that the chat does on its
+   * own does not pass here, for example a notice of finished background work.
+   */
+  function assertSessionOpen(sessionId: string) {
+    if (isSessionReadOnly(sessionId))
+      throw new Error(t('stage.chat.archived-session.description'))
+  }
+
+  /** Deletes one message for the user. The session store also deletes messages for the chat itself, without this check. */
+  async function deleteMessage(payload: DeleteChatMessagePayload) {
+    assertSessionOpen(payload.sessionId)
+    await chatSession.deleteMessage(payload)
+  }
+
   function appendSendError(sessionId: string, error: unknown) {
     if (error instanceof DOMException && error.name === 'AbortError')
       return
@@ -1535,6 +1560,7 @@ export const useChatStore = defineStore('chat', () => {
 
   /** Returns the storage receipt while generation continues in the elected leader. */
   async function submit(payload: ChatSendPayload & { messageId: string }) {
+    assertSessionOpen(payload.sessionId)
     const key = JSON.stringify([payload.sessionId, payload.messageId])
     if (payload.audioTranscriptPending && !liveTranscripts.has(key))
       liveTranscripts.set(key, Promise.withResolvers<void>())
@@ -1562,6 +1588,7 @@ export const useChatStore = defineStore('chat', () => {
 
   /** Sends one serializable chat request through the elected leader. */
   async function send(payload: ChatSendPayload): Promise<ChatSendResult> {
+    assertSessionOpen(payload.sessionId)
     try {
       return await executeSend(payload)
     }
@@ -1573,6 +1600,7 @@ export const useChatStore = defineStore('chat', () => {
 
   /** Replaces one stored turn with a new execution of its user message. */
   async function retry(payload: ChatRetryPayload): Promise<ChatSendResult> {
+    assertSessionOpen(payload.sessionId)
     if (!await chatSession.loadSession(payload.sessionId))
       throw new Error('Failed to load the target chat session')
 
@@ -1632,6 +1660,7 @@ export const useChatStore = defineStore('chat', () => {
 
   /** Runs one stored tool call again and replaces its stored result. */
   async function rerunToolCall(payload: ChatToolCallRerunPayload): Promise<void> {
+    assertSessionOpen(payload.sessionId)
     if (requiresToolSelection(payload.toolName) && !payload.tools?.some(tool => tool.name === payload.toolName))
       throw new Error('Select this tool before running it again.')
 
@@ -1744,11 +1773,14 @@ export const useChatStore = defineStore('chat', () => {
 
   /** Whether the chat that this window shows can send. */
   const activeChatReady = computed(() => chatReadyFor(activeSessionId.value))
+  /** Whether the chat that this window shows is archived. It is read-only until the user restores it. */
+  const activeChatArchived = computed(() => isSessionReadOnly(activeSessionId.value))
 
   return {
     sending,
     activeTurns,
     activeChatReady,
+    activeChatArchived,
     chatReadyFor,
     activeSendSessionId,
     activeStreamingMessage,
@@ -1758,6 +1790,7 @@ export const useChatStore = defineStore('chat', () => {
     initialize,
     dispose,
     cleanup,
+    deleteMessage,
     deleteSession,
     deleteSessions,
     ingest,
