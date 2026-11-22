@@ -123,7 +123,7 @@ export const llmModelSchema = pipe(
 )
 
 const ttsProviderSchema = picklist(['azure', 'dashscope-cosyvoice', 'stepfun', 'volcengine'])
-const asrProviderSchema = picklist(['aliyun-nls'])
+const asrProviderSchema = picklist(['aliyun-nls', 'dashscope-fun-asr'])
 
 export const ttsUpstreamSchema = object({
   id: optional(pipe(
