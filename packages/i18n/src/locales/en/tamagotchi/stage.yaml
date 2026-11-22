@@ -109,7 +109,7 @@ docs:
     title: Context usage
     empty: This conversation has not sent a model request yet.
     bytes: Serialized size
-    bytes-note: Category sizes are UTF-8 bytes of the serialized projection, not tokens.
+    bytes-note: The bar shows the size of the data sent to the model.
     text: Text
     images: Images
     framing: JSON framing
@@ -122,13 +122,11 @@ docs:
     window-usage: '{percent}% of the context window, from reported input tokens'
     tokens: tokens
     reported-usage: Latest request, reported by the provider
-    reported-note: Token counts below were reported for the latest completed request. They are not estimated from the bytes above, and they are not a sum of earlier messages.
     input: Input
     output: Output
     total: Total
-    usage-unavailable: No provider-reported token usage for this request.
+    usage-unavailable: The provider did not report token usage for this request.
     budget: Compaction threshold
-    budget-note: A serialized-byte threshold for scheduling compaction. It is not how full the context window is.
     expand: Show content
     collapse: Hide content
     kind:

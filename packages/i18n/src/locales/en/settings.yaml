@@ -1512,7 +1512,7 @@ pages:
         placeholder: Paste a token from your Home Assistant profile
         description: Create one in your Home Assistant profile, under Security.
         saved: A token is stored. Leave the field empty to keep it. Enter the token again when the address changes.
-      note: The token stays on this device. It does not sync to your account.
+      note: The token stays on this device.
       actions:
         save: Save
         test: Test
@@ -1718,7 +1718,7 @@ pages:
         approve: Approve once
         reject: Reject
         details: Full executor report
-        pending: Waiting for your approval. This command has not been authorized.
+        pending: Waiting for your approval.
         scope: This command can change files, start applications, and affect the desktop. Approval applies once to this exact operation.
         session: Session
         server: Server
@@ -1741,9 +1741,9 @@ pages:
           executed: Command finished. Review the requested result before continuing.
           failed: Command failed. Earlier effects can remain. Check the executor report before running another command.
           unknown: Result unknown. Earlier effects can remain. Check current state before repeating the command.
-          rejected: Rejected. This request did not dispatch a new command.
-          cancelled: Cancelled before dispatch. This request did not execute.
-          expired: Approval expired before dispatch. This request did not execute.
+          rejected: Rejected.
+          cancelled: Cancelled before dispatch.
+          expired: Approval expired before dispatch.
       description: Configure MCP servers and bring their tools into AIRI.
       config-path: Config file
       runtime-title: Runtime status
@@ -2635,7 +2635,7 @@ pages:
       features:
         conversation_compact:
           title: Conversation Compact
-          description: Off by default. Summarize older observations while retaining exact tool receipts. Limits measure bytes, not the model token window.
+          description: Off by default. Summarize older observations while retaining exact tool receipts. Limits measure bytes.
           mode:
             title: Scheduling
             description: Turning this experiment off discards pending summaries. The hard request byte limit stays active.
@@ -2737,7 +2737,7 @@ pages:
                   bypassed: Not checked
               tool-payloads-as-json:
                 title: Show tool data as JSON
-                description: Show the arguments and results of chat tool calls as a JSON tree, not as formatted fields. Cards in replies also offer their raw data.
+                description: Show the arguments and results of chat tool calls as a JSON tree. Cards in replies also offer their raw data.
               plugin-host:
                 actions:
                   enable-and-load: Enable and Load

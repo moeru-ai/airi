@@ -1426,7 +1426,7 @@ pages:
         placeholder: 粘贴 Home Assistant 个人资料里的令牌
         description: 在 Home Assistant 个人资料的「安全」里创建一个。
         saved: 已保存令牌。留空则保持不变。更改地址时需要重新填写。
-      note: 令牌只保存在这台设备上，不会同步到你的账号。
+      note: 令牌只保存在这台设备上。
       actions:
         save: 保存
         test: 测试
@@ -1632,7 +1632,7 @@ pages:
         approve: 单次批准
         reject: 拒绝
         details: 完整执行器报告
-        pending: 等待批准。此命令尚未获得授权。
+        pending: 等待批准。
         scope: 此命令可以修改文件、启动应用并影响桌面。批准仅适用于这一次具体操作。
         session: 会话
         server: 服务器
@@ -1655,9 +1655,9 @@ pages:
           executed: 命令已完成，请继续核对目标结果。
           failed: 命令失败，之前可能已产生副作用。再次执行前请检查执行报告。
           unknown: 结果未知，命令可能已产生副作用。再次执行前请核对当前状态。
-          rejected: 已拒绝，此请求未派发新的命令。
-          cancelled: 已在派发前取消，此请求未执行。
-          expired: 授权在派发前过期，此请求未执行。
+          rejected: 已拒绝。
+          cancelled: 已在派发前取消。
+          expired: 授权在派发前过期。
       description: 配置其他 MCP 服务器并将能力拓展至 AIRI
       config-path: 配置文件
       runtime-title: 运行状态
@@ -2413,7 +2413,7 @@ pages:
       features:
         conversation_compact:
           title: 会话 Compact
-          description: 默认关闭。摘要压缩较早的观察，保留完整工具回执。限制按字节计算，不代表模型 Token 窗口。
+          description: 默认关闭。摘要压缩较早的观察，保留完整工具回执。限制按字节计算。
           mode:
             title: 调度方式
             description: 关闭实验会丢弃待应用摘要，请求硬字节限制仍然有效。
@@ -2515,7 +2515,7 @@ pages:
                   bypassed: 不检查
               tool-payloads-as-json:
                 title: 以 JSON 显示工具数据
-                description: 聊天里工具调用的参数和结果显示为 JSON 树，不再格式化。回复里的卡片也会提供原始数据。
+                description: 聊天里工具调用的参数和结果显示为 JSON 树。回复里的卡片也会提供原始数据。
               plugin-host:
                 actions:
                   enable-and-load: 启用并加载
