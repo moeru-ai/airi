@@ -7,7 +7,7 @@ import { ApiError } from '@proj-airi/http-error-shared'
 import { describe, expect, it, vi } from 'vitest'
 
 import { createEnvelopeCrypto } from '../../utils/envelope-crypto'
-import { resolveOfficialAliyunNlsCredentials, resolveOfficialAliyunNlsCredentialsFromConfig } from './route'
+import { resolveOfficialAliyunNlsCredentials, resolveOfficialAsrRouteFromConfig, resolveOfficialDashScopeFunAsrCredentials } from './route'
 
 function createRouterConfig(overrides?: Partial<RouterConfig>): RouterConfig {
   return {
@@ -125,16 +125,19 @@ describe('resolveOfficialAliyunNlsCredentials', () => {
     })
     const providerCatalogService = createProviderCatalogService('aliyun/asr-primary')
 
-    const credentials = await resolveOfficialAliyunNlsCredentialsFromConfig({
+    const asrRoute = await resolveOfficialAsrRouteFromConfig({
       configKV: { getOptional: vi.fn(async () => routerConfig) } as never,
       envelopeCrypto: envelope,
       providerCatalogService,
     })
 
-    expect(credentials).toMatchObject({
-      accessKeyId: 'ak',
-      accessKeySecret: 'secret',
-      appKey: 'app',
+    expect(asrRoute).toMatchObject({
+      provider: 'aliyun-nls',
+      credentials: {
+        accessKeyId: 'ak',
+        accessKeySecret: 'secret',
+        appKey: 'app',
+      },
     })
     expect(providerCatalogService.syncAliasesFromRouterConfig).not.toHaveBeenCalled()
     expect(providerCatalogService.resolveEnabledAlias).toHaveBeenCalledWith('asr', 'auto')
@@ -160,7 +163,7 @@ describe('resolveOfficialAliyunNlsCredentials', () => {
       },
     })
 
-    await expect(resolveOfficialAliyunNlsCredentialsFromConfig({
+    await expect(resolveOfficialAsrRouteFromConfig({
       configKV: { getOptional: vi.fn(async () => routerConfig) } as never,
       envelopeCrypto: envelope,
       providerCatalogService,
@@ -168,5 +171,64 @@ describe('resolveOfficialAliyunNlsCredentials', () => {
       statusCode: 400,
       errorCode: 'CAPABILITY_ALIAS_DISABLED',
     })
+  })
+})
+
+describe('resolveOfficialDashScopeFunAsrCredentials', () => {
+  function funAsrConfig(envelope: ReturnType<typeof createEnvelopeCrypto>, adapterParams: Record<string, unknown>) {
+    const ciphertext = envelope.encryptKey(' sk-test ', { modelName: 'auto', keyEntryId: 'fun-asr-1' })
+    return createRouterConfig({
+      asr: {
+        models: {
+          auto: {
+            provider: 'dashscope-fun-asr',
+            upstreams: [{ keys: [{ id: 'fun-asr-1', ciphertext }], adapterParams }],
+          },
+        },
+      },
+    })
+  }
+
+  /**
+   * @example
+   * resolveOfficialDashScopeFunAsrCredentials(routerConfig, envelope, 'auto')
+   */
+  it('uses the Singapore endpoint and defaults when adapter params are empty', () => {
+    const envelope = createEnvelopeCrypto({ masterKey: Buffer.alloc(32, 7) })
+
+    expect(resolveOfficialDashScopeFunAsrCredentials(funAsrConfig(envelope, {}), envelope)).toEqual({
+      apiKey: 'sk-test',
+      model: 'fun-asr-realtime',
+      websocketURL: 'wss://dashscope-intl.aliyuncs.com/api-ws/v1/inference',
+      maxSentenceSilenceMs: 400,
+    })
+  })
+
+  it('reads the endpoint, model, and sentence silence from adapter params', () => {
+    const envelope = createEnvelopeCrypto({ masterKey: Buffer.alloc(32, 7) })
+    const config = funAsrConfig(envelope, { websocketURL: 'wss://asr.example.com/ws', model: 'fun-asr-realtime-2026-02-28', maxSentenceSilenceMs: 600 })
+
+    expect(resolveOfficialDashScopeFunAsrCredentials(config, envelope)).toMatchObject({
+      model: 'fun-asr-realtime-2026-02-28',
+      websocketURL: 'wss://asr.example.com/ws',
+      maxSentenceSilenceMs: 600,
+    })
+  })
+
+  it('returns null for an out-of-range sentence silence', () => {
+    const envelope = createEnvelopeCrypto({ masterKey: Buffer.alloc(32, 7) })
+
+    expect(resolveOfficialDashScopeFunAsrCredentials(funAsrConfig(envelope, { maxSentenceSilenceMs: 100 }), envelope)).toBeNull()
+  })
+
+  it('routes the official alias to Fun-ASR when the model uses that provider', async () => {
+    const envelope = createEnvelopeCrypto({ masterKey: Buffer.alloc(32, 7) })
+    const routerConfig = funAsrConfig(envelope, {})
+
+    await expect(resolveOfficialAsrRouteFromConfig({
+      configKV: { getOptional: vi.fn(async () => routerConfig) } as never,
+      envelopeCrypto: envelope,
+      providerCatalogService: createProviderCatalogService(),
+    })).resolves.toMatchObject({ provider: 'dashscope-fun-asr', credentials: { apiKey: 'sk-test' } })
   })
 })
