@@ -1438,10 +1438,10 @@ pages:
         failed: '无法连接。{message}'
         rejected-token: 请输入 Home Assistant 长期访问令牌。
         rejected-address: 地址已更改，请输入新地址对应的访问令牌。
-        failed-policy: 设备名单没能同步到运行工具的窗口，地址未更改，请重试。
-        failed-policy-edit: 改动没能同步到运行工具的窗口，模型仍在用改动前的名单，请重试。
-        failed-policy-move: 地址已更改，但设备名单没能同步到运行工具的窗口，请重试。
-        failed-policy-rollback: 保存被拒绝，设备名单也没能同步回运行工具的窗口，模型现在访问不到任何设备，请重试。
+        failed-policy: 设备名单没能生效，地址没有更改。请重试。
+        failed-policy-edit: 改动没能生效，模型还在用之前的设备名单。请重试。
+        failed-policy-move: 地址已更改，但设备名单没能生效。请重试。
+        failed-policy-rollback: 保存被拒绝，设备名单也没能生效，模型现在访问不到任何设备。请重试。
       access:
         label: 设备访问范围
         description: 选择 AIRI 可以读取和控制的设备。
@@ -1656,12 +1656,12 @@ pages:
           failed: 命令失败，之前可能已产生副作用。再次执行前请检查执行报告。
           unknown: 结果未知，命令可能已产生副作用。再次执行前请核对当前状态。
           rejected: 已拒绝。
-          cancelled: 已在派发前取消。
-          expired: 授权在派发前过期。
+          cancelled: 命令执行前已取消。
+          expired: 授权在命令执行前已过期。
       description: 配置其他 MCP 服务器并将能力拓展至 AIRI
       config-path: 配置文件
       runtime-title: 运行状态
-      empty: 尚无已配置的 MCP 集成 - 点击「添加服务器」来创建一个，或者通过「编辑 JSON」直接粘贴配置
+      empty: 还没有 MCP 服务器。点击「添加服务器」新建一个，或在「编辑 JSON」里粘贴配置。
       error-title: 坏了
       success-title: 完成！
       existing:
@@ -1918,7 +1918,7 @@ pages:
                   openai-compatible-check-connectivity:
                     label: Ollama需要额外的配置
                     content: >-
-                      很抱歉，Ollama 连接检查失败。不要担心，如果是 Ollama，需要额外配置才能通过 Ollama。 您需要在启动 Olama 应用程序或 Ollama CLI 服务器时明确设置 <code>OLLAMA_HOST</code> 详情，请检查 <a href="https://airi.moeru.ai/docs/en/docs/manual/integrations/providers/chat/ollama">Ollama 集成指南</a>。
+                      Ollama 连接检查失败。Ollama 需要额外配置：启动 Ollama 应用或 Ollama CLI 服务器时，设置 <code>OLLAMA_HOST</code>。详情请看 <a href="https://airi.moeru.ai/docs/en/docs/manual/integrations/providers/chat/ollama">Ollama 集成指南</a>。
     common:
       continueAnyway: 仍然继续
       goToModelSelection: 选择模型→
@@ -2412,13 +2412,13 @@ pages:
         account: 已向你的账户开放
       features:
         conversation_compact:
-          title: 会话 Compact
-          description: 默认关闭。摘要压缩较早的观察，保留完整工具回执。限制按字节计算。
+          title: 对话压缩
+          description: 默认关闭。对话变长时，AIRI 会把较早的回复和图片压缩成摘要。
           mode:
-            title: 调度方式
-            description: 关闭实验会丢弃待应用摘要，请求硬字节限制仍然有效。
+            title: 摘要时机
+            description: 关闭后，还没完成的摘要会被丢弃。
             synchronous: '同步：等待摘要后再发起请求'
-            background: '后台：低于硬字节限制时继续运行'
+            background: '后台：边聊边摘要，到大小上限时才等待'
         fullscreen_workspace:
           title: 全屏工作区
           description: 在铺满屏幕的工作区里打开设置和聊天，角色在左边。默认关闭。

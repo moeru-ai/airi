@@ -112,7 +112,7 @@ docs:
     bytes-note: The bar shows the size of the data sent to the model.
     text: Text
     images: Images
-    framing: JSON framing
+    framing: JSON structure
     model: Model
     provider: Provider
     window: Context window
