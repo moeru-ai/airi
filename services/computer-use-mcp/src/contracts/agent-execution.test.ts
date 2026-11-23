@@ -2,7 +2,7 @@ import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 
 import { describe, expect, it } from 'vitest'
 
-import { attachAgentExecutionContracts, buildAgentExecutionContracts, createModelDecision } from './agent-execution'
+import { attachAgentExecutionContracts, buildAgentExecutionContracts, buildTraceContracts, createModelDecision } from './agent-execution'
 
 const action = { kind: 'click', input: { x: 10, y: 20 } } as const
 
@@ -44,6 +44,21 @@ describe('agent execution contracts', () => {
     expect(contracts.authorization.status).toBe('not_required')
     expect(contracts.execution).toMatchObject({ status: 'delivered', dispatch: 'accepted', doNotReplay: false })
     expect(contracts.businessVerification).toMatchObject({ status: 'not_run' })
+  })
+
+  it('marks a dispatch marker as unconfirmed and not replayable', () => {
+    const contracts = buildTraceContracts({
+      event: 'dispatching',
+      toolName: 'terminal_exec',
+      action,
+      requiresApproval: false,
+    })
+
+    expect(contracts.execution).toMatchObject({
+      status: 'unknown',
+      dispatch: 'unknown',
+      doNotReplay: true,
+    })
   })
 
   it('blocks blind replay after a failure with an unknown dispatch state', () => {

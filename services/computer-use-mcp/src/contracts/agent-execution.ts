@@ -78,7 +78,7 @@ function preDispatchContracts(modelDecision: ModelDecisionContract, requiresAppr
 }
 
 export function buildTraceContracts(params: {
-  event: 'requested' | 'approval_required' | 'approved' | 'rejected' | 'executed' | 'denied' | 'failed'
+  event: 'requested' | 'approval_required' | 'approved' | 'rejected' | 'dispatching' | 'executed' | 'denied' | 'failed'
   toolName: string
   action: PendingExecutableAction
   requiresApproval: boolean
@@ -107,6 +107,19 @@ export function buildTraceContracts(params: {
     const contracts = preDispatchContracts(modelDecision, params.requiresApproval, params.requiresApproval ? 'host' : 'policy')
     contracts.authorization.status = 'denied'
     contracts.authorization.reason = params.reason ?? 'Authorization was denied.'
+    return contracts
+  }
+  if (params.event === 'dispatching') {
+    const contracts = preDispatchContracts(modelDecision, params.requiresApproval, params.requiresApproval ? 'host' : 'policy')
+    contracts.execution = {
+      kind: 'execution',
+      executionId: randomUUID(),
+      status: 'unknown',
+      dispatch: 'unknown',
+      backend: params.backend,
+      doNotReplay: true,
+      reason: 'Dispatch started and the outcome is not confirmed. Do not replay this action.',
+    }
     return contracts
   }
   const contracts = preDispatchContracts(modelDecision, params.requiresApproval, params.requiresApproval ? 'host' : 'policy')

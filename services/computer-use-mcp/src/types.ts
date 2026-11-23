@@ -456,7 +456,7 @@ export interface PolicyDecision {
 export interface SessionTraceEntry {
   id: string
   at: string
-  event: 'requested' | 'approval_required' | 'approved' | 'rejected' | 'executed' | 'denied' | 'failed'
+  event: 'requested' | 'approval_required' | 'approved' | 'rejected' | 'dispatching' | 'executed' | 'denied' | 'failed'
   toolName: string
   action: PendingExecutableAction
   context: ForegroundContext
