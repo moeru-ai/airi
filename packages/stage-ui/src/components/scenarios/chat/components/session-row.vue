@@ -189,6 +189,7 @@ function runSwipeAction(value: string) {
             v-else
             data-session-main
             size="unset"
+            :title="props.row.activityAtLabel"
             :aria-current="props.row.isActive ? 'true' : undefined"
             :class="[
               'session-select active:scale-100! min-w-0 flex-1 text-left',

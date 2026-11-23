@@ -19,8 +19,9 @@ const { t } = useI18n()
 
 <template>
   <!--
-    Two lines in every row: the title, then the last message with the time at its end. A row without a loaded message
-    shows the time alone, so every row keeps the same height.
+    Two lines in every row: the title, then the last message. The time is metadata, so the compact row of a desktop
+    list shows it only in the tooltip of the row. The mobile row has no hover, so it keeps the time at the end of the
+    second line.
   -->
   <span :class="['min-w-0 w-full flex-1']">
     <span :class="['block w-full truncate text-sm font-medium']">{{ props.row.preview }}</span>
@@ -33,7 +34,7 @@ const { t } = useI18n()
         :title="t('stage.chat.sessions.pinned')"
         :class="['i-mingcute:pin-line size-3.5 shrink-0']"
       />
-      <span :class="['shrink-0 text-neutral-400 dark:text-neutral-500']">{{ props.row.activityAtLabel }}</span>
+      <span v-if="!props.compact" :class="['shrink-0 text-neutral-400 dark:text-neutral-500']">{{ props.row.activityAtLabel }}</span>
       <span v-if="props.marks && props.row.isActive && !props.compact" :class="['shrink-0 text-primary-600 dark:text-primary-300']">{{ t('stage.chat.sessions.current') }}</span>
       <span :class="['sr-only']">{{ props.row.characterName }}</span>
     </span>
