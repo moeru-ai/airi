@@ -61,10 +61,15 @@ useChatDraftHandover(interactiveArea)
         :class="['w-60 shrink-0 border-r border-neutral-200/70 dark:border-neutral-800/70']"
         />
       </div>
-      <InteractiveArea
-        ref="interactive-area"
-        :class="['interaction-area block h-full min-w-0 flex-1 bg-neutral-50 transition-opacity duration-250 dark:bg-neutral-950']"
-      />
+      <!--
+        The chat area has two root elements, so it takes no class. This wrapper paints its solid surface.
+      -->
+      <div :class="['h-full min-w-0 flex-1 bg-neutral-50 dark:bg-neutral-950']">
+        <InteractiveArea
+          ref="interactive-area"
+          :class="['interaction-area block h-full w-full transition-opacity duration-250']"
+        />
+      </div>
     </div>
   </ChatPageShell>
 </template>
