@@ -3,7 +3,8 @@ import type { AudioInput, PcmBlock } from '@proj-airi/pipelines-audio'
 import { AudioSample, AudioSampleSource } from 'mediabunny'
 import { expect, expectTypeOf, it, vi } from 'vitest'
 
-import { encodeWav, fileSource } from './media-file'
+import { encodeWav, fileSource, streamSource } from './media-file'
+import { toWavFromPCM16 } from './wav'
 
 function stereoBlock(startFrame: number, frames: number): PcmBlock {
   return { range: { sourceId: 'mic', startFrame, endFrame: startFrame + frames }, sampleRate: 48000, channels: [new Float32Array(frames).fill(0.5), new Float32Array(frames).fill(0.5)] }
@@ -87,3 +88,50 @@ it('closes each audio sample when the input already has the output sample rate',
     add.mockRestore()
   }
 })
+
+/** A WAV as speech providers stream it: the RIFF and data sizes are placeholders, and bytes arrive in small chunks. */
+function streamedWavBody(samples: number[], sampleRate: number, chunkBytes: number): ReadableStream<Uint8Array> {
+  const pcm = new Uint8Array(samples.length * 2)
+  const pcmView = new DataView(pcm.buffer)
+  samples.forEach((value, index) => pcmView.setInt16(index * 2, value, true))
+  const wav = new Uint8Array(toWavFromPCM16(pcm, sampleRate, 1))
+  new DataView(wav.buffer).setUint32(4, 0xFF_FF_FF_FF, true)
+  new DataView(wav.buffer).setUint32(40, 0xFF_FF_FF_FF, true)
+  return new ReadableStream({
+    start(controller) {
+      for (let offset = 0; offset < wav.length; offset += chunkBytes)
+        controller.enqueue(wav.slice(offset, offset + chunkBytes))
+      controller.close()
+    },
+  })
+}
+
+it('decodes a streamed WAV body with placeholder sizes into continuous PCM blocks', async () => {
+  const values = Array.from({ length: 4800 }, (_, index) => (index % 2 === 0 ? 16384 : -16384))
+
+  const samples: number[] = []
+  let nextFrame = 0
+  let sampleRate: number | undefined
+  for await (const block of streamSource(streamedWavBody(values, 24000, 333)).open(new AbortController().signal)) {
+    expect(block.range.startFrame).toBe(nextFrame)
+    nextFrame = block.range.endFrame
+    sampleRate = block.sampleRate
+    samples.push(...block.channels[0])
+  }
+
+  expect(sampleRate).toBe(24000)
+  expect(samples).toHaveLength(4800)
+  expect(samples[0]).toBeCloseTo(0.5, 3)
+  expect(samples[1]).toBeCloseTo(-0.5, 3)
+})
+
+it('cancels the body when the decoded stream is cancelled', async () => {
+  const cancel = vi.fn()
+  const body = new ReadableStream<Uint8Array>({ pull() {}, cancel })
+
+  const stream = streamSource(body).open(new AbortController().signal)
+  await stream.cancel('playback stopped')
+
+  await vi.waitFor(() => expect(cancel).toHaveBeenCalled())
+})
+

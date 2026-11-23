@@ -1,6 +1,8 @@
 import type { AudioSource, PcmBlock } from '@proj-airi/pipelines-audio'
 
-import { ALL_FORMATS, AudioSample, AudioSampleSink, AudioSampleSource, BlobSource, BufferTarget, Input, Output, WavOutputFormat } from 'mediabunny'
+import type { Source } from 'mediabunny'
+
+import { ALL_FORMATS, AudioSample, AudioSampleSink, AudioSampleSource, BlobSource, BufferTarget, Input, Output, ReadableStreamSource, WavOutputFormat } from 'mediabunny'
 import { nanoid } from 'nanoid/non-secure'
 
 /** Output format for {@link encodeWav}. Providers usually expect 16 kHz mono. */
@@ -83,9 +85,34 @@ export async function encodeWav(frames: ReadableStream<PcmBlock>, options: WavOp
  * const events = transcriber.transcribe({ audio: fileSource(recording).open(signal), signal })
  */
 export function fileSource(file: Blob): AudioSource {
+  return decodedSource(() => new BlobSource(file))
+}
+
+/**
+ * Decodes an audio file that is still arriving, for example a streamed HTTP response body, as a source.
+ *
+ * Use when:
+ * - Playback must start before the last byte arrives, as with streamed speech.
+ *
+ * Expects:
+ * - `body` is read once. Open the source once.
+ * - The format can be read in order, for example WAV with placeholder sizes.
+ *
+ * Returns:
+ * - A source whose stream yields PCM blocks as the bytes arrive. Cancelling the stream cancels `body`.
+ *
+ * @example
+ * playback.enqueue({ id, audio: streamSource(response.body!).open(signal) })
+ */
+export function streamSource(body: ReadableStream<Uint8Array>): AudioSource {
+  return decodedSource(() => new ReadableStreamSource(body))
+}
+
+/** Decodes the media from `createSource` into PCM blocks. Each `open` creates a new source. */
+function decodedSource(createSource: () => Source): AudioSource {
   return {
     open(signal) {
-      const input = new Input({ source: new BlobSource(file), formats: ALL_FORMATS })
+      const input = new Input({ source: createSource(), formats: ALL_FORMATS })
       const sourceId = nanoid()
       let samples: AsyncGenerator<AudioSample> | undefined
       let frame = 0

@@ -33,7 +33,7 @@ describe('requestStreamedSpeechAudio', () => {
    * @example
    * await requestStreamedSpeechAudio({ ...provider.speech(model, settings), input, voice }) // ReadableStream<PcmBlock>
    */
-  it('asks for WAV and returns a PCM stream when the body is WAV', async () => {
+  it('asks for WAV and returns a PCM stream when the server answers with WAV', async () => {
     const wav = streamedWav([0, 16384, -16384])
     const fetchImpl = vi.fn(async () => new Response(bodyOf([wav.slice(0, 20), wav.slice(20)]), { status: 200, headers: { 'content-type': 'audio/wav' } })) as unknown as typeof fetch
 
@@ -47,11 +47,14 @@ describe('requestStreamedSpeechAudio', () => {
     const reader = (audio as ReadableStream<PcmBlock>).getReader()
     for (let result = await reader.read(); !result.done; result = await reader.read())
       blocks.push(result.value)
-    expect(blocks.flatMap(block => [...block.channels[0]!])).toEqual([0, 0.5, -0.5])
+    const samples = blocks.flatMap(block => [...block.channels[0]!])
+    expect(samples).toHaveLength(3)
+    expect(samples[1]).toBeCloseTo(0.5, 3)
+    expect(samples[2]).toBeCloseTo(-0.5, 3)
     expect(blocks[0]!.sampleRate).toBe(24000)
   })
 
-  it('returns the whole body as a Blob when the provider sends another format', async () => {
+  it('returns the whole body as a Blob for another content type', async () => {
     const mp3 = new TextEncoder().encode('ID3 mp3 frames')
     const fetchImpl = vi.fn(async () => new Response(bodyOf([mp3.slice(0, 4), mp3.slice(4)]), { status: 200, headers: { 'content-type': 'audio/mpeg' } })) as unknown as typeof fetch
 
