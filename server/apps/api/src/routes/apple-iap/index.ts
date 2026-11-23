@@ -5,7 +5,7 @@ import type { PaymentService } from '../../services/domain/payment'
 import type { HonoEnv } from '../../types/hono'
 import type { Verifier } from './verifier'
 
-import { ok } from '@proj-airi/http-response-shared'
+import { ok } from '@proj-airi/http-error-shared'
 import { Hono } from 'hono'
 
 import { authGuard } from '../../middlewares/auth'

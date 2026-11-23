@@ -5,7 +5,7 @@ import type { RevenuecatSubscriberClient } from '../../services/adapters/revenue
 import type { RevenuecatSubscriptionSync } from '../../services/adapters/revenuecat-subscriptions'
 import type { HonoEnv } from '../../types/hono'
 
-import { ok } from '@proj-airi/http-response-shared'
+import { ok } from '@proj-airi/http-error-shared'
 import { Hono } from 'hono'
 
 import { authGuard } from '../../middlewares/auth'

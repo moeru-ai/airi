@@ -12,14 +12,12 @@ COPY patches/ ./patches/
 COPY server/apps/auth/package.json server/apps/auth/package.json
 COPY server/packages/auth-shared/package.json server/packages/auth-shared/package.json
 COPY server/packages/http-error-shared/package.json server/packages/http-error-shared/package.json
-COPY server/packages/http-response-shared/package.json server/packages/http-response-shared/package.json
 
 RUN pnpm install --frozen-lockfile --ignore-scripts --filter @proj-airi/auth-server...
 
 COPY server/apps/auth server/apps/auth
 COPY server/packages/auth-shared server/packages/auth-shared
 COPY server/packages/http-error-shared server/packages/http-error-shared
-COPY server/packages/http-response-shared server/packages/http-response-shared
 
 RUN pnpm -F @proj-airi/auth-server run build
 

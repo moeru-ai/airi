@@ -42,7 +42,7 @@ const apiRestrictedSyntax = [
 ]
 
 const honoJsonRestriction = {
-  message: 'Use `ok`, `created`, `noContent`, `list`, or `paginated` from \'@proj-airi/http-response-shared\'. See server/docs/ai/adr/2026-10-19-http-response-conventions.md for the exceptions.',
+  message: 'Use `ok`, `created`, `noContent`, `list`, or `paginated` from \'@proj-airi/http-error-shared\'. See server/docs/ai/adr/2026-10-19-http-response-conventions.md for the exceptions.',
   selector: 'CallExpression[callee.type=\'MemberExpression\'][callee.object.type=\'Identifier\'][callee.object.name=/^(c|context)$/][callee.property.name=\'json\']',
 }
 
