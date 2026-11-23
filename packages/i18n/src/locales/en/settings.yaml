@@ -811,6 +811,7 @@ pages:
       desktop_reset: Desktop data reset.
   models:
     library:
+      loading: Loading the models…
       title: Model library
       description: Import, rename, and delete the models of your characters.
       hint: A character selects its model in the character settings. This page only stores the models.

@@ -749,6 +749,7 @@ pages:
       desktop_reset: 桌面数据重置。
   models:
     library:
+      loading: 正在加载模型…
       title: 模型库
       description: 导入、重命名和删除角色用到的模型。
       hint: 角色用哪个模型，在角色的设置里选。这里只管理模型本身。

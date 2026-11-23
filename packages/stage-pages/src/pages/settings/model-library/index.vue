@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ModelSelectorScreen } from '@proj-airi/stage-ui/components/scenarios/dialogs/model-selector'
+import { ModelLibrary } from '@proj-airi/stage-ui/components/scenarios/settings/model-library'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
@@ -13,7 +13,7 @@ const router = useRouter()
       {{ t('settings.pages.models.library.hint') }}
     </p>
     <!-- The settings editor shows the model of the stage, so the library opens it only for that model. -->
-    <ModelSelectorScreen library @edit="router.push('/settings/models')" />
+    <ModelLibrary @edit="router.push('/settings/models')" />
   </div>
 </template>
 
