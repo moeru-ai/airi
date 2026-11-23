@@ -61,10 +61,10 @@ const emptyPlace = ref<ChatSessionsPlace>({ kind: 'all' })
     </Variant>
     <Variant id="row-states" title="Row states">
       <div :class="['flex w-88 flex-col gap-1 rounded-xl bg-white p-2 dark:bg-neutral-900']">
-        <SessionRowItem :row="rows[0]!" compact :selecting="false" :selected="false" :confirming-delete="false" />
-        <SessionRowItem :row="rows[1]!" compact :selecting="false" :selected="false" confirming-delete />
-        <SessionRowItem :row="rows[2]!" compact selecting selected :confirming-delete="false" />
-        <SessionRowItem :row="rows[3]!" compact selecting :selected="false" :confirming-delete="false" />
+        <SessionRowItem :row="rows[0]!" compact :selecting="false" :selected="false" />
+        <SessionRowItem :row="rows[1]!" compact :selecting="false" :selected="false" />
+        <SessionRowItem :row="rows[2]!" compact selecting selected />
+        <SessionRowItem :row="rows[3]!" compact selecting :selected="false" />
       </div>
     </Variant>
     <Variant id="archived-callout" title="Archived conversation callout">

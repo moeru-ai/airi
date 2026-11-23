@@ -46,8 +46,6 @@ const { t } = useI18n()
 const chosenPlace = defineModel<ChatSessionsPlace>('place', { default: () => ({ kind: 'all' }) })
 // The swipe area that is open belongs to this open list, never to persisted session state.
 const expandedSessionId = shallowRef<string>()
-/** The compact row that waits for the second press on its delete button. */
-const pendingDeleteSessionId = shallowRef<string>()
 // Selection mode belongs to the open list owner, so closing the list can end it.
 const selecting = defineModel<boolean>('selecting', { default: false })
 const selectedIds = shallowRef(new Set<string>())
@@ -143,13 +141,11 @@ watch(selecting, (value) => {
   confirmingBatchDelete.value = false
   if (value) {
     expandedSessionId.value = undefined
-    pendingDeleteSessionId.value = undefined
   }
 })
 
 watch(place, () => {
   expandedSessionId.value = undefined
-  pendingDeleteSessionId.value = undefined
   confirmingBatchDelete.value = false
 })
 
@@ -202,12 +198,10 @@ function archiveSelected() {
 
 function selectSession(sessionId: string) {
   expandedSessionId.value = undefined
-  pendingDeleteSessionId.value = undefined
   emit('selectSession', sessionId)
 }
 
 function deleteRow(sessionId: string) {
-  pendingDeleteSessionId.value = undefined
   expandedSessionId.value = undefined
   emit('deleteSession', sessionId)
 }
@@ -219,10 +213,6 @@ function deleteRow(sessionId: string) {
 function dropConfirmations(target: EventTarget | null) {
   const keep = target instanceof Element ? target.closest('[data-session-confirm]')?.getAttribute('data-session-confirm') : undefined
   let dropped = false
-  if (pendingDeleteSessionId.value && keep !== `row:${pendingDeleteSessionId.value}`) {
-    pendingDeleteSessionId.value = undefined
-    dropped = true
-  }
   if (confirmingBatchDelete.value && keep !== 'batch') {
     confirmingBatchDelete.value = false
     dropped = true
@@ -400,14 +390,12 @@ const { holdLeavingItem } = useListReorderMotion({
                   :compact="props.compact"
                   :selecting="selecting"
                   :selected="selectedIds.has(row.meta.sessionId)"
-                  :confirming-delete="pendingDeleteSessionId === row.meta.sessionId"
                   @update:swipe-open="expandedSessionId = $event ? row.meta.sessionId : undefined"
                   @select="selectSession(row.meta.sessionId)"
                   @toggle-selected="toggleSelected(row.meta.sessionId)"
                   @rename="title => emit('renameSession', { sessionId: row.meta.sessionId, title })"
                   @pin="pinned => emit('pinSession', { sessionId: row.meta.sessionId, pinned })"
                   @archive="archived => emit('archiveSessions', { sessionIds: [row.meta.sessionId], archived })"
-                  @arm-delete="pendingDeleteSessionId = row.meta.sessionId"
                   @delete="deleteRow(row.meta.sessionId)"
                 />
               </li>

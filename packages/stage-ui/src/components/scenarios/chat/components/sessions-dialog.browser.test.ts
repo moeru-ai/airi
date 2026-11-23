@@ -190,12 +190,13 @@ describe('sessions dialog actions', () => {
     // Archive stays on the compact row. Delete is in the menu of the row.
     await expect.element(screen.getByRole('button', { name: 'Archive: Second chat' })).toBeInTheDocument()
     await screen.getByRole('button', { name: 'More actions: Second chat' }).click()
-    await screen.getByRole('menuitem', { name: 'Delete conversation' }).click()
+    // The first press turns the item into its confirmation and keeps the menu open.
+    await screen.getByRole('menuitem', { name: 'Delete' }).click()
 
-    await expect.element(screen.getByRole('button', { name: 'Confirm delete: Second chat' })).toBeVisible()
+    await expect.element(screen.getByRole('menuitem', { name: 'Confirm delete' })).toBeVisible()
     await expect.element(screen.getByLabelText('deleted-session-id')).toHaveTextContent('none')
 
-    await screen.getByRole('button', { name: 'Confirm delete: Second chat' }).click()
+    await screen.getByRole('menuitem', { name: 'Confirm delete' }).click()
     await expect.element(screen.getByLabelText('deleted-session-id')).toHaveTextContent('session-two')
   })
 

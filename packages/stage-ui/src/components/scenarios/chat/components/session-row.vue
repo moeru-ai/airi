@@ -5,7 +5,6 @@ import { BasicButton, DropdownMenu, MenuItem, MenuSeparator, SwipeActionButton, 
 import { computed, nextTick, ref, shallowRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import SessionDeleteButton from './session-delete-button.vue'
 import SessionNameField from './session-name-field.vue'
 import SessionRowSummary from './session-row-summary.vue'
 
@@ -18,8 +17,6 @@ const props = defineProps<{
   /** The list selects conversations for a batch action, so the row toggles its selection instead of opening. */
   selecting: boolean
   selected: boolean
-  /** The compact row asks for a second press on its delete button. The list keeps one such request at a time. */
-  confirmingDelete: boolean
 }>()
 
 const emit = defineEmits<{
@@ -28,8 +25,6 @@ const emit = defineEmits<{
   rename: [title: string]
   pin: [pinned: boolean]
   archive: [archived: boolean]
-  /** The first press on the delete button of a compact row. */
-  armDelete: []
   delete: []
 }>()
 
@@ -51,6 +46,22 @@ watch(() => props.selecting, (selecting) => {
 })
 
 const archived = computed(() => props.row.meta.archivedAt !== undefined)
+/** The Delete item of the menu asks for a second press. It turns into its confirmation and keeps the menu open. */
+const confirmingMenuDelete = shallowRef(false)
+watch(menuOpen, (open) => {
+  if (!open)
+    confirmingMenuDelete.value = false
+})
+
+function selectDelete(event: Event) {
+  if (confirmingMenuDelete.value) {
+    emit('delete')
+    return
+  }
+  event.preventDefault()
+  confirmingMenuDelete.value = true
+}
+
 function requestRename() {
   menuClose.request(async () => {
     renameTitle.value = props.row.meta.title ?? props.row.preview
@@ -192,22 +203,11 @@ function runSwipeAction(value: string) {
           <template v-if="!renaming">
             <!--
               The compact row keeps Archive on the row, because it is the common action and an archived conversation comes
-              back. Delete is in its menu, and turns this button into its confirmation in place. The mobile row opens the
-              swipe area, where Archive and Delete are the second press.
+              back. Delete is in its menu, where the item turns into its own confirmation. The mobile row opens the swipe
+              area, where Archive and Delete are the second press.
             -->
             <template v-if="props.compact">
-              <SessionDeleteButton
-                v-if="props.confirmingDelete"
-                :data-session-confirm="`row:${props.row.meta.sessionId}`"
-                confirming
-                compact
-                :label="t('stage.chat.sessions.delete')"
-                :confirm-label="t('stage.chat.sessions.confirm-delete-short')"
-                :subject="props.row.preview"
-                @press="emit('delete')"
-              />
               <button
-                v-else
                 type="button"
                 :aria-label="`${archived ? t('stage.chat.sessions.unarchive') : t('stage.chat.sessions.archive')}: ${props.row.preview}`"
                 :title="archived ? t('stage.chat.sessions.unarchive') : t('stage.chat.sessions.archive')"
@@ -264,12 +264,12 @@ function runSwipeAction(value: string) {
                 </MenuItem>
                 <MenuItem @select="requestRename">
                   <span aria-hidden="true" :class="['i-mingcute:edit-2-line size-4 shrink-0']" />
-                  {{ t('stage.chat.sessions.rename') }}
+                  {{ t('stage.chat.sessions.rename-short') }}
                 </MenuItem>
                 <MenuSeparator />
-                <MenuItem v-if="props.compact" :class="['text-red-500 dark:text-red-400']" @select="menuClose.request(() => emit('armDelete'))">
-                  <span aria-hidden="true" :class="['i-mingcute:delete-2-line size-4 shrink-0']" />
-                  {{ t('stage.chat.sessions.delete') }}
+                <MenuItem v-if="props.compact" :class="['text-red-500 dark:text-red-400']" @select="selectDelete">
+                  <span aria-hidden="true" :class="[confirmingMenuDelete ? 'i-mingcute:delete-2-fill' : 'i-mingcute:delete-2-line', 'size-4 shrink-0']" />
+                  {{ confirmingMenuDelete ? t('stage.chat.sessions.confirm-delete-short') : t('stage.chat.sessions.delete-short') }}
                 </MenuItem>
                 <MenuItem v-else @select="emit('archive', !archived)">
                   <span aria-hidden="true" :class="[archived ? 'i-mingcute:unarchive-line' : 'i-mingcute:archive-line', 'size-4 shrink-0']" />
