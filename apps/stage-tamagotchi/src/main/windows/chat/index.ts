@@ -64,7 +64,7 @@ const defaultChatWindowConfig: ChatWindowConfig = {
   placement: 'attached',
   danmaku: false,
   pinned: true,
-  floating: { width: 452, height: 560 },
+  floating: { width: 520, height: 640 },
 }
 
 /**
