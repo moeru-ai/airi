@@ -58,6 +58,8 @@ const props = withDefaults(defineProps<{
    * nobody can scroll it back.
    */
   passive?: boolean
+  /** Starts the messages of the user at the left edge too. A host sets it when the history is too narrow for two sides. */
+  alignUserStart?: boolean
   /**
    * Index of the first message that the history shows. The messages before
    * it fade out and become hidden, but keep their place, so the layout and
@@ -352,6 +354,7 @@ function emitToolCallRerun(
               :scroll-container="chatHistoryRef"
               :variant="variant"
               :surface="surface"
+              :align-start="alignUserStart"
               @copy="emitCopyMessage(message, index)"
               @delete="emitDeleteMessage(message, index)"
               @reply="emitReplyMessage(message)"

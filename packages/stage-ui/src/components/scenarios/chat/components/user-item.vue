@@ -27,13 +27,18 @@ const props = withDefaults(defineProps<{
   variant?: 'desktop' | 'mobile'
   /** How the bubble paints its background; see `ChatHistory`'s `surface`. */
   surface?: 'translucent' | 'opaque'
+  /** Starts the message at the left edge, as on mobile. A narrow history uses it, so the two sides do not share the width. */
+  alignStart?: boolean
 }>(), {
   canReply: false,
   canDelete: true,
   scrollContainer: null,
   variant: 'desktop',
   surface: 'translucent',
+  alignStart: false,
 })
+
+const startsAtLeft = computed(() => props.variant === 'mobile' || props.alignStart)
 
 const emit = defineEmits<{
   (e: 'copy'): void
@@ -78,8 +83,8 @@ const voiceOnly = computed(() => audio.value.length > 0 && !images.value.length 
 
 const containerClasses = computed(() => [
   'flex',
-  // Mobile messages all start at the left edge. The gap on the right keeps them from the full width.
-  props.variant === 'mobile' ? 'mr-12 flex-row' : 'ml-12 flex-row-reverse',
+  // Mobile and narrow messages all start at the left edge. The gap on the right keeps them from the full width.
+  startsAtLeft.value ? 'mr-12 flex-row' : 'ml-12 flex-row-reverse',
 ])
 
 const boxClasses = computed(() => {
@@ -101,7 +106,7 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message))
 
 <template>
   <div v-if="message.role === 'user'" :class="['font-cute ph-no-capture', containerClasses]">
-    <div :class="['min-w-0 max-w-full flex flex-col gap-1.5', props.variant === 'mobile' ? 'items-start' : 'items-end']">
+    <div :class="['min-w-0 max-w-full flex flex-col gap-1.5', startsAtLeft ? 'items-start' : 'items-end']">
       <ChatActionMenu
         :can-reply="canReply"
         :can-delete="canDelete"

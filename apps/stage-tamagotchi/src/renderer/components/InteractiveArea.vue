@@ -21,7 +21,7 @@ import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store
 import { useJournalPreviewStore } from '@proj-airi/stage-ui/stores/journal-preview'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { BasicTextarea, DropdownMenu, GhostButton } from '@proj-airi/ui'
-import { until, useAsyncState, useLocalStorage } from '@vueuse/core'
+import { until, useAsyncState, useElementSize, useLocalStorage } from '@vueuse/core'
 import { nanoid } from 'nanoid/non-secure'
 import { storeToRefs } from 'pinia'
 import { computed, nextTick, onMounted, ref, shallowRef, toRaw, useTemplateRef, watch } from 'vue'
@@ -101,6 +101,9 @@ const solidSurfaces = computed(() => props.floating && !props.glassBackdrop)
 /** Whether a foldable composer is folded away. */
 const composerFolded = defineModel<boolean>('composerFolded', { default: false })
 const viewportLayout = useTemplateRef<InstanceType<typeof ChatViewportLayout>>('viewport-layout')
+// A narrow chat has no room for two sides. All messages then start at the left, like a messenger in a narrow window.
+const { width: viewportWidth } = useElementSize(() => viewportLayout.value?.$el as HTMLElement | undefined)
+const narrowHistory = computed(() => viewportWidth.value > 0 && viewportWidth.value < 520)
 
 const messageComposer = useTemplateRef<HTMLDivElement>('message-composer')
 const voiceStatus = useTemplateRef<HTMLDivElement>('voice-status')
@@ -487,6 +490,7 @@ defineExpose({
         :surface="solidSurfaces ? 'opaque' : 'translucent'"
         :scrollbar="props.floating ? 'hover' : 'scroll'"
         :passive="props.passive"
+        :align-user-start="narrowHistory"
         :class="['transition-[padding] duration-300 ease-out motion-reduce:transition-none', props.dockSide && { left: 'pl-12', right: 'pr-12' }[props.dockSide]]"
         :style="props.rightResizeBand ? { width: `calc(100% - ${props.rightResizeBand}px)` } : undefined"
         :expired-before="props.expiredBefore"
