@@ -22,6 +22,7 @@ Until then, each row shows "New chat" and no last message.
 - A summary text is one line of at most 200 characters. The client cuts it again for its row.
 - `last_message_role` is `user` or `assistant`. The client prefixes the words of the user, as a messenger does.
 - The migration fills the columns of existing chats from their messages in `seq` order.
+- A client gives the summary of the server to a chat that it adopts, and to a mapped chat that has no summary on the device. A local summary wins, because the messages on the device update it.
 - The ids have no foreign key. A summary follows the messages, as `messages.sender_id` follows the users.
 
 The update reads only the pushed messages and the two ids on the locked row. It does not sort the messages of the chat.

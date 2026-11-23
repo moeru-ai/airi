@@ -33,7 +33,7 @@ import { useSyncPreferencesStore } from '../sync-preferences'
 import { staysLocal } from './session-locality'
 import { characterMembersOfMeta } from './session-members'
 import { mergeLoadedSessionMessages } from './session-message-merge'
-import { summarizeSessionMessages } from './session-summary'
+import { summarizeSessionMessages, summaryOfRemoteChat } from './session-summary'
 
 /**
  * Roles that are eligible to push to the cloud. Wire schema accepts more,
@@ -1162,9 +1162,13 @@ export const useChatSessionStore = defineStore('chat-session', () => {
         }
 
         const remoteTitle = remote.title ?? undefined
-        if (meta.title === remoteTitle)
+        // A session that was adopted before the server listed summaries has no messages and no summary on this device.
+        // It takes the summary of the server. A session with a summary keeps it, because its own messages update it.
+        const remoteSummary = meta.summary?.lastText ? undefined : summaryOfRemoteChat(remote)
+        const takesSummary = !!remoteSummary?.lastText
+        if (meta.title === remoteTitle && !takesSummary)
           continue
-        sessionMetas.value[meta.sessionId] = { ...meta, title: remoteTitle }
+        sessionMetas.value[meta.sessionId] = { ...meta, title: remoteTitle, ...(takesSummary ? { summary: remoteSummary } : {}) }
         await persistSessionMeta(meta.sessionId)
       }
 
@@ -1274,6 +1278,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
           createdAt: new Date(remote.createdAt).getTime() || now,
           updatedAt: new Date(remote.updatedAt).getTime() || now,
           cloudChatId: remote.id,
+          // The list shows the chat before its messages load.
+          summary: summaryOfRemoteChat(remote),
         }
         sessionMetas.value[remote.id] = adoptedMeta
         sessionMessages.value[remote.id] = []

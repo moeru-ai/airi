@@ -20,6 +20,16 @@ const ListedRemoteChatSchema = v.object({
     memberType: v.picklist(['user', 'character', 'bot']),
     characterId: v.nullable(v.string()),
   })),
+  // The summary that the chat list shows before the messages load. See `server/docs/ai/adr/2026-11-24-chat-list-summary.md`.
+  // NOTICE:
+  // The fields are optional because a client can reach an API that does not have them yet.
+  // The API adds them in migration `0035_chat_summary`. Clients ship separately from the API.
+  // Source: server/apps/api/src/schemas/chats.ts.
+  // Removal condition: make them required after every supported API has run that migration.
+  firstMessageText: v.optional(v.nullable(v.string())),
+  lastMessageText: v.optional(v.nullable(v.string())),
+  lastMessageRole: v.optional(v.nullable(v.string())),
+  lastMessageAt: v.optional(v.nullable(v.string())),
 })
 
 const ListChatsResponseSchema = v.object({

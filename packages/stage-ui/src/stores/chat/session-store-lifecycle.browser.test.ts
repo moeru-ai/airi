@@ -1,3 +1,4 @@
+import type { ListedRemoteChat } from '../../libs/chat-sync'
 import type { ChatSessionMeta, ChatSessionRecord, ChatSessionsIndex } from '../../types/chat-session'
 
 import { createPinia, disposePinia, setActivePinia } from 'pinia'
@@ -594,7 +595,7 @@ describe('chat-session-store · cloud title reconciliation', () => {
     }
   }
 
-  async function reconcileWith(meta: ChatSessionMeta, remote: ReturnType<typeof remoteChat> | null) {
+  async function reconcileWith(meta: ChatSessionMeta, remote: ListedRemoteChat | null) {
     userIdRef.value = 'cloud-user'
     getIndexMock.mockResolvedValue({
       userId: 'cloud-user',
@@ -630,6 +631,34 @@ describe('chat-session-store · cloud title reconciliation', () => {
     const store = await reconcileWith(meta, remoteChat('Renamed elsewhere'))
 
     expect(store.sessionMetas[meta.sessionId].title).toBe('Renamed elsewhere')
+  })
+
+  it('gives the summary of the server to a mapped session that has none', async () => {
+    const meta: ChatSessionMeta = { sessionId: 'cloud-session', userId: 'cloud-user', characterId: 'default', cloudChatId: 'cloud-session', createdAt: 1, updatedAt: 1, summary: {} }
+
+    const store = await reconcileWith(meta, {
+      ...remoteChat(null),
+      firstMessageText: 'Plan the hike',
+      lastMessageText: 'Bring water.',
+      lastMessageRole: 'assistant',
+      lastMessageAt: '2026-01-02T00:00:00.000Z',
+    })
+
+    expect(store.sessionMetas[meta.sessionId].summary).toEqual({
+      firstText: 'Plan the hike',
+      lastText: 'Bring water.',
+      lastFromUser: false,
+      lastAt: Date.parse('2026-01-02T00:00:00.000Z'),
+    })
+  })
+
+  it('keeps the summary that the local messages give', async () => {
+    const summary = { firstText: 'Local question', lastText: 'Local answer', lastFromUser: false, lastAt: 5 }
+    const meta: ChatSessionMeta = { sessionId: 'cloud-session', userId: 'cloud-user', characterId: 'default', cloudChatId: 'cloud-session', createdAt: 1, updatedAt: 1, summary }
+
+    const store = await reconcileWith(meta, { ...remoteChat(null), lastMessageText: 'Remote answer', lastMessageRole: 'assistant' })
+
+    expect(store.sessionMetas[meta.sessionId].summary).toEqual(summary)
   })
 
   it('retries a failed title update on the next reconciliation', async () => {
@@ -718,6 +747,15 @@ describe('chat-session-store · cloud character membership', () => {
     const savedIndex = saveIndexMock.mock.calls.at(-1)![0]
     expect(Object.keys(savedIndex.characters.luna.sessions)).toEqual(['luna-session'])
     expect(Object.keys(savedIndex.characters.default.sessions)).toEqual(['local-session'])
+  })
+
+  it('shows a received chat with the summary of the server before its messages load', async () => {
+    userIdRef.value = 'cloud-user'
+    listChatsMock.mockResolvedValue([{ ...remoteChatOf('luna-session', 'luna'), firstMessageText: 'Hi Luna', lastMessageText: 'Hello!', lastMessageRole: 'assistant', lastMessageAt: '2026-01-02T00:00:00.000Z' }])
+
+    const store = await reconcile()
+
+    expect(store.sessionMetas['luna-session'].summary).toMatchObject({ firstText: 'Hi Luna', lastText: 'Hello!', lastFromUser: false })
   })
 
   it('moves a session from default to the character of its remote chat and keeps its messages', async () => {
