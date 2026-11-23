@@ -167,3 +167,23 @@ it('sends no second title request after a later reply when the first one failed'
     await sessions.deleteSession(sessionId)
   }
 })
+
+it('finishes the turn and sends no title request when the session character is gone', async () => {
+  const { chat, sessions, llm } = await setupChat()
+  const sessionId = await sessions.createSession('deleted-character')
+  const stream = vi.spyOn(llm, 'stream').mockImplementation(async (_model, _provider, _conversation, options) => {
+    await options?.onStreamEvent?.({ type: 'text-delta', text: 'Hello.' })
+    await options?.onStreamEvent?.({ type: 'finish' })
+  })
+
+  try {
+    await chat.ingest('Hello', { model: 'test-model', chatProvider: provider }, sessionId)
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    expect(sessions.getSessionMessages(sessionId).some(message => message.role === 'assistant')).toBe(true)
+    expect(stream.mock.calls.some(call => isTitleRequest(call[2]))).toBe(false)
+  }
+  finally {
+    await sessions.deleteSession(sessionId)
+  }
+})

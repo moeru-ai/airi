@@ -1122,6 +1122,18 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   /** The character that owns a session. A queued turn keeps it when another window selects a different card. */
+  /**
+   * The chat model that names a session: the one that its character chats with. A session whose character was deleted
+   * gets no title, because `getModules` throws for a missing card and the turn has already ended.
+   */
+  function conversationTitleSelection(sessionId: string) {
+    const characterId = personaOf(sessionId)
+    if (!cardStore.getCard(characterId))
+      return undefined
+    const { provider, model } = cardStore.getModules(characterId).consciousness
+    return isChatSelectionReady(provider, model) ? { providerId: provider, model } : undefined
+  }
+
   function sessionCard(sessionId: string) {
     const [characterId] = chatSession.characterMembersOf(sessionId)
     return characterId ? cardStore.getCard(characterId) : undefined
@@ -1245,9 +1257,9 @@ export const useChatStore = defineStore('chat', () => {
     onAssistantTurnReady: ({ sessionId, messageText, sessionMessages }) => {
       if (!isOwnerTurn(sessionId, sessionMessages))
         return
-      const selection = cardStore.getModules(personaOf(sessionId)).consciousness
-      if (isChatSelectionReady(selection.provider, selection.model))
-        void conversationTitle.nameAfterReply({ sessionId, selection: { providerId: selection.provider, model: selection.model } })
+      const titleSelection = conversationTitleSelection(sessionId)
+      if (titleSelection)
+        void conversationTitle.nameAfterReply({ sessionId, selection: titleSelection })
       const artistry = sessionCard(sessionId)?.extensions?.airi?.modules?.artistry
       if (artistry?.autonomousEnabled && artistry?.autonomousTarget === 'assistant')
         void artistryAutonomousStore.runArtistTask(messageText, toProviderHistory(sessionMessages))
