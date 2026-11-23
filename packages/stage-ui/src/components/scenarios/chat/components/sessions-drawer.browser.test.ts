@@ -114,6 +114,9 @@ describe('sessions drawer orchestration', () => {
     chatSession.sessionMessages['session-b'] = [
       { id: 'b', role: 'user', content: 'Earlier', createdAt: now - 14_400_000 },
     ]
+    // The list shows the current character only. A chat with another character stays out of it.
+    chatSession.sessionMetas['session-other'] = { ...sessionMeta('session-other', 'Chat of another character', 4), characterId: 'other' }
+    chatSession.sessionMessages['session-other'] = []
     vi.spyOn(chatSession, 'loadSession').mockResolvedValue(true)
     await screen.rerender({ modelValue: true })
     await expect.element(screen.getByRole('button', { name: /^Chat A/ })).toHaveTextContent('2 hours ago')
@@ -154,6 +157,9 @@ describe('sessions drawer orchestration', () => {
       { id: 'undated', role: 'user', content: 'No date' },
       { id: 'invalid', role: 'user', content: 'Invalid date', createdAt: Number.NaN },
     ]
+    // The list shows the current character only. A chat with another character stays out of it.
+    chatSession.sessionMetas['session-other'] = { ...sessionMeta('session-other', 'Chat of another character', 4), characterId: 'other' }
+    chatSession.sessionMessages['session-other'] = []
     vi.spyOn(chatSession, 'loadSession').mockResolvedValue(true)
     await screen.rerender({ modelValue: true })
     await expect.element(screen.getByRole('button', { name: /^Chat A/ })).toHaveTextContent('2 hours ago')
