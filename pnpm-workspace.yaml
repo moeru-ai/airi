@@ -154,7 +154,7 @@ catalog:
   '@iconify-json/svg-spinners': ^1.2.4
   '@iconify-json/tabler': ^1.2.38
   '@iconify-json/vscode-icons': ^1.2.74
-  '@iconify/utils': ^3.1.4
+  '@iconify/utils': ^3.1.7
   '@intlify/core': ^11.4.9
   '@intlify/unplugin-vue-i18n': ^11.2.5
   '@laplace.live/event-bridge-sdk': ^1.1.0
@@ -245,7 +245,7 @@ catalog:
   '@types/hast': ^3.0.5
   '@types/ioredis-mock': ^8.2.8
   '@types/mdast': ^4.0.4
-  '@types/node': ^26.2.0
+  '@types/node': ^26.6.6
   '@types/nprogress': ^0.2.3
   '@types/pg': ^8.23.1
   '@types/semver': ^7.8.0
@@ -310,7 +310,7 @@ catalog:
   best-effort-json-parser: ^1.5.1
   better-auth: 1.6.25
   builder-util-runtime: ^9.7.0
-  bumpp: ^12.2.1
+  bumpp: ^12.3.0
   cac: ^7.0.0
   canvas: ^3.2.3
   capacitor-native-settings: ^8.2.0
@@ -337,10 +337,10 @@ catalog:
   embla-carousel-autoplay: 9.0.0-rc01
   embla-carousel-vue: 9.0.0-rc02
   es-toolkit: ^1.51.0
-  eslint: ^10.9.0
+  eslint: ^10.15.0
   eslint-plugin-format: ^2.0.1
-  eslint-plugin-oxlint: ^1.79.0
-  eslint-plugin-perfectionist: ^5.10.1
+  eslint-plugin-oxlint: ^1.94.0
+  eslint-plugin-perfectionist: ^5.14.0
   eslint-plugin-slop: 0.1.3
   eventemitter3: ^5.0.4
   fflate: ^0.8.3
@@ -366,7 +366,7 @@ catalog:
   jsdom: ^30.0.1
   jszip: ^3.10.1
   katex: 0.19.0
-  knip: ^6.32.2
+  knip: ^6.46.1
   kokoro-js: ^1.2.1
   kysely: 0.29.5
   less: ^4.9.0
@@ -395,14 +395,14 @@ catalog:
   onnxruntime-web: ^1.27.0
   opusscript: ^0.1.1
   oxc-minify: ^0.146.0
-  oxlint: ^1.79.0
+  oxlint: ^1.94.0
   p-limit: ^7.3.1
   pg: ^8.23.0
   pinia: ^4.0.3
   pinia-plugin-synced: ^0.1.7
   pixi-filters: ^4.2.0
   pixi-live2d-display: ^0.4.0
-  playwright: ^1.62.1
+  playwright: ^1.65.1
   popmotion: ^11.0.5
   postgres: ^3.4.9
   posthog-js: ^1.440.0
@@ -414,7 +414,7 @@ catalog:
   prismarine-recipe: ^1.5.0
   prismarine-viewer: ^1.33.0
   prismarine-windows: ^2.10.0
-  publint: ^0.3.24
+  publint: ^0.3.25
   rehype-katex: ^7.0.1
   rehype-parse: ^9.0.1
   rehype-stringify: ^10.0.1
@@ -425,10 +425,10 @@ catalog:
   remark-rehype: ^11.1.2
   replicate: ^1.4.0
   resend: ^6.22.0
-  rollup: ^4.62.5
+  rollup: ^4.68.7
   semver: ^7.8.5
   shiki: ^4.4.3
-  simple-git-hooks: ^2.13.1
+  simple-git-hooks: ^2.14.0
   socket.io: ^4.8.4
   socket.io-client: ^4.8.4
   speech-rule-engine: 5.0.0-rc.4
@@ -439,14 +439,14 @@ catalog:
   stockfish: ^18.0.8
   stripe: ^22.5.0
   superjson: ^2.2.6
-  taze: ^21.1.0
+  taze: ^21.3.0
   telegram: ^2.26.22
   three: ^0.185.1
   three-stdlib: ^2.36.1
-  tinyexec: ^1.3.0
+  tinyexec: ^1.3.1
   tsdown: ^0.22.14
-  tsx: ^4.23.12
-  turbo: ^2.10.11
+  tsx: ^4.23.15
+  turbo: ^2.11.13
   typescript: ^6.0.3
   uiohook-napi: ^1.5.5
   uncrypto: ^0.1.3
@@ -470,7 +470,7 @@ catalog:
   vec3: ^0.2.0
   vieval: ^0.10.3
   virtua: ^0.50.4
-  vite: ^8.3.4
+  vite: ^8.3.8
   vite-bundle-visualizer: ^1.2.1
   vite-plugin-inspect: 12.0.0-beta.1
   vite-plugin-mkcert: ^2.1.0
@@ -498,7 +498,7 @@ catalog:
   wxt: ^0.21.4
   xast-util-to-xml: ^4.0.0
   xastscript: ^4.0.0
-  xsai-chromium-prompt: ^0.2.2
+  xsai-chromium-prompt: ^0.3.0
   xsschema: 0.5.1
   yaml: ^2.9.1
   yauzl: ^3.4.0
@@ -506,9 +506,9 @@ catalog:
   zod-to-json-schema: ^3.25.2
 catalogs:
   vitest:
-    '@vitest/browser-playwright': ^4.1.11
-    '@vitest/coverage-v8': ^4.1.11
-    vitest: ^4.1.11
+    '@vitest/browser-playwright': ^4.1.12
+    '@vitest/coverage-v8': ^4.1.12
+    vitest: ^4.1.12
   xsai:
     unspeech: ^0.1.16
 
