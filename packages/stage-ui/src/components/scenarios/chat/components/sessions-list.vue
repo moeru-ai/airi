@@ -1,13 +1,12 @@
 <script setup lang="ts">
-import type { ChatSessionFolder, ChatSessionsPlace } from '../../../../types/chat-session'
+import type { ChatSessionsPlace } from '../../../../types/chat-session'
 import type { SessionRow } from './session-row-model'
 
-import { AnimatedHeight, BasicButton, Button, DropdownMenu, GhostButton, ScrollableArea } from '@proj-airi/ui'
+import { AnimatedHeight, BasicButton, Button, GhostButton, ScrollableArea } from '@proj-airi/ui'
 import { useEventListener, useResizeObserver } from '@vueuse/core'
 import { computed, shallowRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import SessionFolderTargets from './session-folder-targets.vue'
 import SessionRowItem from './session-row.vue'
 import SessionsListHeader from './sessions-list-header.vue'
 
@@ -16,7 +15,6 @@ import { useListReorderMotion } from '../composables/use-list-reorder-motion'
 const props = withDefaults(defineProps<{
   /** Every conversation of the user with the current character, archived ones included. */
   rows: SessionRow[]
-  folders: readonly ChatSessionFolder[]
   isCreatingSession: boolean
   /** The desktop popover. Rows are denser, and the list keeps a fixed maximum height. */
   compact?: boolean
@@ -30,18 +28,12 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{
   deleteSession: [sessionId: string]
   deleteSessions: [sessionIds: string[]]
-  /** Creates a conversation with the current character. A folder ID puts it into that folder. */
-  newSession: [payload: { folderId?: string }]
+  /** Creates a conversation with the current character. */
+  newSession: []
   renameSession: [payload: { sessionId: string, title: string }]
   selectSession: [sessionId: string]
   pinSession: [payload: { sessionId: string, pinned: boolean }]
   archiveSessions: [payload: { sessionIds: string[], archived: boolean }]
-  /** `folderId: undefined` moves the conversations out of their folder. */
-  moveSessions: [payload: { sessionIds: string[], folderId: string | undefined }]
-  /** Creates a folder, then moves the conversations into it. With `open`, the list then shows the new folder. */
-  createFolder: [payload: { name: string, sessionIds: string[], open: boolean }]
-  renameFolder: [payload: { folderId: string, name: string }]
-  deleteFolder: [folderId: string]
 }>()
 
 const { t } = useI18n()
@@ -59,50 +51,22 @@ const selecting = defineModel<boolean>('selecting', { default: false })
 const selectedIds = shallowRef(new Set<string>())
 // The first press on the batch delete action only asks for confirmation, like the single-row delete.
 const confirmingBatchDelete = shallowRef(false)
-const confirmingFolderDelete = shallowRef(false)
-const batchMoveOpen = shallowRef(false)
 
-/** The chosen folder. It is missing when this list or another window deleted it. */
-const currentFolder = computed(() => {
-  const chosen = chosenPlace.value
-  return chosen.kind === 'folder' ? props.folders.find(folder => folder.id === chosen.folderId) : undefined
-})
-const allPlace: ChatSessionsPlace = { kind: 'all' }
-/** The place that the list shows. A chosen folder that no longer exists shows every conversation. */
-const place = computed(() => chosenPlace.value.kind === 'folder' && !currentFolder.value ? allPlace : chosenPlace.value)
+/** The place that the list shows. */
+const place = computed(() => chosenPlace.value)
 
 const liveRows = computed(() => props.rows.filter(row => row.meta.archivedAt === undefined))
 const archivedCount = computed(() => props.rows.length - liveRows.value.length)
-const folderCounts = computed(() => {
-  const counts = new Map<string, number>()
-  for (const row of liveRows.value) {
-    if (row.meta.folderId)
-      counts.set(row.meta.folderId, (counts.get(row.meta.folderId) ?? 0) + 1)
-  }
-  return counts
-})
 
 /** The rows that the list shows. Pinned conversations come first, and the rows already arrive in the order of their last message. */
 const visibleRows = computed(() => {
-  const current = place.value
-  let rows = liveRows.value
-  if (current.kind === 'archive')
-    rows = props.rows.filter(row => row.meta.archivedAt !== undefined)
-  else if (current.kind === 'folder')
-    rows = liveRows.value.filter(row => row.meta.folderId === current.folderId)
+  const rows = place.value.kind === 'archive' ? props.rows.filter(row => row.meta.archivedAt !== undefined) : liveRows.value
   return [...rows].sort((first, second) => Number(!!second.meta.pinnedAt) - Number(!!first.meta.pinnedAt))
 })
 
 // The selection survives a change of place. Only the rows that the list shows count and take a batch action.
 const selectedRows = computed(() => visibleRows.value.filter(row => selectedIds.value.has(row.meta.sessionId)))
 const allSelected = computed(() => visibleRows.value.length > 0 && selectedRows.value.length === visibleRows.value.length)
-/** The folder that every selected conversation is in. The batch menu marks it, also in all conversations and the archive. */
-const selectedFolderId = computed(() => {
-  const folderIds = new Set(selectedRows.value.map(row => row.meta.folderId))
-  return folderIds.size === 1 ? [...folderIds][0] : undefined
-})
-/** Whether a selected conversation is in a folder. The batch menu then offers No folder. */
-const selectionInFolder = computed(() => selectedRows.value.some(row => row.meta.folderId !== undefined))
 
 /** The primary action creates a conversation, or deletes the selection while selecting. */
 const primaryAction = computed(() => {
@@ -110,7 +74,7 @@ const primaryAction = computed(() => {
     return {
       key: 'new',
       icon: props.compact ? 'i-mingcute:add-circle-line' : 'i-mingcute:edit-line',
-      label: newSessionLabel(),
+      label: t('stage.chat.sessions.new'),
     }
   }
   if (confirmingBatchDelete.value) {
@@ -165,8 +129,6 @@ const actionButtons = computed(() => {
 const emptyState = computed(() => {
   if (place.value.kind === 'archive')
     return { icon: 'i-mingcute:archive-line', text: t('stage.chat.sessions.empty-archive') }
-  if (place.value.kind === 'folder')
-    return { icon: 'i-mingcute:folder-line', text: t('stage.chat.sessions.empty-folder', { folder: currentFolder.value?.name ?? '' }) }
   return { icon: 'i-mingcute:chat-1-line', text: t('stage.chat.sessions.empty') }
 })
 
@@ -187,18 +149,10 @@ watch(place, () => {
   expandedSessionId.value = undefined
   pendingDeleteSessionId.value = undefined
   confirmingBatchDelete.value = false
-  confirmingFolderDelete.value = false
 })
 
-function isPlace(target: ChatSessionsPlace) {
-  const current = place.value
-  if (current.kind === 'folder' && target.kind === 'folder')
-    return current.folderId === target.folderId
-  return current.kind === target.kind
-}
-
 function setPlace(target: ChatSessionsPlace) {
-  if (!isPlace(target))
+  if (place.value.kind !== target.kind)
     chosenPlace.value = target
 }
 
@@ -220,14 +174,9 @@ function toggleAllSelected() {
   selectedIds.value = next
 }
 
-function newSessionLabel() {
-  const folder = currentFolder.value?.name
-  return folder === undefined ? t('stage.chat.sessions.new') : t('stage.chat.sessions.new-in-folder', { folder })
-}
-
 function runPrimaryAction() {
   if (!selecting.value) {
-    emit('newSession', { folderId: currentFolder.value?.id })
+    emit('newSession')
     return
   }
   const sessionIds = selectedRows.value.map(row => row.meta.sessionId)
@@ -246,22 +195,6 @@ function archiveSelected() {
   if (sessionIds.length === 0)
     return
   emit('archiveSessions', { sessionIds, archived: place.value.kind !== 'archive' })
-  selecting.value = false
-}
-
-function moveSelected(folderId: string | undefined) {
-  const sessionIds = selectedRows.value.map(row => row.meta.sessionId)
-  batchMoveOpen.value = false
-  if (sessionIds.length === 0)
-    return
-  emit('moveSessions', { sessionIds, folderId })
-  selecting.value = false
-}
-
-function createFolderForSelection(name: string) {
-  const sessionIds = selectedRows.value.map(row => row.meta.sessionId)
-  batchMoveOpen.value = false
-  emit('createFolder', { name, sessionIds, open: false })
   selecting.value = false
 }
 
@@ -286,10 +219,6 @@ function dropConfirmations(target: EventTarget | null) {
   let dropped = false
   if (pendingDeleteSessionId.value && keep !== `row:${pendingDeleteSessionId.value}`) {
     pendingDeleteSessionId.value = undefined
-    dropped = true
-  }
-  if (confirmingFolderDelete.value && keep !== 'folder') {
-    confirmingFolderDelete.value = false
     dropped = true
   }
   if (confirmingBatchDelete.value && keep !== 'batch') {
@@ -372,18 +301,11 @@ const { holdLeavingItem } = useListReorderMotion({
 <template>
   <div ref="root" :class="['min-h-0 flex flex-col', props.fill ? 'h-full' : '']" @keydown.esc="handleEscape">
     <SessionsListHeader
-      v-model:confirming-delete="confirmingFolderDelete"
       :place="place"
-      :folders="props.folders"
-      :current-folder="currentFolder"
       :live-count="liveRows.length"
       :archived-count="archivedCount"
-      :folder-counts="folderCounts"
       :compact="props.compact"
       @select-place="setPlace"
-      @create-folder="name => emit('createFolder', { name, sessionIds: [], open: true })"
-      @rename-folder="emit('renameFolder', $event)"
-      @delete-folder="emit('deleteFolder', $event)"
     />
 
     <div :class="['flex shrink-0 items-center']">
@@ -472,11 +394,9 @@ const { holdLeavingItem } = useListReorderMotion({
                 <SessionRowItem
                   :swipe-open="expandedSessionId === row.meta.sessionId"
                   :row="row"
-                  :folders="props.folders"
                   :compact="props.compact"
                   :selecting="selecting"
                   :selected="selectedIds.has(row.meta.sessionId)"
-                  :show-folder="place.kind !== 'folder'"
                   :confirming-delete="pendingDeleteSessionId === row.meta.sessionId"
                   @update:swipe-open="expandedSessionId = $event ? row.meta.sessionId : undefined"
                   @select="selectSession(row.meta.sessionId)"
@@ -484,8 +404,6 @@ const { holdLeavingItem } = useListReorderMotion({
                   @rename="title => emit('renameSession', { sessionId: row.meta.sessionId, title })"
                   @pin="pinned => emit('pinSession', { sessionId: row.meta.sessionId, pinned })"
                   @archive="archived => emit('archiveSessions', { sessionIds: [row.meta.sessionId], archived })"
-                  @move="folderId => emit('moveSessions', { sessionIds: [row.meta.sessionId], folderId })"
-                  @create-folder="name => emit('createFolder', { name, sessionIds: [row.meta.sessionId], open: false })"
                   @arm-delete="pendingDeleteSessionId = row.meta.sessionId"
                   @delete="deleteRow(row.meta.sessionId)"
                 />
@@ -521,25 +439,6 @@ const { holdLeavingItem } = useListReorderMotion({
             <span aria-hidden="true" :class="[place.kind === 'archive' ? 'i-mingcute:unarchive-line' : 'i-mingcute:archive-line', 'size-4 shrink-0']" />
             {{ place.kind === 'archive' ? t('stage.chat.sessions.unarchive') : t('stage.chat.sessions.archive') }}
           </GhostButton>
-          <DropdownMenu v-model:open="batchMoveOpen" align="end" :side-offset="4" :content-class="['min-w-48 max-h-[var(--reka-dropdown-menu-content-available-height)] overflow-y-auto']" :disabled="selectedRows.length === 0">
-            <template #trigger>
-              <GhostButton
-                size="unset"
-                :disabled="selectedRows.length === 0"
-                :class="['h-8 inline-flex items-center gap-1.5 rounded-lg px-2 text-neutral-700 hover:bg-neutral-500/10 dark:text-neutral-200', 'focus-visible:outline-2 focus-visible:outline-primary-500']"
-              >
-                <span aria-hidden="true" :class="['i-mingcute:folder-line size-4 shrink-0']" />
-                {{ t('stage.chat.sessions.move-to-folder') }}
-              </GhostButton>
-            </template>
-            <SessionFolderTargets
-              :folders="props.folders"
-              :current-folder-id="selectedFolderId"
-              :in-folder="selectionInFolder"
-              @move="moveSelected"
-              @create="createFolderForSelection"
-            />
-          </DropdownMenu>
         </div>
       </div>
     </div>

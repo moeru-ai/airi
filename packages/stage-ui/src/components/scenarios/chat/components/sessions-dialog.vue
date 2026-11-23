@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ChatSessionFolder, ChatSessionsPlace } from '../../../../types/chat-session'
+import type { ChatSessionsPlace } from '../../../../types/chat-session'
 import type { SessionRow } from './session-row-model'
 
 import { BottomDrawer } from '@proj-airi/ui'
@@ -12,7 +12,6 @@ import SessionsList from './sessions-list.vue'
 const props = withDefaults(defineProps<{
   open: boolean
   rows: SessionRow[]
-  folders: readonly ChatSessionFolder[]
   isDesktop: boolean
   isCreatingSession: boolean
   /** `inline` renders the list in place, without a surface, and ignores `open`. A window that keeps the list beside the chat uses it. */
@@ -24,15 +23,11 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{
   'deleteSession': [sessionId: string]
   'deleteSessions': [sessionIds: string[]]
-  'newSession': [payload: { folderId?: string }]
+  'newSession': []
   'renameSession': [payload: { sessionId: string, title: string }]
   'selectSession': [sessionId: string]
   'pinSession': [payload: { sessionId: string, pinned: boolean }]
   'archiveSessions': [payload: { sessionIds: string[], archived: boolean }]
-  'moveSessions': [payload: { sessionIds: string[], folderId: string | undefined }]
-  'createFolder': [payload: { name: string, sessionIds: string[], open: boolean }]
-  'renameFolder': [payload: { folderId: string, name: string }]
-  'deleteFolder': [folderId: string]
   'update:open': [open: boolean]
 }>()
 
@@ -92,19 +87,14 @@ function preserveTriggerFocus(event: Event) {
       v-model:selecting="selecting"
       v-model:place="place"
       :rows="rows"
-      :folders="folders"
       :is-creating-session="isCreatingSession"
-      @new-session="emit('newSession', $event)"
+      @new-session="emit('newSession')"
       @rename-session="emit('renameSession', $event)"
       @select-session="emit('selectSession', $event)"
       @delete-session="emit('deleteSession', $event)"
       @delete-sessions="emit('deleteSessions', $event)"
       @pin-session="emit('pinSession', $event)"
       @archive-sessions="emit('archiveSessions', $event)"
-      @move-sessions="emit('moveSessions', $event)"
-      @create-folder="emit('createFolder', $event)"
-      @rename-folder="emit('renameFolder', $event)"
-      @delete-folder="emit('deleteFolder', $event)"
     />
   </BottomDrawer>
   <PopoverRoot v-else-if="desktopMode === 'popover'" :open="open" @update:open="emit('update:open', $event)">
@@ -127,19 +117,14 @@ function preserveTriggerFocus(event: Event) {
           v-model:place="place"
           compact
           :rows="rows"
-          :folders="folders"
           :is-creating-session="isCreatingSession"
-          @new-session="emit('newSession', $event)"
+          @new-session="emit('newSession')"
           @rename-session="emit('renameSession', $event)"
           @select-session="emit('selectSession', $event)"
           @delete-session="emit('deleteSession', $event)"
           @delete-sessions="emit('deleteSessions', $event)"
           @pin-session="emit('pinSession', $event)"
           @archive-sessions="emit('archiveSessions', $event)"
-          @move-sessions="emit('moveSessions', $event)"
-          @create-folder="emit('createFolder', $event)"
-          @rename-folder="emit('renameFolder', $event)"
-          @delete-folder="emit('deleteFolder', $event)"
         />
       </PopoverContent>
     </PopoverPortal>
@@ -158,7 +143,7 @@ function preserveTriggerFocus(event: Event) {
           'data-[state=closed]:animate-contentHide data-[state=open]:animate-contentShow',
         ]"
       >
-        <!-- The list shows the visible title, because it switches between all conversations, a folder, and the archive. -->
+        <!-- The list shows the visible title, because it switches between all conversations and the archive. -->
         <DialogTitle :class="['sr-only']">
           {{ t('stage.chat.sessions.title') }}
         </DialogTitle>
@@ -166,19 +151,14 @@ function preserveTriggerFocus(event: Event) {
           v-model:selecting="selecting"
           v-model:place="place"
           :rows="rows"
-          :folders="folders"
           :is-creating-session="isCreatingSession"
-          @new-session="emit('newSession', $event)"
+          @new-session="emit('newSession')"
           @rename-session="emit('renameSession', $event)"
           @select-session="emit('selectSession', $event)"
           @delete-session="emit('deleteSession', $event)"
           @delete-sessions="emit('deleteSessions', $event)"
           @pin-session="emit('pinSession', $event)"
           @archive-sessions="emit('archiveSessions', $event)"
-          @move-sessions="emit('moveSessions', $event)"
-          @create-folder="emit('createFolder', $event)"
-          @rename-folder="emit('renameFolder', $event)"
-          @delete-folder="emit('deleteFolder', $event)"
         />
       </DialogContent>
     </DialogPortal>

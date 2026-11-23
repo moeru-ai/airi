@@ -2,7 +2,7 @@
 import { iconButtonClasses } from './icon-button-classes'
 
 /**
- * The delete button of a conversation or a folder. The first press asks for confirmation: the button turns in place
+ * The delete button of a conversation. The first press asks for confirmation: the button turns in place
  * into a pill that names the action, and the second press deletes. The owner keeps the confirmation state and cancels
  * it on a press or a keyboard focus elsewhere.
  */

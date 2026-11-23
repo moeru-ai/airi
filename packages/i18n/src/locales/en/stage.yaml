@@ -283,28 +283,13 @@ chat:
     switch-place: Switch view
     unknown-character: Unknown character
     pinned: Pinned
-    folders: Folders
     archived: Archived
     more-actions: More actions
     pin: Pin
     unpin: Unpin
     archive: Archive
     unarchive: Restore
-    move-to-folder: Move to folder
-    no-folder: No folder
-    new-folder: New folder
-    create-folder: Create
-    new-in-folder: New conversation in {folder}
-    folder-name: Folder name
-    folder-name-placeholder: Enter a folder name
-    save-folder: Save folder
-    cancel-folder: Cancel
-    folder-actions: Folder actions
-    rename-folder: Rename folder
-    delete-folder: Delete folder, keep conversations
-    confirm-delete-folder: Confirm delete folder
     selected: '{count} selected'
-    empty-folder: '{folder} is empty. Use the button above to start a conversation here, or choose Move to folder in the menu of a conversation.'
     empty-archive: No archived conversations. Archived conversations stay here.
     save-failed: The change could not be saved
 avatar-model-missing:
