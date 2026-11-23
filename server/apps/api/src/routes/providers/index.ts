@@ -1,7 +1,7 @@
 import type { ProviderService } from '../../services/domain/providers'
 import type { HonoEnv } from '../../types/hono'
 
-import { createBadRequestError } from '@proj-airi/http-error-shared'
+import { createBadRequestError, noContent, ok } from '@proj-airi/http-shared'
 import { Hono } from 'hono'
 import { safeParse } from 'valibot'
 
@@ -15,6 +15,7 @@ export function createProviderRoutes(providerService: ProviderService) {
     .get('/', async (c) => {
       const user = c.get('user')!
       const providers = await providerService.listAll(user.id)
+      // eslint-disable-next-line no-restricted-syntax -- Known deviation in 2026-10-19-http-response-conventions.md: clients read a bare array.
       return c.json(providers)
     })
 
@@ -33,13 +34,13 @@ export function createProviderRoutes(providerService: ProviderService) {
         definitionId: result.output.definitionId,
         config: result.output.config,
       })
-      return c.json(provider)
+      return ok(c, provider)
     })
 
     .delete('/:id', async (c) => {
       const user = c.get('user')!
       const instanceId = c.req.param('id')
       await providerService.tombstone(instanceId, user.id)
-      return c.body(null, 204)
+      return noContent(c)
     })
 }

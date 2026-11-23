@@ -2,7 +2,7 @@ import type { Voice } from 'unspeech'
 
 import type { TtsAdapter, TtsAdapterContext, TtsInput, TtsResult, TtsVoiceCatalogContext } from './types'
 
-import { createBadRequestError, createInternalError, createServiceUnavailableError } from '@proj-airi/http-error-shared'
+import { createBadRequestError, createInternalError, createServiceUnavailableError } from '@proj-airi/http-shared'
 import { inferMicrosoftContentType, isMicrosoftVoiceId, resolveMicrosoftOutputFormat } from 'unspeech'
 
 import { listVoicesViaUnSpeech, sendSpeechViaUnSpeech } from './unspeech'

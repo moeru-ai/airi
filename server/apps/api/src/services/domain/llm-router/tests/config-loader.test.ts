@@ -1,7 +1,7 @@
 import type { ConfigKVService } from '../../../adapters/config-kv'
 import type { RouterConfig } from '../types'
 
-import { ApiError } from '@proj-airi/http-error-shared'
+import { ApiError } from '@proj-airi/http-shared'
 import { describe, expect, it, vi } from 'vitest'
 
 import { createConfigLoader } from '../config-loader'

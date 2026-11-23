@@ -10,7 +10,7 @@ import type { LlmRouteContext, RouterConfig } from '../types'
 
 import { randomBytes } from 'node:crypto'
 
-import { ApiError } from '@proj-airi/http-error-shared'
+import { ApiError } from '@proj-airi/http-shared'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { createEnvelopeCrypto } from '../../../../utils/envelope-crypto'

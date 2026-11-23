@@ -1,7 +1,7 @@
 import type { CharacterService } from '../../services/domain/characters'
 import type { HonoEnv } from '../../types/hono'
 
-import { createBadRequestError, createForbiddenError, createNotFoundError } from '@proj-airi/http-error-shared'
+import { createBadRequestError, created, createForbiddenError, createNotFoundError, noContent, ok } from '@proj-airi/http-shared'
 import { Hono } from 'hono'
 import { safeParse } from 'valibot'
 
@@ -19,6 +19,7 @@ export function createCharacterRoutes(characterService: CharacterService) {
       const characters = all
         ? await characterService.findAll()
         : await characterService.findByOwnerId(user.id)
+      // eslint-disable-next-line no-restricted-syntax -- Known deviation in 2026-10-19-http-response-conventions.md: clients read a bare array.
       return c.json(characters)
     })
 
@@ -28,7 +29,7 @@ export function createCharacterRoutes(characterService: CharacterService) {
       if (!character)
         throw createNotFoundError()
 
-      return c.json(character)
+      return ok(c, character)
     })
 
     .post('/', async (c) => {
@@ -51,7 +52,7 @@ export function createCharacterRoutes(characterService: CharacterService) {
         },
       })
 
-      return c.json(character, 201)
+      return created(c, character)
     })
 
     .patch('/:id', async (c) => {
@@ -73,7 +74,7 @@ export function createCharacterRoutes(characterService: CharacterService) {
         throw createForbiddenError()
 
       const updated = await characterService.update(id, result.output)
-      return c.json(updated)
+      return ok(c, updated)
     })
 
     .delete('/:id', async (c) => {
@@ -88,20 +89,20 @@ export function createCharacterRoutes(characterService: CharacterService) {
         throw createForbiddenError()
 
       await characterService.delete(id)
-      return c.body(null, 204)
+      return noContent(c)
     })
 
     .post('/:id/like', async (c) => {
       const user = c.get('user')!
       const id = c.req.param('id')
       const result = await characterService.like(user.id, id)
-      return c.json(result)
+      return ok(c, result)
     })
 
     .post('/:id/bookmark', async (c) => {
       const user = c.get('user')!
       const id = c.req.param('id')
       const result = await characterService.bookmark(user.id, id)
-      return c.json(result)
+      return ok(c, result)
     })
 }

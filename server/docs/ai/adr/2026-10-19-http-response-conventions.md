@@ -30,7 +30,7 @@ These rules apply to each new HTTP route in `server/apps/api` and `server/apps/a
 
 ### Errors
 
-- A route, middleware, or service throws an `ApiError` from `@proj-airi/http-error-shared`.
+- A route, middleware, or service throws an `ApiError` from `@proj-airi/http-shared`.
 - Only the `onError` handler writes the body `{ error, message, details? }`.
 - `error` is an `UPPER_SNAKE` code, for example `SUBSCRIPTION_ACTIVE`. A client branches on `error` only.
 - `message` is text for a person. A client does not parse it.
@@ -87,7 +87,7 @@ Non-goals:
 
 ```mermaid
 graph LR
-  Route[routes/llm-requests] --> Shared[http-error-shared]
+  Route[routes/llm-requests] --> Shared[http-shared]
   App[app.ts onError] --> Shared
 ```
 

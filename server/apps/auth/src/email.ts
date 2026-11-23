@@ -4,7 +4,7 @@ import type { EmailMetrics } from './otel'
 
 import { useLogger } from '@guiiai/logg'
 import { errorMessageFrom } from '@moeru/std'
-import { ApiError } from '@proj-airi/http-error-shared'
+import { ApiError } from '@proj-airi/http-shared'
 import { Resend } from 'resend'
 
 /**

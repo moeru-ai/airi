@@ -1,6 +1,6 @@
 import { Buffer } from 'node:buffer'
 
-import { ApiError } from '@proj-airi/http-error-shared'
+import { ApiError } from '@proj-airi/http-shared'
 import { describe, expect, it, vi } from 'vitest'
 
 import { getAdapter } from './index'
