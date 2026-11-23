@@ -476,35 +476,6 @@ defineExpose({
     :composer-at-edge="props.composerFoldable"
   >
     <template #history="{ tailInset }">
-      <!--
-        The welcome card centers in the space above the composer, which covers
-        the bottom of the history. The container query below drops the icon,
-        then the description, when that space is too short for them.
-        The history scroller fills the layer and comes later, so the container
-        sits above it and passes the pointer through. The floating card paints
-        its own surface, so it takes the pointer, and the hit test of the
-        transparent window finds it.
-      -->
-      <div
-        v-if="!historyMessages.some(message => message.role !== 'system') && !isActiveSessionSending"
-        :class="['chat-empty-state pointer-events-none absolute inset-x-0 top-0 z-1 flex items-center justify-center overflow-hidden px-6']"
-        :style="{ bottom: `calc(${tailInset}px + 1rem)` }"
-      >
-        <div
-          :class="[
-            'flex flex-col items-center gap-3 text-center',
-            solidSurfaces ? 'pointer-events-auto rounded-2xl bg-white px-6 py-6 shadow-md dark:bg-neutral-900' : '',
-          ]"
-        >
-          <div :class="['chat-empty-state-icon size-14 flex items-center justify-center rounded-2xl bg-primary-100/60 text-primary-500 dark:bg-primary-900/30']">
-            <span :class="['i-solar:chat-line-bold-duotone size-7']" />
-          </div>
-          <span :class="['font-cute text-xl text-neutral-700 dark:text-neutral-200']">{{ assistantLabel || 'AIRI' }}</span>
-          <p :class="['chat-empty-state-description text-sm text-neutral-500 dark:text-neutral-400']">
-            {{ t('stage.chat.images.empty') }}
-          </p>
-        </div>
-      </div>
       <ChatHistory
         :messages="historyMessages"
         :assistant-label="assistantLabel"
@@ -791,23 +762,6 @@ defineExpose({
 @media (prefers-reduced-motion: reduce) {
   .chat-composer-foldable {
     transition: none;
-  }
-}
-
-.chat-empty-state {
-  container-type: size;
-}
-
-/* The card needs about 11rem with the icon and 5rem with the description. */
-@container (max-height: 12rem) {
-  .chat-empty-state-icon {
-    display: none;
-  }
-}
-
-@container (max-height: 6rem) {
-  .chat-empty-state-description {
-    display: none;
   }
 }
 </style>

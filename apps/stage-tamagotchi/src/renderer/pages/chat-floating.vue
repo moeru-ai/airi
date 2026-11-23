@@ -6,7 +6,7 @@ import type { ChatFloatingState, ChatWindowPreferences } from '../../shared/even
 
 import { getElectronEventaContext, useElectronEventaInvoke, useElectronMouseAroundWindowBorder, useElectronMouseInElement } from '@proj-airi/electron-vueuse'
 import { isElectronWindow } from '@proj-airi/stage-shared'
-import { ChatSessionsDrawer } from '@proj-airi/stage-ui/components'
+import { CharacterRail, ChatSessionsDrawer } from '@proj-airi/stage-ui/components'
 import { useBackdropSurface } from '@proj-airi/stage-ui/composables/backdrop-surface'
 import { useDanmakuFeedExpiry } from '@proj-airi/stage-ui/composables/use-danmaku-feed-expiry'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
@@ -32,6 +32,7 @@ import {
   electronChatFloatingResizeBy,
   electronChatFloatingStateChanged,
   electronChatWindowSetPreferences,
+  electronOpenSettings,
 } from '../../shared/eventa'
 import { useChatDraftHandover } from '../composables/use-chat-draft-handover'
 import { dismissOverlays, useChatFloatingClickThrough } from '../composables/use-chat-floating-click-through'
@@ -52,6 +53,7 @@ const reportContentHidden = useElectronEventaInvoke(electronChatFloatingContentH
 const resizeBy = useElectronEventaInvoke(electronChatFloatingResizeBy)
 const moveTo = useElectronEventaInvoke(electronChatFloatingMoveTo)
 const foldChat = useElectronEventaInvoke(electronChatFloatingFold)
+const openSettings = useElectronEventaInvoke(electronOpenSettings)
 const setPreferences = useElectronEventaInvoke(electronChatWindowSetPreferences)
 
 // The main process can emit before this page mounts, so the first state comes
@@ -176,8 +178,8 @@ const dockTooltipSide = computed<TooltipContentProps['side']>(() => {
     return 'bottom'
   return characterOnLeft.value ? 'right' : 'left'
 })
-// The name button opens the conversations. A dock that stands up has no room for the name, so its tooltip gives the
-// name too.
+// While the message feed is on, the rail and the conversations are hidden, so the name button of the dock opens the
+// conversations. A dock that stands up has no room for the name, so its tooltip gives the name too.
 const conversationsLabel = computed(() => {
   const label = t('tamagotchi.stage.chat-window.conversations')
   return verticalDock.value ? `${activeCard.value?.name || 'AIRI'} · ${label}` : label
@@ -565,7 +567,7 @@ function moveByKeyboard(delta: WindowDelta) {
                 A plain button: GhostButton wraps its slot in a span that cannot shrink, so a long name could not
                 truncate.
               -->
-              <Tooltip :label="conversationsLabel" :side="dockTooltipSide">
+              <Tooltip v-if="danmaku" :label="conversationsLabel" :side="dockTooltipSide">
                 <button
                   :aria-label="verticalDock ? activeCard?.name || 'AIRI' : undefined"
                   :class="[
@@ -621,7 +623,25 @@ function moveByKeyboard(delta: WindowDelta) {
           </TransitionBud>
         </div>
 
-        <div :class="['relative min-h-0 flex-1']">
+        <!--
+          Like the classic window: the characters, the conversations of the current character, then the chat. They
+          stand on the side away from the character, because the dock that stands up takes the side of the character.
+          The message feed has no panel, so it shows the chat only.
+        -->
+        <div :class="['min-h-0 flex flex-1', characterOnLeft ? 'flex-row-reverse' : '']">
+          <template v-if="!danmaku">
+            <CharacterRail
+              docked
+              :class="[characterOnLeft ? 'border-l' : 'border-r', 'border-neutral-200/70 dark:border-neutral-800/70']"
+              @manage="openSettings({ route: '/settings/airi-card' })"
+            />
+            <ChatSessionsDrawer
+              desktop-mode="inline"
+              desktop
+              :class="['w-56 shrink-0', characterOnLeft ? 'border-l' : 'border-r', 'border-neutral-200/70 dark:border-neutral-800/70']"
+            />
+          </template>
+          <div :class="['relative min-h-0 min-w-0 flex-1']">
           <!--
             TODO: When Windows and Linux draw native glass behind a transparent window, the floating panel there can
             use the chat window surfaces too. Then `glassBackdrop` only needs to check the danmaku feed.
@@ -637,6 +657,7 @@ function moveByKeyboard(delta: WindowDelta) {
             :passive="passiveFeed"
             :expired-before="expiredBefore"
           />
+          </div>
         </div>
         <!--
           The corners are buttons that take keyboard focus and the arrow keys. The edges take only the pointer. The
@@ -661,7 +682,7 @@ function moveByKeyboard(delta: WindowDelta) {
         <WindowResizeBorder :shown="nearResizeEdge || nearResizeEdgeFor250Ms" :class="['rounded-3xl']" />
       </div>
     </Transition>
-    <ChatSessionsDrawer v-model="sessionsDrawerOpen" />
+    <ChatSessionsDrawer v-model="sessionsDrawerOpen" desktop />
   </div>
 </template>
 

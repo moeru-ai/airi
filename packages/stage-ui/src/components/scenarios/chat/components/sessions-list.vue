@@ -20,8 +20,11 @@ const props = withDefaults(defineProps<{
   isCreatingSession: boolean
   /** The desktop popover. Rows are denser, and the list keeps a fixed maximum height. */
   compact?: boolean
+  /** The list fills the height of its column and scrolls inside it, for example beside the chat of a desktop window. */
+  fill?: boolean
 }>(), {
   compact: false,
+  fill: false,
 })
 
 const emit = defineEmits<{
@@ -367,7 +370,7 @@ const { holdLeavingItem } = useListReorderMotion({
 </script>
 
 <template>
-  <div ref="root" :class="['min-h-0 flex flex-col']" @keydown.esc="handleEscape">
+  <div ref="root" :class="['min-h-0 flex flex-col', props.fill ? 'h-full' : '']" @keydown.esc="handleEscape">
     <SessionsListHeader
       v-model:confirming-delete="confirmingFolderDelete"
       :place="place"
@@ -441,8 +444,8 @@ const { holdLeavingItem } = useListReorderMotion({
       settles. Rows and the empty state are one keyed sequence: a row that stays slides to its new place, a new row or
       the empty state fades in where it lands, and an item that leaves fades out without holding space.
     -->
-    <div ref="listBox" :class="['shrink-0', props.compact ? '' : 'mt-3']">
-      <ScrollableArea :class="[props.compact ? 'max-h-[min(24rem,60dvh)]' : '']" :style="listMaxStyle">
+    <div ref="listBox" :class="[props.fill ? 'min-h-0 flex-1' : 'shrink-0', props.compact ? '' : 'mt-3']">
+      <ScrollableArea :class="[props.fill ? 'h-full' : props.compact ? 'max-h-[min(24rem,60dvh)]' : '']" :style="listMaxStyle">
         <AnimatedHeight>
           <!-- The padding keeps the focus rings of the rows inside the clip area. -->
           <div :class="[props.compact ? 'p-0.5' : 'p-1']">

@@ -54,11 +54,13 @@ function preserveTriggerFocus(event: Event) {
 </script>
 
 <template>
-  <div v-if="desktopMode === 'inline'" data-testid="sessions-inline" :class="['h-full min-h-0 overflow-y-auto px-2 py-2']">
+  <div v-if="desktopMode === 'inline'" data-testid="sessions-inline" :class="['h-full min-h-0 px-2 py-2']">
     <SessionsList
       v-model:selecting="selecting"
       v-model:place="place"
       compact
+      fill
+      :class="['h-full']"
       :rows="rows"
       :folders="folders"
       :is-creating-session="isCreatingSession"

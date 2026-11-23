@@ -25,8 +25,11 @@ import { useConsciousnessStore } from '../../../../stores/modules/consciousness'
 
 const props = withDefaults(defineProps<{
   desktopMode?: 'dialog' | 'popover' | 'inline'
+  /** The host is a desktop window. A narrow desktop window then keeps the desktop surfaces and never shows the phone drawer. */
+  desktop?: boolean
 }>(), {
   desktopMode: 'dialog',
+  desktop: false,
 })
 
 const showDialog = defineModel({ type: Boolean, default: false, required: false })
@@ -254,7 +257,7 @@ watch(showDialog, async (open) => {
     v-model:place="listPlace"
     :rows="rows"
     :folders="folders"
-    :is-desktop="isDesktop"
+    :is-desktop="props.desktop || isDesktop"
     :is-creating-session="isCreatingSession"
     :desktop-mode="props.desktopMode"
     @new-session="payload => reportFailure(() => startNewSession(payload))"
