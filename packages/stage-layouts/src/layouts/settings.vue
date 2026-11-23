@@ -110,7 +110,7 @@ onMounted(() => updateThemeColor())
       v-if="!isStageTamagotchi()"
       :class="['px-0 py-1 hidden sm:block', 'md:px-3 md:py-3', 'w-full gap-2', 'bg-$bg-color']"
     >
-      <Header :character-switcher="false" />
+      <Header />
     </div>
     <!-- Content -->
     <div
