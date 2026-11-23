@@ -64,6 +64,13 @@ function createExecutor(config: ComputerUseConfig, options: ComputerUseServerOpt
     return createAuvExecutor(config)
   }
 
+  if (config.executor === 'auv-wayland') {
+    if (platform !== 'linux' || !env.WAYLAND_DISPLAY?.trim())
+      throw new Error('auv-wayland requires a Linux Wayland session with WAYLAND_DISPLAY set')
+
+    return createAuvExecutor(config)
+  }
+
   if (config.executor === 'linux-x11')
     return createLinuxX11Executor(config)
   if (config.executor === 'macos-local')

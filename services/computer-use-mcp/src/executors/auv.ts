@@ -119,7 +119,14 @@ export interface AuvExecutorOptions {
 
 export function createAuvExecutor(config: ComputerUseConfig, options: AuvExecutorOptions = {}): DesktopExecutor {
   const runtime = options.runtime ?? createAuvExecutorRuntime(config)
+  const wayland = config.executor === 'auv-wayland'
+  const kind = wayland ? 'auv-wayland' : 'auv'
   let knownSession: AuvSession | undefined
+
+  const requireInput = () => {
+    if (wayland)
+      throw new AuvExecutorError('unsupported', 'AUV Wayland is observe-only')
+  }
 
   const ensureSession = async () => {
     try {
@@ -180,9 +187,12 @@ export function createAuvExecutor(config: ComputerUseConfig, options: AuvExecuto
   }
 
   const captureDisplay = async (session: AuvSession, request: ScreenshotRequest, options: ExecutorCallOptions): Promise<ScreenshotArtifact> => {
-    const targetWindow = options.targetWindowContext?.windowId
-      ? await resolveTargetWindow(session, options)
-      : await callRunner(session, 'resolve screenshot window', runner => runner.windows.resolve({ frontmost: true }, { signal: options.signal }).catch(() => undefined))
+    // On Wayland, a display capture does not require the compositor to expose window metadata.
+    const targetWindow = wayland
+      ? undefined
+      : options.targetWindowContext?.windowId
+        ? await resolveTargetWindow(session, options)
+        : await callRunner(session, 'resolve screenshot window', runner => runner.windows.resolve({ frontmost: true }, { signal: options.signal }).catch(() => undefined))
     const targetBounds = targetWindow?.window.frame
     const displays = await callRunner(session, 'list screenshot displays', runner => runner.displays.list({ signal: options.signal }))
     const center = targetBounds
@@ -206,7 +216,9 @@ export function createAuvExecutor(config: ComputerUseConfig, options: AuvExecuto
       encoding: ImageEncodingValue.PNG as ImageEncoding,
       signal: options.signal,
     }))
-    const frontmostAfter = await callRunner(session, 'resolve screenshot window', runner => runner.windows.resolve({ frontmost: true }, { signal: options.signal }).catch(() => undefined))
+    const frontmostAfter = wayland
+      ? undefined
+      : await callRunner(session, 'resolve screenshot window', runner => runner.windows.resolve({ frontmost: true }, { signal: options.signal }).catch(() => undefined))
     const rawDisplayId = captured.display?.displayId
     const displayIndex = displays.findIndex(display => display.displayId === rawDisplayId)
     const displayId = displayIndex >= 0 ? String(displayIndex + 1) : undefined
@@ -250,19 +262,22 @@ export function createAuvExecutor(config: ComputerUseConfig, options: AuvExecuto
   }
 
   const wait = async (input: WaitActionInput, options: ExecutorCallOptions = {}) => {
+    requireInput()
     await delay(Math.max(0, input.durationMs), undefined, { signal: options.signal })
     return actionResult(['waited through AUV execution lane'], executionTarget(config, knownSession))
   }
 
   return {
-    kind: 'auv',
+    kind,
     describe: () => ({
-      kind: 'auv',
-      notes: [
-        'AUV-backed Windows observation and input',
-        `window bounds and input coordinates use ${COORDINATE_SPACE}`,
-        'each mutating call is bound to a freshly resolved window and Host approval remains required',
-      ],
+      kind,
+      notes: wayland
+        ? ['AUV Wayland display capture and best-effort window metadata. No desktop input.']
+        : [
+            'AUV-backed Windows observation and input',
+            `window bounds and input coordinates use ${COORDINATE_SPACE}`,
+            'each mutating call is bound to a freshly resolved window and Host approval remains required',
+          ],
     }),
     getExecutionTarget: async () => executionTarget(config, await ensureSession()),
     getForegroundContext: async () => foreground(await ensureSession()),
@@ -316,8 +331,10 @@ export function createAuvExecutor(config: ComputerUseConfig, options: AuvExecuto
       const probe = (target: string) => ({
         status: 'unknown' as const,
         target,
-        checkedBy: 'AUV Windows Runner',
-        note: 'AUV reports operation readiness at call time; Windows permissions are not exposed as a separate probe.',
+        checkedBy: wayland ? 'AUV Wayland Runner' : 'AUV Windows Runner',
+        note: wayland
+          ? 'AUV reports capture readiness at call time.'
+          : 'AUV reports operation readiness at call time; Windows permissions are not exposed as a separate probe.',
       })
       return {
         screenRecording: probe('screen capture'),
@@ -346,7 +363,7 @@ export function createAuvExecutor(config: ComputerUseConfig, options: AuvExecuto
           windows,
           observedAt: new Date().toISOString(),
           provenance: {
-            backend: 'auv',
+            backend: kind,
             daemonId: session.daemonId,
             runId: session.runId,
             deviceId: session.deviceId,
@@ -357,16 +374,19 @@ export function createAuvExecutor(config: ComputerUseConfig, options: AuvExecuto
     },
     takeScreenshot: async (request, options = {}) => captureDisplay(await ensureSession(), request, options),
     openApp: async (input: OpenAppActionInput, options = {}) => {
+      requireInput()
       const session = await ensureSession()
       const activation = await callRunner(session, `activate app ${input.app}`, runner => runner.applications.activate({ applicationId: input.app }, { signal: options.signal }))
       return requireVerifiedActivation(activation, input.app, 'activated', config, session)
     },
     focusApp: async (input: FocusAppActionInput, options = {}) => {
+      requireInput()
       const session = await ensureSession()
       const activation = await callRunner(session, `focus app ${input.app}`, runner => runner.applications.activate({ applicationId: input.app }, { signal: options.signal }))
       return requireVerifiedActivation(activation, input.app, 'focused', config, session)
     },
     click: async (input: ClickActionInput & { pointerTrace: PointerTracePoint[] }, options = {}) => {
+      requireInput()
       const session = await ensureSession()
       const { window, point } = await resolveLocalPoint(session, options, { x: input.x, y: input.y })
       const inputResult = await callRunner(session, 'click window', current => current.windows.from(window).click(point, {
@@ -378,6 +398,7 @@ export function createAuvExecutor(config: ComputerUseConfig, options: AuvExecuto
       return { ...actionResult(['AUV accepted the click delivery; inspect the captured application state for the requested effect'], executionTarget(config, session)), pointerTrace: input.pointerTrace }
     },
     typeText: async (input: TypeTextActionInput, options = {}) => {
+      requireInput()
       const session = await ensureSession()
       const window = await resolveTargetWindow(session, options)
       const inputResult = await callRunner(session, 'type text into window', current => current.windows.from(window).typeText(input.text, {
@@ -389,6 +410,7 @@ export function createAuvExecutor(config: ComputerUseConfig, options: AuvExecuto
       return actionResult([`AUV accepted text delivery for ${input.text.length} characters; inspect the captured application state for the requested effect`], executionTarget(config, session))
     },
     pressKeys: async (input: PressKeysActionInput, options = {}) => {
+      requireInput()
       const session = await ensureSession()
       const window = await resolveTargetWindow(session, options)
       const inputResult = await callRunner(session, 'press keys in window', current => current.windows.from(window).pressKeys(input.keys, { policy: InputPolicyValue.FOREGROUND_PREFERRED }, { signal: options.signal }))
@@ -396,6 +418,7 @@ export function createAuvExecutor(config: ComputerUseConfig, options: AuvExecuto
       return actionResult([`AUV accepted key delivery for ${input.keys.join('+')}; inspect the captured application state for the requested effect`], executionTarget(config, session))
     },
     scroll: async (input: ScrollActionInput, options = {}) => {
+      requireInput()
       const session = await ensureSession()
       const point = typeof input.x === 'number' && typeof input.y === 'number' ? { x: input.x, y: input.y } : undefined
       const window = point
