@@ -1029,6 +1029,9 @@ pages:
             top_p_description: Control the diversity of the model's output via nucleus sampling. A lower value (e.g. 0.2) limits the output to only high-probability tokens, while a higher value (e.g. 1.0) includes a broader set of possibilities.
             subtitle: Select a default model from the provider
             title: Model
+          conversation-title:
+            label: Name new conversations
+            description: After the first reply, the chat model of the character writes a short title for a conversation without one. Each title is one more request to that model.
           model-options:
             title: Model options
             thinking:

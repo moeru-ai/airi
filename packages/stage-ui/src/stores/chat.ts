@@ -25,6 +25,7 @@ import { computed, shallowRef, toRaw, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { getConversationAnalyticsSurface } from '../composables'
+import { useConversationTitle } from '../composables/conversation-title'
 import { useAiriRuntimePrompt } from '../composables/use-airi-runtime-prompt'
 import { getTraceSink, LOCAL_AGENT_ACTOR } from '../composables/use-trace'
 import { modelDeclaresImageInput, useChatVision } from '../composables/vision/use-chat-vision'
@@ -289,6 +290,7 @@ export const useChatStore = defineStore('chat', () => {
   const cardStore = useAiriCardStore()
   const recipes = useRecipesStore()
   const memory = useMemoryStore()
+  const conversationTitle = useConversationTitle()
 
   /** The persona of a session. A session without one uses the selected card. */
   function personaOf(sessionId: string) {
@@ -1243,6 +1245,9 @@ export const useChatStore = defineStore('chat', () => {
     onAssistantTurnReady: ({ sessionId, messageText, sessionMessages }) => {
       if (!isOwnerTurn(sessionId, sessionMessages))
         return
+      const selection = cardStore.getModules(personaOf(sessionId)).consciousness
+      if (isChatSelectionReady(selection.provider, selection.model))
+        void conversationTitle.nameAfterReply({ sessionId, selection: { providerId: selection.provider, model: selection.model } })
       const artistry = sessionCard(sessionId)?.extensions?.airi?.modules?.artistry
       if (artistry?.autonomousEnabled && artistry?.autonomousTarget === 'assistant')
         void artistryAutonomousStore.runArtistTask(messageText, toProviderHistory(sessionMessages))

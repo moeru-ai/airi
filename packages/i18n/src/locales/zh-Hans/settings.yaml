@@ -959,6 +959,9 @@ pages:
             top_p_description: 控制模型输出的多样性（核采样）。较低的值（例如 0.2）会将输出限制在概率较高的词汇；较高的值（例如 1.0）则会包含更广泛的可能性。
             subtitle: 选择一个默认模型
             title: 模型
+          conversation-title:
+            label: 自动命名新对话
+            description: 第一次回复后，角色的对话模型为没有标题的对话起一个短标题。每次命名会向该模型多发一次请求。
           model-options:
             title: 模型选项
             thinking:
