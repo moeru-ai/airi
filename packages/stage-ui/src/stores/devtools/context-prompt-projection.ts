@@ -1,4 +1,4 @@
-import type { ContextBudgetLimits } from '@proj-airi/core-agent'
+import type { ContextBudgetLimits, ContextTokenSource } from '@proj-airi/core-agent'
 import type { Message } from '@xsai/shared-chat'
 
 import type { ContextMessage } from '../../types/chat'
@@ -17,7 +17,7 @@ export type {
   ContextProjectionSectionKind,
   SerializedProjectionBreakdown,
 } from './context-projection'
-export { groupProjectionSections, reportedWindowUsage } from './context-projection'
+export { contextWindowFill, describeContextTokenReadings, groupProjectionSections, reportedWindowUsage } from './context-projection'
 
 /** Model metadata captured with one provider projection. Token fields come from the catalog, not from bytes. */
 export interface PromptProjectionRequest {
@@ -43,6 +43,27 @@ export interface ReportedPromptUsage {
   capturedAt: number
 }
 
+/** Input-token measurement for the projected request that was sent. */
+export interface MeasuredPromptUsage {
+  inputTokens: number
+  outputReserveTokens: number
+  contextWindowTokens: number
+  source: ContextTokenSource
+  model: string
+  providerId: string
+  /** Local estimate of the same payload, kept even when `source` is a provider count. */
+  estimateTokens: number
+  capturedAt: number
+}
+
+/** Reported input tokens minus the measured input tokens for the same projection. */
+export interface PromptUsageComparison {
+  measuredInputTokens: number
+  reportedInputTokens: number
+  deltaTokens: number
+  measuredSource: ContextTokenSource
+}
+
 /** Optional metadata passed with the provider messages for the active request. */
 export interface ProviderProjectionCapture {
   model: string
@@ -53,6 +74,7 @@ export interface ProviderProjectionCapture {
   budgetLimits?: ContextBudgetLimits
   /** The object measured for this request. Falls back to the display messages when omitted. */
   serializedProjection?: unknown
+  measuredUsage?: Omit<MeasuredPromptUsage, 'capturedAt'>
 }
 
 export interface PromptProjectionSnapshot {
@@ -68,7 +90,10 @@ export interface PromptProjectionSnapshot {
   request?: PromptProjectionRequest
   /** UTF-8 breakdown of the serialized projection. This is not a token count. */
   breakdown?: SerializedProjectionBreakdown
+  measuredUsage?: MeasuredPromptUsage
   reportedUsage?: ReportedPromptUsage
+  /** Present after the provider reports usage for this measured projection. */
+  usageComparison?: PromptUsageComparison
 }
 
 function projectionRequest(details: ProviderProjectionCapture): PromptProjectionRequest {
@@ -141,8 +166,12 @@ export const useContextPromptProjectionStore = defineStore('devtools:context-pro
       providerCaptured: true,
       request: details ? projectionRequest(details) : lastPromptProjection.value.request,
       breakdown: classifySerializedProjection(details?.serializedProjection ?? composedMessage),
+      measuredUsage: details?.measuredUsage
+        ? { ...details.measuredUsage, capturedAt: Date.now() }
+        : undefined,
       // The previous request's reported tokens do not describe this projection.
       reportedUsage: undefined,
+      usageComparison: undefined,
     }
   }
 
@@ -161,6 +190,8 @@ export const useContextPromptProjectionStore = defineStore('devtools:context-pro
     if (lastPromptProjection.value?.sessionId !== sessionId || !lastPromptProjection.value.providerCaptured)
       return
 
+    const measured = lastPromptProjection.value.measuredUsage
+    const reportedInputTokens = usage.inputTokens
     lastPromptProjection.value = {
       ...lastPromptProjection.value,
       reportedUsage: {
@@ -170,6 +201,14 @@ export const useContextPromptProjectionStore = defineStore('devtools:context-pro
         source: 'reported',
         capturedAt: Date.now(),
       },
+      usageComparison: measured && reportedInputTokens !== undefined
+        ? {
+            measuredInputTokens: measured.inputTokens,
+            reportedInputTokens,
+            deltaTokens: reportedInputTokens - measured.inputTokens,
+            measuredSource: measured.source,
+          }
+        : undefined,
     }
   }
 

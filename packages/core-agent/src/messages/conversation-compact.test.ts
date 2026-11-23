@@ -3,6 +3,7 @@ import type { Conversation, GenerationRound } from './types'
 import { describe, expect, it, vi } from 'vitest'
 
 import { measureContextBudget } from './context-budget'
+import { estimateContextTokenUsage } from './context-token-usage'
 import { ConversationCompact } from './conversation-compact'
 import { renderConversationPreview } from './preview'
 
@@ -40,6 +41,64 @@ const target = { scope: 'session/model', measureContextBytes: measure }
 const limits = { softLimitBytes: 6000, retainRounds: 1 }
 
 describe('conversationCompact', () => {
+  it('schedules from the resolved request token budget and keeps tool receipt text', async () => {
+    const source = conversation()
+    const compact = new ConversationCompact({ softLimitBytes: 100_000, retainRounds: 1 })
+    compact.setMode('synchronous')
+    const summarize = vi.fn(async () => 'Earlier notes.')
+    const identity = { model: 'fixture-model', providerId: 'fixture-provider', contextWindowTokens: 8_000, outputReserveTokens: 100 }
+    const prepared = await compact.prepare(source, {
+      scope: 'session/token-model',
+      measureContextBytes: measure,
+      tokenSoftLimit: 1,
+      estimateContextTokens: value => estimateContextTokenUsage(value, identity),
+      measureContextTokens: value => estimateContextTokenUsage(value, identity),
+      summarize,
+    })
+
+    const serialized = JSON.stringify(prepared)
+
+    expect(summarize).toHaveBeenCalledOnce()
+    expect(serialized).toContain('Earlier notes.')
+    expect(serialized).toContain('noNewDispatch')
+    expect((serialized.match(/observation /g) ?? []).length).toBe(100)
+  })
+
+  it('keeps byte scheduling when the token measurement is unavailable', async () => {
+    const source: Conversation = { turns: [{ type: 'user', id: 'short', content: [{ type: 'text', text: 'short' }] }] }
+    const compact = new ConversationCompact({ softLimitBytes: 100_000, retainRounds: 1 })
+    compact.setMode('synchronous')
+    const summarize = vi.fn(async () => 'unused')
+
+    await expect(compact.prepare(source, {
+      scope: 'session/unavailable',
+      measureContextBytes: measure,
+      tokenSoftLimit: 1,
+      measureContextTokens: () => ({
+        inputTokens: 0,
+        outputReserveTokens: 0,
+        contextWindowTokens: 0,
+        source: 'unavailable',
+        model: 'fixture-model',
+        providerId: 'fixture-provider',
+      }),
+      summarize,
+    })).resolves.toEqual(source)
+    expect(summarize).not.toHaveBeenCalled()
+  })
+
+  it('keeps user text and tool receipts in the retained floor', () => {
+    const source = conversation()
+    const floor = new ConversationCompact({ softLimitBytes: 100_000, retainRounds: 1 }).retainedFloor(source)
+    const serialized = JSON.stringify(floor)
+
+    expect(serialized).toContain('Original goal')
+    expect(serialized).toContain('[Host Notice]')
+    expect(serialized).toContain('noNewDispatch')
+    expect((serialized.match(/observation /g) ?? []).length).toBe(100)
+    expect((JSON.stringify(source).match(/observation /g) ?? []).length).toBe(400)
+  })
+
   it('keeps a step-limit checkpoint on the final round and in the projected context', async () => {
     const stopReason = { type: 'step-limit' as const, maxSteps: 2, completedSteps: 2 }
     const source: Conversation = { turns: [

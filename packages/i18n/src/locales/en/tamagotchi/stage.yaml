@@ -135,6 +135,17 @@ docs:
     output: Output
     total: Total
     usage-unavailable: The provider did not report token usage for this request.
+    reading-unknown: Not available
+    reading-delta: 'Reported minus measured: {count} tokens'
+    reading:
+      measured: Measured
+      reported: Reported
+      estimated: Estimated
+    source:
+      provider-counted: provider count
+      local-tokenizer: local tokenizer
+      estimated: estimate
+      unavailable: unavailable
     budget: Compaction threshold
     expand: Show content
     collapse: Hide content

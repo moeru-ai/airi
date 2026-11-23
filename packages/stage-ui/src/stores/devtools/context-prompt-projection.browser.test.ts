@@ -64,6 +64,15 @@ describe('context prompt projection sync', () => {
       providerId: 'mock-provider',
       contextWindowTokens: 100_000,
       serializedProjection: { messages: [{ role: 'user', content: 'Look' }] },
+      measuredUsage: {
+        inputTokens: 24_000,
+        outputReserveTokens: 1_000,
+        contextWindowTokens: 100_000,
+        source: 'estimated',
+        model: 'gpt-test',
+        providerId: 'mock-provider',
+        estimateTokens: 24_000,
+      },
     })
     stage.recordReportedUsage('session-1', { inputTokens: 25_000, outputTokens: 10, totalTokens: 25_010, source: 'reported' })
 
@@ -72,6 +81,8 @@ describe('context prompt projection sync', () => {
       sessionId: 'session-1',
       request: { model: 'gpt-test', providerId: 'mock-provider', contextWindowTokens: 100_000 },
       reportedUsage: { inputTokens: 25_000, source: 'reported' },
+      measuredUsage: { inputTokens: 24_000, source: 'estimated', estimateTokens: 24_000 },
+      usageComparison: { measuredInputTokens: 24_000, reportedInputTokens: 25_000, deltaTokens: 1_000, measuredSource: 'estimated' },
     })
     expect(chat.lastPromptProjection?.breakdown?.totalBytes).toBeGreaterThan(0)
     await new Promise(resolve => setTimeout(resolve, 50))

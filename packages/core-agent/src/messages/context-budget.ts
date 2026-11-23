@@ -75,6 +75,49 @@ export function measureContextBudget(value: unknown): ContextBudget {
   return { textBytes: totalBytes - imageBytes, imageBytes, totalBytes }
 }
 
+function positiveTokenCount(value: number | undefined) {
+  return Number.isSafeInteger(value) && (value ?? 0) > 0 ? value : undefined
+}
+
+/**
+ * Token budget for one resolved model request.
+ * `inputBudgetTokens` is the Compact soft threshold. It is not a provider admission limit.
+ */
+export interface ContextTokenBudget {
+  contextWindowTokens?: number
+  outputReserveTokens: number
+  safetyMarginTokens: number
+  /** Present only when the model catalog reported a positive context window. */
+  inputBudgetTokens?: number
+}
+
+/** Shares the output reserve and safety margin used by the byte fallback. */
+export function resolveContextTokenBudget(input: ContextBudgetLimitInput): ContextTokenBudget {
+  const contextWindowTokens = positiveTokenCount(input.contextWindowTokens)
+  if (!contextWindowTokens) {
+    return {
+      outputReserveTokens: 0,
+      safetyMarginTokens: 0,
+    }
+  }
+
+  const safetyMarginTokens = Math.min(
+    Math.max(MINIMUM_SAFETY_MARGIN_TOKENS, Math.ceil(contextWindowTokens * SAFETY_MARGIN_FRACTION)),
+    Math.floor(contextWindowTokens / 4),
+  )
+  const requestedOutputTokens = positiveTokenCount(input.requestedOutputTokens)
+  const modelMaxOutputTokens = positiveTokenCount(input.modelMaxOutputTokens)
+  const outputReserveTokens = requestedOutputTokens
+    ?? Math.min(modelMaxOutputTokens ?? DEFAULT_OUTPUT_RESERVE_TOKENS, DEFAULT_OUTPUT_RESERVE_TOKENS, Math.floor(contextWindowTokens / 4))
+
+  return {
+    contextWindowTokens,
+    outputReserveTokens,
+    safetyMarginTokens,
+    inputBudgetTokens: Math.max(0, contextWindowTokens - outputReserveTokens - safetyMarginTokens),
+  }
+}
+
 /**
  * Uses model metadata only to schedule Compact. The byte estimate never rejects a request.
  * An explicit output cap that fills the model window sets the soft threshold to zero, so
@@ -86,32 +129,15 @@ export function resolveContextBudgetLimits(
     softLimitBytes: DEFAULT_CONTEXT_SOFT_LIMIT_BYTES,
   },
 ): ContextBudgetLimits {
-  const contextWindowTokens = Number.isSafeInteger(input.contextWindowTokens) && (input.contextWindowTokens ?? 0) > 0
-    ? input.contextWindowTokens
-    : undefined
-
-  if (!contextWindowTokens)
+  const budget = resolveContextTokenBudget(input)
+  if (!budget.contextWindowTokens || budget.inputBudgetTokens === undefined)
     return { ...fallback, source: 'bounded-byte-fallback' }
 
-  const safetyMarginTokens = Math.min(
-    Math.max(MINIMUM_SAFETY_MARGIN_TOKENS, Math.ceil(contextWindowTokens * SAFETY_MARGIN_FRACTION)),
-    Math.floor(contextWindowTokens / 4),
-  )
-  const requestedOutputTokens = Number.isSafeInteger(input.requestedOutputTokens) && (input.requestedOutputTokens ?? 0) > 0
-    ? input.requestedOutputTokens
-    : undefined
-  const modelMaxOutputTokens = Number.isSafeInteger(input.modelMaxOutputTokens) && (input.modelMaxOutputTokens ?? 0) > 0
-    ? input.modelMaxOutputTokens
-    : undefined
-  const outputReserveTokens = requestedOutputTokens
-    ?? Math.min(modelMaxOutputTokens ?? DEFAULT_OUTPUT_RESERVE_TOKENS, DEFAULT_OUTPUT_RESERVE_TOKENS, Math.floor(contextWindowTokens / 4))
-  const estimatedInputTokens = contextWindowTokens - outputReserveTokens - safetyMarginTokens
-
   return {
-    softLimitBytes: Math.min(fallback.softLimitBytes, Math.max(0, Math.floor(estimatedInputTokens * 0.75))),
-    contextWindowTokens,
-    outputReserveTokens,
-    safetyMarginTokens,
+    softLimitBytes: Math.min(fallback.softLimitBytes, Math.floor(budget.inputBudgetTokens * 0.75)),
+    contextWindowTokens: budget.contextWindowTokens,
+    outputReserveTokens: budget.outputReserveTokens,
+    safetyMarginTokens: budget.safetyMarginTokens,
     source: 'provider-model-metadata',
   }
 }

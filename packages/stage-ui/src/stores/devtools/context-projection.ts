@@ -1,3 +1,5 @@
+import type { ContextTokenSource } from '@proj-airi/core-agent'
+
 import { measureContextBudget } from '@proj-airi/core-agent'
 
 /** One slice of a serialized provider projection. Byte fields are UTF-8 sizes, not tokens. */
@@ -48,14 +50,26 @@ const MAX_PREVIEW_ARRAY = 50
 /** Skip pretty preview when a slice is larger than this many UTF-8 bytes. */
 const MAX_PREVIEW_SLICE_BYTES = 1_048_576
 
-/** Ring fill from the latest reported input tokens and the model context window. */
+/** Ring fill from one input-token total and the model context window. */
 export interface ReportedWindowUsage {
-  /** Percent with one decimal place. Values above 100 mean reported input exceeds the window. */
+  /** Percent with one decimal place. Values above 100 mean input exceeds the window. */
   label: string
   /** Fill percent, clamped from 0 to 100. */
   bar: number
-  /** True when reported input tokens exceed the context window. */
+  /** True when input tokens exceed the context window. */
   over: boolean
+}
+
+/** Which token total fills the context ring. */
+export interface ContextWindowFill extends ReportedWindowUsage {
+  basis: 'reported' | 'measured'
+}
+
+/** One labeled token total for the context inspector. */
+export interface ContextTokenReading {
+  kind: 'measured' | 'reported' | 'estimated'
+  tokens?: number
+  source?: ContextTokenSource
 }
 
 /**
@@ -75,6 +89,48 @@ export function reportedWindowUsage(
     bar: Math.min(100, Math.max(0, percent)),
     over: percent > 100,
   }
+}
+
+/**
+ * Fills the context ring from reported input tokens when the provider sent them.
+ * Otherwise it uses the measured input for this request.
+ */
+export function contextWindowFill(
+  windowTokens: number | undefined,
+  reportedInputTokens: number | null | undefined,
+  measuredInputTokens: number | null | undefined,
+): ContextWindowFill | undefined {
+  const reported = reportedWindowUsage(windowTokens, reportedInputTokens)
+  if (reported)
+    return { ...reported, basis: 'reported' }
+  const measured = reportedWindowUsage(windowTokens, measuredInputTokens)
+  if (!measured)
+    return undefined
+  return { ...measured, basis: 'measured' }
+}
+
+/**
+ * Separates measured, reported, and estimated input tokens.
+ * A missing reported total stays visible so an estimate is not shown as a provider report.
+ */
+export function describeContextTokenReadings(input: {
+  measuredInputTokens?: number
+  measuredSource?: ContextTokenSource
+  estimateTokens?: number
+  reportedInputTokens?: number
+}) {
+  if (input.measuredInputTokens === undefined || !input.measuredSource)
+    return { readings: [] as ContextTokenReading[] }
+
+  const readings: ContextTokenReading[] = [
+    { kind: 'measured', tokens: input.measuredInputTokens, source: input.measuredSource },
+    { kind: 'reported', tokens: input.reportedInputTokens },
+    { kind: 'estimated', tokens: input.estimateTokens },
+  ]
+  const deltaTokens = input.reportedInputTokens === undefined
+    ? undefined
+    : input.reportedInputTokens - input.measuredInputTokens
+  return { readings, deltaTokens }
 }
 
 /** Category key for the summary list, including JSON framing. */

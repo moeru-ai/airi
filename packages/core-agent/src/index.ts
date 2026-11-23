@@ -5,13 +5,16 @@ export type { AgentSessionPort } from './contracts/session-port'
 export type { AgentForegroundStreamPort } from './contracts/stream-port'
 export { chatContentToInputSegments, chatMessagesToTurns, conversationToChatMessages } from './messages/chat-completions'
 export type { ContextCompactionContract } from './messages/compaction-contract'
-export type { ContextBudget, ContextBudgetLimits } from './messages/context-budget'
-export { DEFAULT_CONTEXT_SOFT_LIMIT_BYTES, measureContextBudget, resolveContextBudgetLimits } from './messages/context-budget'
+export type { ContextBudget, ContextBudgetLimits, ContextTokenBudget } from './messages/context-budget'
+export { DEFAULT_CONTEXT_SOFT_LIMIT_BYTES, measureContextBudget, resolveContextBudgetLimits, resolveContextTokenBudget } from './messages/context-budget'
 export {
   buildContextPromptMessage,
   formatContextPromptText,
 } from './messages/context-prompt'
 export type { ContextSnapshot } from './messages/context-prompt'
+export { createAnthropicTokenCounter, createGeminiTokenCounter, createOpenAiInputTokenCounter } from './messages/context-token-counters'
+export type { ContextTokenCounter, ContextTokenSource, ContextTokenUsage, LocalTokenTokenizer } from './messages/context-token-usage'
+export { assertRetainedContextFits, ContextAdmissionError, createContextTokenCountCache, estimateContextTokenUsage, measureRequestTokenUsage } from './messages/context-token-usage'
 export type { CompactMode, CompactOptions, CompactRequest } from './messages/conversation-compact'
 export { ConversationCompact } from './messages/conversation-compact'
 
