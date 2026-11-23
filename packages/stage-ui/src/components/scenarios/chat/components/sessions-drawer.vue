@@ -38,7 +38,6 @@ const emit = defineEmits<{
 
 const showDialog = defineModel({ type: Boolean, default: false, required: false })
 
-
 const { isDesktop } = useBreakpoints()
 const { t, locale } = useI18n()
 const now = useNow({ interval: 60_000 })
@@ -195,7 +194,6 @@ async function renameSession(payload: { sessionId: string, title: string }) {
     source: 'sessions_drawer',
   })
 }
-
 </script>
 
 <template>

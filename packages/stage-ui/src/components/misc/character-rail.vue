@@ -130,48 +130,48 @@ const labelClasses = computed(() => [
       side="right"
       :disabled="!docked"
     >
-    <BasicButton
-      size="unset"
-      data-testid="character-rail-item"
-      :aria-label="entry.name"
-      :aria-pressed="entry.id === activeCardId"
-      :title="open || docked ? undefined : entry.name"
-      :disabled="switching"
-      :class="[
-        rowClasses,
-        open ? 'hover:bg-neutral-500/10' : '',
-        open && entry.id === activeCardId ? 'bg-neutral-500/10' : '',
-      ]"
-      @click="selectCharacter(entry.id)"
-    >
-      <!-- Display model previews are portrait. Align them to the top so the circle keeps the head. -->
-      <Avatar
-        :src="entry.preview"
+      <BasicButton
+        size="unset"
+        data-testid="character-rail-item"
+        :aria-label="entry.name"
+        :aria-pressed="entry.id === activeCardId"
+        :title="open || docked ? undefined : entry.name"
+        :disabled="switching"
         :class="[
-          // The avatar root is an inline element. It takes a size only as a block.
-          'block size-8 shrink-0 rounded-full bg-neutral-200/70 text-neutral-600 dark:bg-neutral-700/70 dark:text-neutral-300',
-          'transition-opacity duration-300 ease-in-out motion-reduce:transition-none',
-          '[&_[data-avatar-image]]:object-top',
-          // The open rail marks the current character by its row. The closed rail has only the avatar, so a ring marks it.
-          entry.id === activeCardId && !open ? 'ring-2 ring-primary-500 ring-offset-1 ring-offset-white dark:ring-offset-neutral-900' : '',
-          entry.id !== activeCardId && !open ? 'opacity-70' : '',
+          rowClasses,
+          open ? 'hover:bg-neutral-500/10' : '',
+          open && entry.id === activeCardId ? 'bg-neutral-500/10' : '',
         ]"
+        @click="selectCharacter(entry.id)"
       >
-        <template #fallback>
-          <span :class="['text-sm font-semibold']">{{ entry.name.slice(0, 1) }}</span>
-        </template>
-      </Avatar>
-      <span
-        v-if="!docked"
-        aria-hidden="true"
-        :class="[
-          labelClasses,
-          entry.id === activeCardId ? 'font-semibold text-neutral-900 dark:text-neutral-50' : 'font-medium text-neutral-600 dark:text-neutral-300',
-        ]"
-      >
-        {{ entry.name }}
-      </span>
-    </BasicButton>
+        <!-- Display model previews are portrait. Align them to the top so the circle keeps the head. -->
+        <Avatar
+          :src="entry.preview"
+          :class="[
+            // The avatar root is an inline element. It takes a size only as a block.
+            'block size-8 shrink-0 rounded-full bg-neutral-200/70 text-neutral-600 dark:bg-neutral-700/70 dark:text-neutral-300',
+            'transition-opacity duration-300 ease-in-out motion-reduce:transition-none',
+            '[&_[data-avatar-image]]:object-top',
+            // The open rail marks the current character by its row. The closed rail has only the avatar, so a ring marks it.
+            entry.id === activeCardId && !open ? 'ring-2 ring-primary-500 ring-offset-1 ring-offset-white dark:ring-offset-neutral-900' : '',
+            entry.id !== activeCardId && !open ? 'opacity-70' : '',
+          ]"
+        >
+          <template #fallback>
+            <span :class="['text-sm font-semibold']">{{ entry.name.slice(0, 1) }}</span>
+          </template>
+        </Avatar>
+        <span
+          v-if="!docked"
+          aria-hidden="true"
+          :class="[
+            labelClasses,
+            entry.id === activeCardId ? 'font-semibold text-neutral-900 dark:text-neutral-50' : 'font-medium text-neutral-600 dark:text-neutral-300',
+          ]"
+        >
+          {{ entry.name }}
+        </span>
+      </BasicButton>
     </Tooltip>
     <!-- The line has no fixed width, so it spans the closed rail and the open rail. -->
     <span aria-hidden="true" :class="['mx-2 my-1 h-px shrink-0 bg-neutral-400/30']" />

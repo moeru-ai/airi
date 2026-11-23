@@ -60,9 +60,9 @@ function preserveTriggerFocus(event: Event) {
       fill
       :character="character"
       :class="['h-full']"
-      @open-character="emit('openCharacter')"
       :rows="rows"
       :is-creating-session="isCreatingSession"
+      @open-character="emit('openCharacter')"
       @new-session="emit('newSession')"
       @rename-session="emit('renameSession', $event)"
       @select-session="emit('selectSession', $event)"

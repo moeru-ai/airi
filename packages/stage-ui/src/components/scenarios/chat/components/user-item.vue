@@ -38,13 +38,13 @@ const props = withDefaults(defineProps<{
   alignStart: false,
 })
 
-const startsAtLeft = computed(() => props.variant === 'mobile' || props.alignStart)
-
 const emit = defineEmits<{
   (e: 'copy'): void
   (e: 'delete'): void
   (e: 'reply'): void
 }>()
+
+const startsAtLeft = computed(() => props.variant === 'mobile' || props.alignStart)
 
 const { t } = useI18n()
 const content = computed(() => {

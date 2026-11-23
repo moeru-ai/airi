@@ -3,10 +3,6 @@ import { isElectronWindow } from '@proj-airi/stage-shared'
 import { useBackdropSurface } from '@proj-airi/stage-ui/composables/backdrop-surface'
 import { useTemplateRef } from 'vue'
 
-// Only the macOS chat window is transparent. On other platforms the page paints over an opaque white window,
-// so a translucent dark fill would turn gray.
-const transparentWindow = isElectronWindow(window) && window.platform === 'darwin'
-
 const props = withDefaults(defineProps<{
   /**
    * Draws the window glass behind the whole page. A page that keeps the glass to some regions turns it off, paints those
@@ -15,6 +11,10 @@ const props = withDefaults(defineProps<{
    */
   glass?: boolean
 }>(), { glass: true })
+
+// Only the macOS chat window is transparent. On other platforms the page paints over an opaque white window,
+// so a translucent dark fill would turn gray.
+const transparentWindow = isElectronWindow(window) && window.platform === 'darwin'
 
 useBackdropSurface(useTemplateRef<HTMLElement>('surface'), { enabled: () => props.glass })
 </script>

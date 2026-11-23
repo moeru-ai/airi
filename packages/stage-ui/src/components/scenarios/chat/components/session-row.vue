@@ -95,7 +95,6 @@ function runSwipeAction(value: string) {
   else
     emit('delete')
 }
-
 </script>
 
 <template>
@@ -259,23 +258,23 @@ function runSwipeAction(value: string) {
                 </button>
               </template>
 
-                <MenuItem v-if="!archived" @select="emit('pin', !props.row.meta.pinnedAt)">
-                  <span aria-hidden="true" :class="[props.row.meta.pinnedAt ? 'i-mingcute:pin-fill' : 'i-mingcute:pin-line', 'size-4 shrink-0']" />
-                  {{ props.row.meta.pinnedAt ? t('stage.chat.sessions.unpin') : t('stage.chat.sessions.pin') }}
-                </MenuItem>
-                <MenuItem @select="requestRename">
-                  <span aria-hidden="true" :class="['i-mingcute:edit-2-line size-4 shrink-0']" />
-                  {{ t('stage.chat.sessions.rename-short') }}
-                </MenuItem>
-                <MenuSeparator />
-                <MenuItem v-if="props.compact" :class="['text-red-500 dark:text-red-400']" @select="selectDelete">
-                  <span aria-hidden="true" :class="[confirmingMenuDelete ? 'i-mingcute:delete-2-fill' : 'i-mingcute:delete-2-line', 'size-4 shrink-0']" />
-                  {{ confirmingMenuDelete ? t('stage.chat.sessions.confirm-delete-short') : t('stage.chat.sessions.delete-short') }}
-                </MenuItem>
-                <MenuItem v-else @select="emit('archive', !archived)">
-                  <span aria-hidden="true" :class="[archived ? 'i-mingcute:unarchive-line' : 'i-mingcute:archive-line', 'size-4 shrink-0']" />
-                  {{ archived ? t('stage.chat.sessions.unarchive') : t('stage.chat.sessions.archive') }}
-                </MenuItem>
+              <MenuItem v-if="!archived" @select="emit('pin', !props.row.meta.pinnedAt)">
+                <span aria-hidden="true" :class="[props.row.meta.pinnedAt ? 'i-mingcute:pin-fill' : 'i-mingcute:pin-line', 'size-4 shrink-0']" />
+                {{ props.row.meta.pinnedAt ? t('stage.chat.sessions.unpin') : t('stage.chat.sessions.pin') }}
+              </MenuItem>
+              <MenuItem @select="requestRename">
+                <span aria-hidden="true" :class="['i-mingcute:edit-2-line size-4 shrink-0']" />
+                {{ t('stage.chat.sessions.rename-short') }}
+              </MenuItem>
+              <MenuSeparator />
+              <MenuItem v-if="props.compact" :class="['text-red-500 dark:text-red-400']" @select="selectDelete">
+                <span aria-hidden="true" :class="[confirmingMenuDelete ? 'i-mingcute:delete-2-fill' : 'i-mingcute:delete-2-line', 'size-4 shrink-0']" />
+                {{ confirmingMenuDelete ? t('stage.chat.sessions.confirm-delete-short') : t('stage.chat.sessions.delete-short') }}
+              </MenuItem>
+              <MenuItem v-else @select="emit('archive', !archived)">
+                <span aria-hidden="true" :class="[archived ? 'i-mingcute:unarchive-line' : 'i-mingcute:archive-line', 'size-4 shrink-0']" />
+                {{ archived ? t('stage.chat.sessions.unarchive') : t('stage.chat.sessions.archive') }}
+              </MenuItem>
             </DropdownMenu>
           </template>
         </div>

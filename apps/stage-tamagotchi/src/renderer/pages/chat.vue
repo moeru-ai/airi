@@ -50,15 +50,15 @@ useChatDraftHandover(interactiveArea)
         :class="['h-full min-h-0 flex shrink-0', transparentWindow ? 'bg-neutral-100/70 dark:bg-neutral-900/70' : 'bg-neutral-100 dark:bg-neutral-900']"
       >
         <CharacterRail
-        docked
-        :class="['border-r border-neutral-200/70 dark:border-neutral-800/70']"
-        @manage="openSettings({ route: '/settings/airi-card' })"
-      />
-      <ChatSessionsDrawer
-        desktop-mode="inline"
-        desktop
-        @open-character-settings="characterId => openSettings({ route: `/settings/airi-card/${encodeURIComponent(characterId)}` })"
-        :class="['w-60 shrink-0 border-r border-neutral-200/70 dark:border-neutral-800/70']"
+          docked
+          :class="['border-r border-neutral-200/70 dark:border-neutral-800/70']"
+          @manage="openSettings({ route: '/settings/airi-card' })"
+        />
+        <ChatSessionsDrawer
+          desktop-mode="inline"
+          desktop
+          :class="['w-60 shrink-0 border-r border-neutral-200/70 dark:border-neutral-800/70']"
+          @open-character-settings="characterId => openSettings({ route: `/settings/airi-card/${encodeURIComponent(characterId)}` })"
         />
       </div>
       <!--
