@@ -7,7 +7,7 @@ describe('summarizeSessionMessages', () => {
     expect(summarizeSessionMessages([
       { role: 'system', content: 'Rules', createdAt: 1 },
       { role: 'user', content: 'Hi', createdAt: 2 },
-      { role: 'assistant', content: 'Hello  there', createdAt: 3 },
+      { role: 'assistant', content: 'Hello  there', slices: [], tool_results: [], createdAt: 3 },
       { role: 'error', content: 'Failed', createdAt: 4 },
     ])).toEqual({ firstText: 'Hi', lastText: 'Hello there', lastFromUser: false, lastAt: 3 })
   })

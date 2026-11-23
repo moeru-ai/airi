@@ -186,8 +186,9 @@ describe('sessions dialog actions', () => {
     }), { global: { plugins: [createTestI18n()] } })
 
     await screen.getByRole('button', { name: 'Current chat' }).click()
-    // Archive stays on the compact row. Delete is in the menu of the row.
-    await expect.element(screen.getByRole('button', { name: 'Archive: Second chat' })).toBeInTheDocument()
+    // Archive stays on the compact row and shows on hover. Delete is in the menu of the row.
+    await screen.getByText('Second chat').hover()
+    await expect.element(screen.getByRole('button', { name: 'Archive: Second chat' })).toBeVisible()
     await screen.getByRole('button', { name: 'More actions: Second chat' }).click()
     // The first press turns the item into its confirmation and keeps the menu open.
     await screen.getByRole('menuitem', { name: 'Delete' }).click()
