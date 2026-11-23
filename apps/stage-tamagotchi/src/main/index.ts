@@ -94,6 +94,10 @@ import { setupWorkspaceWindowManager } from './windows/workspace'
 ipcMain.setMaxListeners(100)
 
 setElectronMainDirname(dirname(fileURLToPath(import.meta.url)))
+// NOTICE:
+// Register custom schemes with standard, secure, fetch, CORS and streaming privileges before Electron is ready.
+// Sentry error reporting uses IPCMode.Classic so sentry-ipc:// never overwrites these privileges.
+// Source: https://github.com/moeru-ai/airi/issues/3574
 protocol.registerSchemesAsPrivileged([{
   scheme: 'airi-model',
   privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true },

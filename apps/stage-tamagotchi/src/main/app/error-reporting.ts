@@ -2,7 +2,7 @@ import type { globalAppConfigSchema } from '../configs/global'
 import type { Config } from '../libs/electron/persistence'
 
 import { SENTRY_PROJECTS, sharedSentryOptions } from '@proj-airi/stage-shared/analytics/sentry'
-import { init } from '@sentry/electron/main'
+import { init, IPCMode } from '@sentry/electron/main'
 
 /**
  * Owns Sentry error reports for the desktop app.
@@ -33,6 +33,13 @@ export class ErrorReporting {
       ...sharedSentryOptions,
       dsn: SENTRY_PROJECTS.desktop.dsn,
       environment: import.meta.env.MODE,
+      // NOTICE:
+      // Configure Sentry to use classic IPC channels rather than custom protocol.
+      // Root cause: Sentry default IPCMode.Both registers sentry-ipc:// protocol,
+      // clobbering Electron registerSchemesAsPrivileged fetch/secure/cors privileges for AIRI schemes.
+      // Source: https://github.com/moeru-ai/airi/issues/3574
+      // Removal condition: upstream Sentry Electron preserves existing privileged scheme registrations.
+      ipcMode: IPCMode.Classic,
       beforeSend: event => this.enabled ? event : null,
     })
   }
