@@ -429,6 +429,8 @@ catalog:
   semver: ^7.8.5
   shiki: ^4.4.3
   simple-git-hooks: ^2.13.1
+  socket.io: ^4.8.4
+  socket.io-client: ^4.8.4
   speech-rule-engine: 5.0.0-rc.4
   splitpanes: ^4.1.2
   sponsorkit: 17.1.0

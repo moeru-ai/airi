@@ -23,6 +23,7 @@ import { useFactorioStore } from '../stores/modules/gaming-factorio'
 import { useMinecraftStore } from '../stores/modules/gaming-minecraft'
 import { useHearingStore } from '../stores/modules/hearing'
 import { useHomeAssistantStore } from '../stores/modules/home-assistant'
+import { usePhotonStore } from '../stores/modules/photon'
 import { useSpeechStore } from '../stores/modules/speech'
 import { useTwitterStore } from '../stores/modules/twitter'
 import { useVisionStore } from '../stores/modules/vision'
@@ -307,6 +308,7 @@ it.each(['resetSettings', 'resetState'])('continues independent module resets wh
     useTwitterStore(pinia),
     useWebSearchStore(pinia),
     useDiscordStore(pinia),
+    usePhotonStore(pinia),
     useFactorioStore(pinia),
     useMinecraftStore(pinia),
   ]
