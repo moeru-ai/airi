@@ -10,7 +10,6 @@ import type {
   FocusAppActionInput,
   OpenAppActionInput,
   PressKeysActionInput,
-  ScreenshotArtifact,
   ScrollActionInput,
   SessionTraceEntry,
   TypeTextActionInput,
@@ -26,6 +25,7 @@ import { z } from 'zod'
 import { attachBusinessVerificationContract } from '../contracts/agent-execution'
 import { captureDesktopGrounding, formatGroundingForAgent } from '../desktop-grounding'
 import { errorMessageFromValue } from '../utils/error-message'
+import { isUsableScreenshot } from '../utils/screenshot'
 import { textContent } from './content'
 import { refreshRuntimeRunState } from './refresh-run-state'
 import { registerToolWithDescriptor, requireDescriptor } from './tool-descriptors/register-helper'
@@ -199,7 +199,7 @@ function windowCheckText(check: ComputerVerifyInput['check'], matched: boolean) 
   return {
     proves: matched
       ? 'A new screenshot was captured for this check.'
-      : 'This check did not capture a new non-placeholder screenshot.',
+      : 'This check did not capture a new usable PNG screenshot.',
     doesNotProve: 'This check does not prove that the picture is the result of an earlier action, or that the target changed.',
   }
 }
@@ -246,10 +246,6 @@ function windowStateResult(input: {
     },
     verification,
   }
-}
-
-function freshScreenshot(screenshot: ScreenshotArtifact) {
-  return screenshot.placeholder !== true
 }
 
 /**
@@ -424,8 +420,23 @@ export function registerDesktopGroundingTools(params: {
       try {
         if (input.check === 'screenshot_ready') {
           const screenshot = await runtime.executor.takeScreenshot({ label: 'computer_verify' })
-          runtime.session.setLastScreenshot(screenshot)
-          const matched = freshScreenshot(screenshot)
+          const matched = isUsableScreenshot(screenshot)
+          if (matched) {
+            runtime.session.setLastScreenshot(screenshot)
+            runtime.stateManager.updateLastScreenshot({
+              path: screenshot.path || '',
+              width: screenshot.width,
+              height: screenshot.height,
+              capturedAt: screenshot.capturedAt,
+              placeholder: false,
+              note: screenshot.note,
+              sourceHostName: screenshot.sourceHostName,
+              sourceDisplayId: screenshot.sourceDisplayId,
+              sourceWindowId: screenshot.sourceWindowId,
+              sourceSessionTag: screenshot.sourceSessionTag,
+              executionTargetMode: screenshot.executionTargetMode,
+            })
+          }
           const observed = {
             available: matched,
             placeholder: screenshot.placeholder === true,

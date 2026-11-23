@@ -3,11 +3,17 @@ import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 
 import type { ComputerUseServerRuntime } from './runtime'
 
+import { mkdtemp } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createDryRunExecutor } from '../executors/dry-run'
+import { ComputerUseSession } from '../session'
 import { RunStateManager } from '../state'
-import { createTestConfig } from '../test-fixtures'
+import { createDisplayInfo, createLocalExecutionTarget, createTerminalState, createTestConfig } from '../test-fixtures'
+import { createExecuteAction } from './action-executor'
 import { registerDesktopGroundingTools } from './register-desktop-grounding'
 
 const { captureDesktopGroundingMock } = vi.hoisted(() => ({
@@ -292,15 +298,7 @@ describe('registerDesktopGroundingTools', () => {
     runtime.session.getLastScreenshot = vi.fn(() => {
       throw new Error('screenshot_ready must not read the previous screenshot')
     })
-    runtime.executor.takeScreenshot = vi.fn().mockResolvedValue({
-      dataBase64: 'YQ==',
-      mimeType: 'image/png',
-      path: 'verify-shot.png',
-      capturedAt: '2026-01-02T00:00:00.000Z',
-      placeholder: false,
-      width: 8,
-      height: 8,
-    })
+    runtime.executor.takeScreenshot = vi.fn().mockResolvedValue(usableScreenshot())
     const { server, invoke } = createMockServer()
     registerDesktopGroundingTools({ server, runtime, executeAction })
 
@@ -324,5 +322,193 @@ describe('registerDesktopGroundingTools', () => {
     expect(result.content[0]).toEqual(expect.objectContaining({
       text: expect.stringContaining('does not prove that the picture is the result of an earlier action'),
     }))
+    expect(runtime.stateManager.getState().lastScreenshot).toMatchObject({
+      path: 'verify-shot.png',
+      placeholder: false,
+    })
+  })
+
+  it('does not replace the last screenshot with an unusable capture', async () => {
+    const { runtime, executeAction } = createRuntime()
+    runtime.stateManager.updateLastScreenshot({
+      path: 'previous.png',
+      capturedAt: '2026-01-01T00:00:00.000Z',
+      placeholder: false,
+    })
+    const { server, invoke } = createMockServer()
+    registerDesktopGroundingTools({ server, runtime, executeAction })
+    const unusable = [
+      {
+        dataBase64: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9pP8WwAAAABJRU5ErkJggg==',
+        mimeType: 'image/png',
+        path: 'placeholder.png',
+        capturedAt: '2026-01-02T00:00:00.000Z',
+        placeholder: true,
+        width: 1,
+        height: 1,
+      },
+      {
+        dataBase64: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9pP8WwAAAABJRU5ErkJggg==',
+        mimeType: 'image/png',
+        path: 'one-pixel.png',
+        capturedAt: '2026-01-02T00:00:00.000Z',
+        placeholder: false,
+        width: 8,
+        height: 8,
+      },
+      {
+        dataBase64: '',
+        mimeType: 'image/png',
+        path: 'empty.png',
+        capturedAt: '2026-01-02T00:00:00.000Z',
+        placeholder: false,
+        width: 8,
+        height: 8,
+      },
+      {
+        dataBase64: 'YQ==',
+        mimeType: 'image/png',
+        path: 'text.png',
+        capturedAt: '2026-01-02T00:00:00.000Z',
+        placeholder: false,
+        width: 8,
+        height: 8,
+      },
+    ]
+    for (const screenshot of unusable) {
+      runtime.executor.takeScreenshot = vi.fn().mockResolvedValue(screenshot)
+      const result = await invoke('computer_verify', { check: 'screenshot_ready' })
+      expect(result.structuredContent).toMatchObject({
+        status: 'window_state_not_matched',
+        businessVerification: {
+          status: 'unknown',
+          windowState: 'not_matched',
+        },
+      })
+    }
+    expect(runtime.session.setLastScreenshot).not.toHaveBeenCalled()
+    expect(runtime.stateManager.getState().lastScreenshot).toMatchObject({
+      path: 'previous.png',
+    })
+  })
+
+  // https://github.com/moeru-ai/airi/pull/3577
+  // ROOT CAUSE:
+  //
+  // executeAction stored one execution id on the trace and returned another id.
+  // computer_verify searched the trace for the returned id, so a real computer_act was caller_supplied.
+  //
+  // The outcome record and the tool result now share the contract built for that result.
+  it('finds the computer_act execution id in the same session trace', async () => {
+    const sessionRoot = await mkdtemp(join(tmpdir(), 'airi-verify-'))
+    const config = createTestConfig({
+      sessionRoot,
+      executor: 'dry-run',
+      approvalMode: 'never',
+      defaultCaptureAfter: false,
+    })
+    const session = new ComputerUseSession(config)
+    await session.init()
+    const runtime = {
+      config,
+      session,
+      stateManager: new RunStateManager(),
+      executor: {
+        kind: 'dry-run',
+        describe: () => ({ kind: 'dry-run', notes: [] }),
+        getExecutionTarget: vi.fn().mockResolvedValue(createLocalExecutionTarget()),
+        getForegroundContext: vi.fn().mockResolvedValue({
+          available: true,
+          appName: 'Notes',
+          windowTitle: 'Notes',
+          platform: 'win32',
+        }),
+        getDisplayInfo: vi.fn().mockResolvedValue(createDisplayInfo({ platform: 'win32' })),
+        getPermissionInfo: vi.fn(),
+        observeWindows: vi.fn(),
+        takeScreenshot: vi.fn(),
+        openApp: vi.fn(),
+        focusApp: vi.fn(),
+        click: vi.fn(),
+        typeText: vi.fn(),
+        pressKeys: vi.fn(),
+        scroll: vi.fn(),
+        wait: vi.fn().mockResolvedValue({ performed: true, backend: 'dry-run', notes: [] }),
+      },
+      terminalRunner: {
+        describe: () => ({ kind: 'local-shell-runner', notes: [] }),
+        execute: vi.fn(),
+        getState: vi.fn().mockReturnValue(createTerminalState()),
+        resetState: vi.fn(),
+      },
+      browserDomBridge: {
+        getStatus: vi.fn().mockReturnValue({
+          enabled: false,
+          host: '127.0.0.1',
+          port: 8765,
+          connected: false,
+          pendingRequests: 0,
+        }),
+      },
+      cdpBridgeManager: {
+        getStatus: vi.fn().mockReturnValue({ connected: false }),
+        ensureBridge: vi.fn(),
+        probeAvailability: vi.fn().mockResolvedValue(undefined),
+      },
+      chromeSessionManager: {
+        getSessionInfo: vi.fn().mockReturnValue(undefined),
+      },
+      desktopSessionController: {
+        getSession: vi.fn().mockReturnValue(null),
+        ensureControlledAppInForeground: vi.fn(),
+        touch: vi.fn(),
+      },
+    } as unknown as ComputerUseServerRuntime
+    const { server, invoke } = createMockServer()
+    registerDesktopGroundingTools({
+      server,
+      runtime,
+      executeAction: createExecuteAction(runtime),
+    })
+
+    const acted = await invoke('computer_act', { action: 'wait', durationMs: 0, captureAfter: false })
+    const executionId = executionIdFrom(acted)
+
+    const verified = await invoke('computer_verify', {
+      check: 'foreground_app',
+      expected: 'Notes',
+      executionId,
+    })
+
+    expect(executionId).toEqual(expect.any(String))
+    expect(verified.structuredContent).toMatchObject({
+      status: 'window_state_matched',
+      businessVerification: {
+        status: 'unknown',
+        executionLink: 'record_found',
+      },
+    })
   })
 })
+
+function usableScreenshot() {
+  return {
+    dataBase64: 'iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAEUlEQVR4nGP4z8DwnwGMgRQAH+4D/dJQfRoAAAAASUVORK5CYII=',
+    mimeType: 'image/png' as const,
+    path: 'verify-shot.png',
+    capturedAt: '2026-01-02T00:00:00.000Z',
+    placeholder: false,
+    width: 2,
+    height: 2,
+  }
+}
+
+function executionIdFrom(result: CallToolResult) {
+  const structured = result.structuredContent
+  if (!structured || typeof structured !== 'object' || !('execution' in structured))
+    return undefined
+  const execution = structured.execution
+  if (!execution || typeof execution !== 'object' || !('executionId' in execution))
+    return undefined
+  return typeof execution.executionId === 'string' ? execution.executionId : undefined
+}

@@ -54,6 +54,8 @@ The execution trace keeps five contracts as separate records:
 
 `computer_act` returns the first four records. `computer_verify` checks the foreground application, the window title, or a new screenshot. Those checks leave `businessVerification.status` unknown. Read `windowState` for the window result. An `executionId` is `record_found` only when this session trace contains it. That link does not prove that the new observation is the post-state of the action.
 
+The execution id returned by `computer_act` is the id stored on that outcome trace.
+
 Core Agent compression exposes `ContextCompactionContract` and retains exact tool call identities while it summarizes older content.
 
 Context Compaction retains the step-limit marker and exact model-decision and tool-call identities. It can summarize older observations, but it never converts a step-limit checkpoint into business completion.
