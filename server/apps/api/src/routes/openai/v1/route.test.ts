@@ -1285,6 +1285,68 @@ describe('v1CompletionsRoutes', () => {
       expect(routeTts).not.toHaveBeenCalled()
     })
 
+    it('routes an enabled Voice Pack to a model that the catalog hides, with the pack cost multiplier', async () => {
+      const routeTts = vi.fn(async () => new Response(new Uint8Array([1]), { status: 200 }))
+      const speechBilling = createMockTtsMeter()
+      const providerCatalogService = createMockProviderCatalogService({
+        assertTtsModelEnabled: vi.fn(async () => {
+          throw new ApiError(400, 'PROVIDER_CATALOG_TTS_MODEL_DISABLED', 'Provider catalog TTS model is disabled')
+        }),
+        assertTtsVoiceEnabled: vi.fn(async () => {
+          throw new ApiError(400, 'PROVIDER_CATALOG_TTS_VOICE_DISABLED', 'Provider catalog TTS voice is disabled')
+        }),
+      })
+      const app = createTestApp(
+        createMockFluxService(),
+        createMockConfigKV({ DEFAULT_TTS_MODEL: 'microsoft/v1' }),
+        undefined,
+        undefined,
+        speechBilling,
+        createMockLlmRouter({ routeTts }),
+        createMockLlmTracing(),
+        createMockProductEventService(),
+        createMockVoicePackService({
+          findEnabledByVoiceId: vi.fn(async () => ({
+            id: 'vp-fast',
+            name: 'Fast',
+            description: null,
+            provider: 'fishaudio',
+            model: 's2.1-pro',
+            voiceId: 'fast-girl',
+            upstreamVoiceId: 'upstream-fast-girl',
+            ttsModelId: 'fish',
+            params: {},
+            costMultiplier: 5,
+            enabled: true,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          })),
+        }),
+        providerCatalogService,
+      )
+
+      const res = await app.fetch(
+        new Request('http://localhost/api/v1/audio/speech', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: 'voice-pack', input: 'hello', voice: 'fast-girl' }),
+        }),
+        { user: testUser } as any,
+      )
+
+      expect(res.status).toBe(200)
+      expect(providerCatalogService.assertTtsModelEnabled).not.toHaveBeenCalled()
+      expect(providerCatalogService.assertTtsVoiceEnabled).not.toHaveBeenCalled()
+      expect(routeTts).toHaveBeenCalledWith(
+        expect.objectContaining({
+          modelName: 'fish',
+          input: expect.objectContaining({ voice: 'upstream-fast-girl' }),
+        }),
+        expect.any(Object),
+      )
+      expect(speechBilling.assertCanAfford).toHaveBeenCalledWith('user-1', 25)
+    })
+
     it('rejects disabled provider catalog TTS voices before billing or upstream routing', async () => {
       const routeTts = vi.fn(async () => new Response(new Uint8Array([1]), { status: 200 }))
       const speechBilling = createMockTtsMeter()

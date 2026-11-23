@@ -126,9 +126,13 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
     if (requestModel === 'auto')
       requestModel = await deps.configKV.getOrThrow('DEFAULT_TTS_MODEL')
     const routedVoice = voicePackRequest.voice ?? requestVoice
-    await deps.providerCatalogService.assertTtsModelEnabled(requestModel)
-    if (!voicePackRequest.voicePackId && routedVoice)
-      await deps.providerCatalogService.assertTtsVoiceEnabled(requestModel, routedVoice)
+    // An enabled Voice Pack is the curated gate for its model and voice. Operators keep the model disabled
+    // in the catalog, so users reach it only through the pack and its cost multiplier.
+    if (!voicePackRequest.voicePackId) {
+      await deps.providerCatalogService.assertTtsModelEnabled(requestModel)
+      if (routedVoice)
+        await deps.providerCatalogService.assertTtsVoiceEnabled(requestModel, routedVoice)
+    }
 
     const billingUnits = Math.ceil(inputText.length * voicePackRequest.costMultiplier)
 
