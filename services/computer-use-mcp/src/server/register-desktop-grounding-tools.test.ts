@@ -54,6 +54,10 @@ function createRuntime() {
     cdpBridgeManager: {
       getStatus: vi.fn().mockReturnValue({ connected: false }),
       ensureBridge: vi.fn(),
+      probeAvailability: vi.fn().mockResolvedValue(undefined),
+    },
+    terminalRunner: {
+      getState: vi.fn().mockReturnValue({}),
     },
     chromeSessionManager: {
       getSessionInfo: vi.fn().mockReturnValue(undefined),
@@ -62,6 +66,9 @@ function createRuntime() {
     executor: createDryRunExecutor(config),
     session: {
       setLastScreenshot: vi.fn(),
+      getLastScreenshot: vi.fn().mockReturnValue(undefined),
+      listPendingActions: vi.fn().mockReturnValue([]),
+      getRecentTrace: vi.fn().mockReturnValue([]),
     },
     desktopSessionController: {
       getSession: vi.fn().mockReturnValue(undefined),
@@ -206,5 +213,116 @@ describe('registerDesktopGroundingTools', () => {
     expect(result.isError).not.toBe(true)
     expect(runtime.desktopSessionController.ensureControlledAppInForeground).not.toHaveBeenCalled()
     expect(captureDesktopGroundingMock).toHaveBeenCalledOnce()
+  })
+
+  it('reports a foreground name match as window state and not task success', async () => {
+    const { runtime, executeAction } = createRuntime()
+    runtime.executor.getForegroundContext = vi.fn().mockResolvedValue({
+      available: true,
+      platform: 'linux',
+      appName: 'Example',
+    })
+    const { server, invoke } = createMockServer()
+    registerDesktopGroundingTools({ server, runtime, executeAction })
+
+    const result = await invoke('computer_verify', { check: 'foreground_app', expected: 'example' })
+
+    expect(result.isError).not.toBe(true)
+    expect(result.structuredContent).toMatchObject({
+      status: 'window_state_matched',
+      businessVerification: {
+        status: 'unknown',
+        evidenceScope: 'window_state',
+        windowState: 'matched',
+        executionLink: 'absent',
+      },
+    })
+    expect(result.content[0]).toEqual(expect.objectContaining({
+      text: expect.stringContaining('does not prove that a task inside the application is complete'),
+    }))
+  })
+
+  it('marks a known execution id as a trace match and an unknown id as caller supplied', async () => {
+    const { runtime, executeAction } = createRuntime()
+    runtime.executor.getForegroundContext = vi.fn().mockResolvedValue({
+      available: true,
+      platform: 'linux',
+      windowTitle: 'Notes',
+    })
+    runtime.session.getRecentTrace = vi.fn().mockReturnValue([
+      { contracts: { execution: { executionId: 'exec-1' } } },
+    ])
+    const { server, invoke } = createMockServer()
+    registerDesktopGroundingTools({ server, runtime, executeAction })
+
+    const found = await invoke('computer_verify', {
+      check: 'window_title',
+      expected: 'Notes',
+      executionId: 'exec-1',
+    })
+    const missing = await invoke('computer_verify', {
+      check: 'window_title',
+      expected: 'Other',
+      executionId: 'exec-missing',
+    })
+
+    expect(found.structuredContent).toMatchObject({
+      status: 'window_state_matched',
+      businessVerification: {
+        status: 'unknown',
+        executionLink: 'record_found',
+        windowState: 'matched',
+      },
+    })
+    expect(found.content[0]).toEqual(expect.objectContaining({
+      text: expect.stringContaining('does not prove that this observation is the post-state'),
+    }))
+    expect(missing.structuredContent).toMatchObject({
+      status: 'window_state_not_matched',
+      businessVerification: {
+        status: 'unknown',
+        executionLink: 'caller_supplied',
+        windowState: 'not_matched',
+      },
+    })
+  })
+
+  it('captures a new screenshot and does not read the previous screenshot', async () => {
+    const { runtime, executeAction } = createRuntime()
+    runtime.session.getLastScreenshot = vi.fn(() => {
+      throw new Error('screenshot_ready must not read the previous screenshot')
+    })
+    runtime.executor.takeScreenshot = vi.fn().mockResolvedValue({
+      dataBase64: 'YQ==',
+      mimeType: 'image/png',
+      path: 'verify-shot.png',
+      capturedAt: '2026-01-02T00:00:00.000Z',
+      placeholder: false,
+      width: 8,
+      height: 8,
+    })
+    const { server, invoke } = createMockServer()
+    registerDesktopGroundingTools({ server, runtime, executeAction })
+
+    const result = await invoke('computer_verify', { check: 'screenshot_ready' })
+
+    expect(runtime.executor.takeScreenshot).toHaveBeenCalledWith({ label: 'computer_verify' })
+    expect(runtime.session.setLastScreenshot).toHaveBeenCalledWith(expect.objectContaining({
+      path: 'verify-shot.png',
+      capturedAt: '2026-01-02T00:00:00.000Z',
+    }))
+    expect(result.structuredContent).toMatchObject({
+      status: 'window_state_matched',
+      observed: { capturedAt: '2026-01-02T00:00:00.000Z', available: true },
+      businessVerification: {
+        status: 'unknown',
+        evidenceScope: 'window_state',
+        windowState: 'matched',
+        evidenceRef: 'verify-shot.png',
+      },
+    })
+    expect(result.content[0]).toEqual(expect.objectContaining({
+      text: expect.stringContaining('does not prove that the picture is the result of an earlier action'),
+    }))
   })
 })

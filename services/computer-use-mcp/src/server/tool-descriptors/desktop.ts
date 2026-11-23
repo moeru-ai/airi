@@ -36,7 +36,7 @@ export const desktopDescriptors: ToolDescriptor[] = [
   {
     canonicalName: 'computer_verify',
     displayName: 'Computer Verify',
-    summary: 'Verify a requested app, window, or observed target against the current Host-owned desktop state without dispatching input.',
+    summary: 'Check the foreground application, the window title, or a new screenshot. This is a window-state check. It does not prove that a task inside the application is complete.',
     lane: 'desktop',
     kind: 'read',
     readOnly: true,

@@ -37,7 +37,7 @@ The local SHA is a checkpoint, not proof of the current PR head. Query GitHub be
 - `computer_observe`, `computer_act`, `computer_verify`, and `terminal_exec` are the only direct tools in the bundled Agent catalog. PTY, management, and other service tools stay behind Host-selected MCP routing. Compact runs in Core Agent.
 - Host approval owns Computer Use mutations. Terminal permission does not grant Computer Use authority.
 - Action responses and session trace entries now separate `modelDecision`, `authorization`, `execution`, and `businessVerification`. Core Agent exposes a separate `ContextCompactionContract`.
-- `computer_act` returns delivery evidence with a replay guard. `computer_verify` returns application-state evidence and can link it with `executionId`.
+- `computer_act` returns delivery evidence with a replay guard. `computer_verify` returns a window-state check. A screenshot check captures a new screenshot. An execution id is found only when the session trace contains it.
 - A Beta package was rebuilt and installed for local experience. This does not prove that a real-model Agent task completed.
 - DeepSeek-compatible API access returned HTTP 200 in a direct check. This does not prove that the Agent selected or completed a tool workflow.
 - The most recent Computer Use suite record reports 749 passed and 1 skipped. Typecheck passed. These checks were not rerun during this documentation update.
