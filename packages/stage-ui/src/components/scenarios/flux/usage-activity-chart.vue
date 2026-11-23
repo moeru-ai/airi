@@ -30,11 +30,11 @@ const viewLabels = computed<Record<ActivityView, { option: string, chart: string
   cumulative: { option: t('settings.pages.flux.usage.views.cumulative'), chart: t('settings.pages.flux.usage.labels.cumulative') },
 }))
 const levelClasses = [
-  'bg-neutral-100 dark:bg-neutral-800',
-  'bg-primary-200 dark:bg-primary-900',
-  'bg-primary-300 dark:bg-primary-700',
-  'bg-primary-400 dark:bg-primary-600',
-  'bg-primary-500 dark:bg-primary-400',
+  'fill-neutral-100 dark:fill-neutral-800',
+  'fill-primary-200 dark:fill-primary-900',
+  'fill-primary-300 dark:fill-primary-700',
+  'fill-primary-400 dark:fill-primary-600',
+  'fill-primary-500 dark:fill-primary-400',
 ]
 const layout = computed(() => buildActivity(props.days, view.value))
 const columns = computed(() => `repeat(${Math.max(layout.value.weekCount, 1)}, minmax(0, 1fr))`)
@@ -205,21 +205,35 @@ onMounted(() => {
             role="option"
             :aria-label="groupLabels[index]"
             :aria-selected="activeIndex === index"
-            :class="[
-              'grid min-h-0 min-w-0 place-items-center',
-              view === 'daily' ? 'grid-rows-1 rounded-[31.6%]' : 'grid-rows-7 rounded-[31.6%/calc(31.6%/7)]',
-              activeIndex === index && 'bg-neutral-950/8 dark:bg-white/10',
-            ]"
+            :class="['min-h-0 min-w-0']"
             :style="{ gridColumnStart: group.column + 1, gridRow: view === 'daily' ? group.row + 1 : '1 / -1' }"
             @pointerenter="selectGroup(index)"
             @pointerleave="clearPointerSelection"
             @click="selectGroup(index)"
           >
-            <span
-              v-for="(level, row) in group.levels"
-              :key="row"
-              :class="['pointer-events-none block size-4/5 rounded-[27%]', levelClasses[level]]"
-            />
+            <svg
+              aria-hidden="true"
+              :class="['pointer-events-none block size-full overflow-visible']"
+              :viewBox="`0 0 100 ${group.levels.length * 100}`"
+            >
+              <rect
+                v-if="activeIndex === index"
+                width="100%"
+                height="100%"
+                rx="31.6"
+                :class="['fill-neutral-950/8 dark:fill-white/10']"
+              />
+              <rect
+                v-for="(level, row) in group.levels"
+                :key="row"
+                x="10"
+                :y="row * 100 + 10"
+                width="80"
+                height="80"
+                rx="21.6"
+                :class="levelClasses[level]"
+              />
+            </svg>
           </div>
         </div>
         <div
