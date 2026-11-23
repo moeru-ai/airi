@@ -88,13 +88,15 @@ async function selectCharacter(id: string) {
   }
 }
 
+// The row is the highlight, with the avatar inside it at an even 4px inset. The avatar stays at the same place when the
+// rail opens, so only the names fade in.
 const rowClasses = [
-  'h-10 w-full shrink-0 rounded-full p-0 outline-none justify-start!',
+  'h-10 w-full shrink-0 rounded-xl p-1 outline-none justify-start! gap-2.5',
   '[&_.basic-button-content]:w-full [&_.basic-button-content]:min-w-0 [&_.basic-button-content]:justify-start',
   'focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-1',
 ]
 const labelClasses = computed(() => [
-  'min-w-0 flex-1 truncate pr-3 text-left text-sm',
+  'min-w-0 flex-1 truncate pr-2 text-left text-[13px] leading-5',
   'transition-opacity duration-200 ease-in-out motion-reduce:transition-none',
   open.value ? 'opacity-100 delay-100' : 'opacity-0',
 ])
@@ -109,10 +111,10 @@ const labelClasses = computed(() => [
     :class="docked
       ? ['h-full w-16 flex shrink-0 flex-col items-center gap-2 overflow-x-hidden overflow-y-auto px-3 py-3 [scrollbar-width:none]']
       : [
-        'max-h-[70dvh] flex flex-col gap-2 overflow-x-hidden overflow-y-auto rounded-[28px] p-2 [scrollbar-width:none]',
-        'shadow-sm backdrop-blur-md',
-        'transition-[width,background-color] duration-300 ease-in-out motion-reduce:transition-none',
-        open ? 'w-52 bg-white/85 dark:bg-neutral-900/85' : 'w-14 bg-white/60 dark:bg-neutral-900/60',
+        'max-h-[70dvh] flex flex-col gap-1 overflow-x-hidden overflow-y-auto rounded-2xl p-2 [scrollbar-width:none]',
+        'border border-neutral-200/60 backdrop-blur-md dark:border-neutral-700/40',
+        'transition-[width,background-color,box-shadow] duration-300 ease-in-out motion-reduce:transition-none',
+        open ? 'w-48 bg-white/90 shadow-lg dark:bg-neutral-900/90' : 'w-14 bg-white/60 shadow-sm dark:bg-neutral-900/60',
       ]"
     @focusin="trackFocus"
     @focusout="trackBlur"
@@ -133,8 +135,8 @@ const labelClasses = computed(() => [
       :disabled="switching"
       :class="[
         rowClasses,
-        open ? 'hover:bg-primary-100/60 dark:hover:bg-primary-900/40' : '',
-        open && entry.id === activeCardId ? 'bg-primary-100/60 dark:bg-primary-900/40' : '',
+        open ? 'hover:bg-neutral-500/10' : '',
+        open && entry.id === activeCardId ? 'bg-neutral-500/10' : '',
       ]"
       @click="selectCharacter(entry.id)"
     >
@@ -143,15 +145,16 @@ const labelClasses = computed(() => [
         :src="entry.preview"
         :class="[
           // The avatar root is an inline element. It takes a size only as a block.
-          'block size-10 shrink-0 rounded-full bg-neutral-200/70 text-neutral-600 dark:bg-neutral-700/70 dark:text-neutral-300',
+          'block size-8 shrink-0 rounded-full bg-neutral-200/70 text-neutral-600 dark:bg-neutral-700/70 dark:text-neutral-300',
           'transition-opacity duration-300 ease-in-out motion-reduce:transition-none',
           '[&_[data-avatar-image]]:object-top',
-          entry.id === activeCardId ? 'ring-2 ring-primary-500 ring-offset-2 ring-offset-white dark:ring-offset-neutral-900' : '',
+          // The open rail marks the current character by its row. The closed rail has only the avatar, so a ring marks it.
+          entry.id === activeCardId && !open ? 'ring-2 ring-primary-500 ring-offset-1 ring-offset-white dark:ring-offset-neutral-900' : '',
           entry.id !== activeCardId && !open ? 'opacity-70' : '',
         ]"
       >
         <template #fallback>
-          <span :class="['text-base font-semibold']">{{ entry.name.slice(0, 1) }}</span>
+          <span :class="['text-sm font-semibold']">{{ entry.name.slice(0, 1) }}</span>
         </template>
       </Avatar>
       <span
@@ -167,7 +170,7 @@ const labelClasses = computed(() => [
     </BasicButton>
     </Tooltip>
     <!-- The line has no fixed width, so it spans the closed rail and the open rail. -->
-    <span aria-hidden="true" :class="['mx-2 h-px shrink-0 bg-neutral-400/40']" />
+    <span aria-hidden="true" :class="['mx-2 my-1 h-px shrink-0 bg-neutral-400/30']" />
     <BasicButton
       size="unset"
       data-testid="character-rail-manage"
@@ -176,12 +179,12 @@ const labelClasses = computed(() => [
       :class="[
         rowClasses,
         'text-neutral-600 dark:text-neutral-300',
-        'hover:bg-primary-100/60 dark:hover:bg-primary-900/40',
+        'hover:bg-neutral-500/10',
       ]"
       @click="emit('manage')"
     >
-      <span :class="['size-10 flex shrink-0 items-center justify-center']">
-        <span aria-hidden="true" :class="['i-solar:users-group-rounded-outline size-5']" />
+      <span :class="['size-8 flex shrink-0 items-center justify-center']">
+        <span aria-hidden="true" :class="['i-solar:users-group-rounded-outline size-4.5']" />
       </span>
       <span v-if="!docked" aria-hidden="true" :class="[labelClasses, 'font-medium']">
         {{ t('stage.character-switcher.manage') }}
