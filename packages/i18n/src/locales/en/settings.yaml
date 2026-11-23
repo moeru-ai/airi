@@ -589,7 +589,7 @@ pages:
     activate: Activate
     active: Active
     active_badge: Currently Active
-    activation_notice: Switched to {name}. The current conversation now uses this character.
+    activation_notice: Switched to {name}. The current chat now uses this character.
     cancel: Cancel action
     save: Save changes
     save_and_activate: Save and activate
@@ -1736,7 +1736,7 @@ pages:
       title: MCP servers
       terminal:
         title: Bundled Terminal
-        description: Connect the bundled Terminal tools. Commands need approval by default. Enable Turbo for a conversation from the chat composer. Save and restart to apply.
+        description: Connect the bundled Terminal tools. Commands need approval by default. Enable Turbo for a chat from the chat composer. Save and restart to apply.
         restore: Show Terminal requests
         approval: Terminal approval
         approve: Approve once
@@ -2682,7 +2682,7 @@ pages:
       features:
         conversation_compact:
           title: Conversation compaction
-          description: Off by default. When a conversation gets long, AIRI summarizes its older replies and images.
+          description: Off by default. When a chat gets long, AIRI summarizes its older replies and images.
           mode:
             title: When to summarize
             description: Turning this off drops the summaries that are not ready yet.

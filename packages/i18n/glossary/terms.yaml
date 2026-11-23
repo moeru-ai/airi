@@ -475,22 +475,22 @@
 # Chat
 # ---------------------------------------------------------------------------------------
 
-- id: conversation
+- id: chat
   subject: application
   translatable: true
   definition: One thread of messages between the user and a character, with its own history.
   note: >
-    Use Conversation for the thread in the list. Chat names the area and the window where
-    the user talks, for example the chat window and the chat provider.
+    Use Chat for a thread in the list and for the area where the user talks, for example New chat
+    and the chat window. In Chinese, a thread is 对话.
   terms:
-    - text: Conversation
-      part-of-speech: noun
-      status: preferred
-      context: New conversation
     - text: Chat
       part-of-speech: noun
-      status: deprecated
+      status: preferred
       context: New chat
+    - text: Conversation
+      part-of-speech: noun
+      status: deprecated
+      context: New conversation
 
 # ---------------------------------------------------------------------------------------
 # Memory

@@ -50,9 +50,9 @@ chat:
     sign-in-description-official-only: Sign in to use the official AIRI provider.
     sign-in-action: Sign in
   archived-session:
-    description: This conversation is archived. Restore it to continue.
+    description: This chat is archived. Restore it to continue.
     restore: Restore
-    restore-failed: The conversation could not be restored
+    restore-failed: The chat could not be restored
   voice-message:
     recording: Recording
     starting: Starting microphone
@@ -255,32 +255,32 @@ chat:
     archive: Archive
     pin: Pin
     actions: Show actions
-    row: 'Conversation {n}'
+    row: 'Chat {n}'
   sessions:
     delete-short: Delete
     confirm-delete-short: Confirm delete
-    title: Conversations
-    new: New conversation
+    title: Chats
+    new: New chat
     current: Current
-    confirm-delete: Delete this conversation and its messages?
+    confirm-delete: Delete this chat and its messages?
     cancel: Cancel
-    empty: No conversations yet. Use New conversation above to start one.
+    empty: No chats yet. Use New chat above to start one.
     cloud-badge: Synced to cloud
-    new-chat-fallback: New conversation
-    delete: Delete conversation
-    rename: Rename conversation
+    new-chat-fallback: New chat
+    delete: Delete chat
+    rename: Rename chat
     rename-short: Rename
-    rename-input: Conversation name
-    rename-placeholder: Enter a conversation name
-    save-rename: Save conversation name
+    rename-input: Chat name
+    rename-placeholder: Enter a chat name
+    save-rename: Save chat name
     cancel-rename: Cancel renaming
-    select: Select conversations
+    select: Select chats
     select-all: Select all
     clear-selection: Clear selection
     done-selecting: Done
     delete-selected: Delete {count}
     confirm-delete-selected: Confirm delete {count}
-    all-conversations: All conversations
+    all-conversations: All chats
     switch-place: Switch view
     unknown-character: Unknown character
     pinned: Pinned
@@ -291,7 +291,7 @@ chat:
     archive: Archive
     unarchive: Restore
     selected: '{count} selected'
-    empty-archive: No archived conversations. Archived conversations stay here.
+    empty-archive: No archived chats. Archived chats stay here.
     save-failed: The change could not be saved
 avatar-model-missing:
   title: No model selected
