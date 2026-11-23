@@ -52,6 +52,56 @@ async function discardUpstreamResponse(response: Response | undefined): Promise<
 }
 
 /**
+ * Wraps a streamed upstream response so `release` runs once when its body ends.
+ *
+ * Use when:
+ * - A TTS pool slot must stay taken while the audio still streams to the client.
+ *
+ * Expects:
+ * - `release` never rejects in a way the stream must report. Its errors are logged by the caller.
+ *
+ * Returns:
+ * - A response with the same status and headers. `release` runs after the last chunk, an upstream error,
+ *   or a client cancel.
+ */
+export function releaseWhenBodyEnds(response: Response, release: () => Promise<void>): Response {
+  if (!response.body) {
+    void release()
+    return response
+  }
+  const reader = response.body.getReader()
+  let released = false
+  const releaseOnce = () => {
+    if (released)
+      return
+    released = true
+    void release()
+  }
+  const body = new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      try {
+        const { done, value } = await reader.read()
+        if (done) {
+          releaseOnce()
+          controller.close()
+          return
+        }
+        controller.enqueue(value)
+      }
+      catch (error) {
+        releaseOnce()
+        controller.error(error)
+      }
+    },
+    async cancel(reason) {
+      releaseOnce()
+      await reader.cancel(reason).catch(() => {})
+    },
+  })
+  return new Response(body, { status: response.status, statusText: response.statusText, headers: response.headers })
+}
+
+/**
  * Read at most `maxBytes` from an upstream non-2xx response body for
  * diagnostic logging, then cancel the rest so the socket can return to
  * the pool. Safe to call concurrently with the surrounding fallback walk.
@@ -885,11 +935,20 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
 
       dispatchedAny = true
       attemptedPools += 1
+      // A successful attempt keeps the slot until its audio stream ends, so the ledger counts streams in flight.
+      let slotMovedToBody = false
       try {
         await discardPreviousPoolResponse()
         const result = await attemptUpstream(upstream, index)
-        if (result.kind === 'ok')
-          return result
+        if (result.kind === 'ok') {
+          slotMovedToBody = true
+          return {
+            kind: 'ok',
+            response: releaseWhenBodyEnds(result.response, () => ledger.release(poolId).catch((error) => {
+              logger.withError(error).withFields({ poolId }).warn('Failed to release tts pool slot after the stream ended')
+            })),
+          }
+        }
         statuses.push(...result.statuses)
         lastResponse = result.response
         if (result.sawTooManyRequests)
@@ -898,7 +957,8 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
           return { kind: 'exhausted', statuses, transitionBlocked: true, response: result.response }
       }
       finally {
-        await ledger.release(poolId)
+        if (!slotMovedToBody)
+          await ledger.release(poolId)
       }
     }
 

@@ -389,7 +389,7 @@ describe('stepfunAdapter', () => {
       },
     })
     expect(result.contentType).toBe('audio/mpeg')
-    expect(result.body).toBeInstanceOf(ArrayBuffer)
+    expect(result.body).toBeInstanceOf(ReadableStream)
   })
 
   it('passes the Step Plan endpoint profile to unspeech', async () => {
@@ -440,7 +440,7 @@ describe('stepfunAdapter', () => {
       },
     })
     expect(result.contentType).toBe('audio/mpeg')
-    expect(result.body).toBeInstanceOf(ArrayBuffer)
+    expect(result.body).toBeInstanceOf(ReadableStream)
   })
 
   it('passes voice_label through to unspeech for provider-level validation', async () => {
@@ -604,7 +604,7 @@ describe('volcengineAdapter.send', () => {
     expect(headers.Authorization).toBe('Bearer volc-token')
 
     expect(result.contentType).toBe('audio/mpeg')
-    expect(result.body).toBeInstanceOf(ArrayBuffer)
+    expect(result.body).toBeInstanceOf(ReadableStream)
   })
 
   /**
@@ -747,5 +747,33 @@ describe('fishAudioAdapter', () => {
     const [calledURL, init] = calls(fetchImpl)[0]
     expect(calledURL).toBe('http://unspeech.local/api/voices?provider=fishaudio&language=zh&self=true')
     expect(new Headers(init.headers).get('authorization')).toBe('Bearer fish-key')
+  })
+})
+
+describe('sendSpeechViaUnSpeech streaming', () => {
+  it('returns before unspeech finishes the body, so the route can send the first bytes', async () => {
+    let finish!: () => void
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new Uint8Array([1, 2]))
+        finish = () => {
+          controller.enqueue(new Uint8Array([3]))
+          controller.close()
+        }
+      },
+    })
+    const fetchImpl = vi.fn(async () => new Response(body, { status: 200, headers: { 'content-type': 'audio/wav' } })) as unknown as typeof fetch
+
+    const result = await getAdapter('fishaudio').send(
+      { text: 'hi', voice: 'voice-1', responseFormat: 'wav' },
+      { keyPlaintext: Buffer.from('fish-key'), baseURL: '', unspeechBaseURL: 'http://unspeech.local', adapterParams: {}, fetchImpl },
+    )
+
+    expect(result.contentType).toBe('audio/wav')
+    expect(result.body).toBeInstanceOf(ReadableStream)
+    const reader = (result.body as ReadableStream<Uint8Array>).getReader()
+    expect(Array.from((await reader.read()).value!)).toEqual([1, 2])
+    finish()
+    expect(Array.from((await reader.read()).value!)).toEqual([3])
   })
 })

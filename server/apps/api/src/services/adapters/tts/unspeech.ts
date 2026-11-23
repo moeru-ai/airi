@@ -4,7 +4,7 @@ import type { TtsAdapterContext, TtsResult, TtsVoiceCatalogContext } from './typ
 
 import { errorMessageFrom } from '@moeru/std'
 import { createBadGatewayError, createInternalError } from '@proj-airi/http-shared'
-import { generateSpeechResponse, listVoices, UnSpeechAPIError } from 'unspeech'
+import { listVoices, UnSpeechAPIError } from 'unspeech'
 
 import { TtsUpstreamResponseError } from './types'
 
@@ -21,7 +21,7 @@ interface SendSpeechOptions {
 }
 
 /**
- * Sends one OpenAI-shaped speech request through the unspeech SDK.
+ * Sends one OpenAI-shaped speech request to unspeech and returns the audio as a stream.
  *
  * Use when:
  * - A TTS adapter has resolved AIRI's provider policy and needs to delegate the
@@ -32,7 +32,8 @@ interface SendSpeechOptions {
  *   provider-specific unspeech contract.
  *
  * Returns:
- * - The binary audio payload plus a content type for the OpenAI route.
+ * - The upstream audio body as a stream, plus a content type. The caller sends the
+ *   first bytes to the client as soon as unspeech sends them.
  */
 export async function sendSpeechViaUnSpeech(options: SendSpeechOptions): Promise<TtsResult> {
   const {
@@ -47,24 +48,31 @@ export async function sendSpeechViaUnSpeech(options: SendSpeechOptions): Promise
     voice,
   } = options
 
-  try {
-    const result = await generateSpeechResponse({
-      apiKey: ctx.keyPlaintext.toString('utf8'),
-      baseURL: `${ctx.unspeechBaseURL.replace(/\/+$/, '')}/v1/`,
-      fetch: ctx.fetchImpl,
-      input,
-      model,
-      responseFormat,
-      speed,
-      voice,
-      abortSignal: ctx.abortSignal,
-      extraBody,
-    })
+  // NOTICE:
+  // The unspeech SDK `generateSpeechResponse` reads the whole body with `arrayBuffer()`, so the client got no audio
+  // until synthesis finished. This fetch sends the same JSON body and keeps the body as a stream.
+  // Source: node_modules/unspeech/dist/index.mjs `generateSpeechResponse` (unspeech@0.1.16).
+  // Removal condition: the unspeech SDK returns the response body as a stream.
+  const requestBody = JSON.stringify({
+    model,
+    input,
+    voice,
+    speed,
+    response_format: responseFormat,
+    extra_body: extraBody,
+  })
 
-    return {
-      contentType: result.contentType ?? fallbackContentType,
-      body: result.body,
-    }
+  let response: Response
+  try {
+    response = await ctx.fetchImpl(`${ctx.unspeechBaseURL.replace(/\/+$/, '')}/v1/audio/speech`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${ctx.keyPlaintext.toString('utf8')}`,
+        'Content-Type': 'application/json',
+      },
+      body: requestBody,
+      signal: ctx.abortSignal,
+    })
   }
   catch (error) {
     // Keep abort identity intact so the router can apply `onTimeout`
@@ -72,14 +80,23 @@ export async function sendSpeechViaUnSpeech(options: SendSpeechOptions): Promise
     if (ctx.abortSignal?.aborted)
       throw error
 
-    if (error instanceof UnSpeechAPIError) {
-      throw new TtsUpstreamResponseError(new Response(error.responseBody, {
-        status: error.status,
-        headers: error.responseHeaders,
-      }))
-    }
-
     throw createInternalError(`${providerLabel} tts fetch failed: ${errorMessageFrom(error) ?? 'unknown'}`)
+  }
+
+  if (!response.ok) {
+    const responseBody = await response.text().catch(() => '')
+    throw new TtsUpstreamResponseError(new Response(responseBody, {
+      status: response.status,
+      headers: response.headers,
+    }))
+  }
+
+  if (!response.body)
+    throw createInternalError(`${providerLabel} tts response has no body`)
+
+  return {
+    contentType: response.headers.get('content-type') ?? fallbackContentType,
+    body: response.body,
   }
 }
 

@@ -48,7 +48,7 @@ function failSpan(span: TraceSpan, cause: unknown, ts?: number) {
  * The level of each synthesized segment comes from its decoded audio, one value for each {@link LEVEL_WINDOW_MS}. When
  * the segment stops playing, its levels go to the playback track from the playback start, so the viewer draws the
  * waveform of what played. A stopped segment writes only the levels up to its stop. Streamed speech has no decoded
- * segment, so it has no levels.
+ * segment, so it has no levels. A segment that the provider returns as a PCM stream has none either.
  */
 export function traceSpeechOutput(turn: TurnRef, actor: string, output: SpeechOutput, decode: (audio: Blob) => Promise<DecodedAudio>, sink: TraceSink = getTraceSink()): SpeechOutputTrace {
   const ids = { [VoiceIdKeys.Actor]: actor, [VoiceIdKeys.Conversation]: turn.sessionId, [VoiceIdKeys.Turn]: turn.turnId }
@@ -131,6 +131,11 @@ export function traceSpeechOutput(turn: TurnRef, actor: string, output: SpeechOu
       // Playback must not wait for tracing. The span keeps its synthesis end time while the duration decodes.
       // It leaves the open set now, so a turn that ends during decoding does not mark finished synthesis as cancelled.
       open.delete(span)
+      // A PCM stream returns at its first byte and plays while it arrives. Its span ends there, without duration or levels.
+      if (!(audio instanceof Blob)) {
+        span.end({ ts: synthesizedAt })
+        return audio
+      }
       void decode(audio)
         .then((buffer) => {
           if (request.segmentId && levelSeries.wanted())

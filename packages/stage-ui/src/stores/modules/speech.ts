@@ -19,6 +19,7 @@ import { x } from 'xastscript'
 import { injectKeyPiniaSynced } from '../../libs/pinia/synced-context'
 import { getDefinedProvider } from '../../libs/providers/providers'
 import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, pickOfficialSpeechVoice, picksSpeechVoiceAutomatically } from '../../libs/providers/providers/official'
+import { requestStreamedSpeechAudio } from '../../libs/speech/streamed-speech-audio'
 import { streamSpeech } from '../../libs/speech/streaming-pipeline'
 import { useProviderConfigStore } from '../providers/config'
 import { useProviderStore } from '../providers/provider'
@@ -733,6 +734,12 @@ export const useSpeechStore = defineStore('speech', () => {
       const settings = providerId === OFFICIAL_SPEECH_PROVIDER_ID
         ? { ...config, extraBody: { ...(config.extraBody as Record<string, unknown> | undefined), airi_analytics: { trigger: 'auto', source: 'chat_auto_tts', voice_type: voiceType, turn_id: turn.turnId } } }
         : config
+      // The official server streams the audio body, so playback starts at its first bytes instead of after the whole file.
+      if (providerId === OFFICIAL_SPEECH_PROVIDER_ID) {
+        const audio = await requestStreamedSpeechAudio({ ...client.speech(model, settings), input, voice: voiceId, abortSignal: signal })
+        signal.throwIfAborted()
+        return audio
+      }
       const audio = await generateSpeech({ ...client.speech(model, settings), input, voice: voiceId, abortSignal: signal })
       signal.throwIfAborted()
       return new Blob([audio])

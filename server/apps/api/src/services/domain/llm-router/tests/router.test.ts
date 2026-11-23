@@ -1764,7 +1764,8 @@ describe('createLlmRouterService', () => {
 
       expect(response.status).toBe(200)
       expect(tryAcquire).toHaveBeenCalledWith('app-1', 10)
-      expect(release).toHaveBeenCalledWith('app-1')
+      await response.arrayBuffer()
+      await vi.waitFor(() => expect(release).toHaveBeenCalledWith('app-1'))
     })
 
     it('keeps least-inflight selection inside the active group before considering pay-as-you-go', async () => {
@@ -1911,8 +1912,8 @@ describe('createLlmRouterService', () => {
       expect(fetchImpl).not.toHaveBeenCalled()
     })
 
-    it('releases the slot after a successful dispatch', async () => {
-      // @example acquire then release leaves the pool's inflight back at baseline.
+    it('keeps the slot while the audio streams and releases it when the body ends', async () => {
+      // @example acquire, stream, then release leaves the pool's inflight back at baseline.
       const { config, crypto } = makePoolConfig([
         { baseURL: 'https://up-a.example', appid: 'app-1', maxConcurrency: 10 },
       ])
@@ -1920,10 +1921,29 @@ describe('createLlmRouterService', () => {
       const fetchImpl = vi.fn(async () => happyResponse({ ok: 1 })) as unknown as typeof fetch
 
       const router = makePoolRouter(config, crypto, ledger, fetchImpl)
-      await router.routeTts({ modelName: 'tts-pool', input: { text: 'hi' } })
+      const response = await router.routeTts({ modelName: 'tts-pool', input: { text: 'hi' } })
 
-      expect(release).toHaveBeenCalledWith('app-1')
+      expect(release).not.toHaveBeenCalled()
+      expect(inflight.get('app-1')).toBe(4)
+
+      await response.arrayBuffer()
+      await vi.waitFor(() => expect(release).toHaveBeenCalledWith('app-1'))
       expect(inflight.get('app-1')).toBe(3)
+    })
+
+    it('releases the slot when the client cancels the audio stream', async () => {
+      const { config, crypto } = makePoolConfig([
+        { baseURL: 'https://up-a.example', appid: 'app-1', maxConcurrency: 10 },
+      ])
+      const { ledger, release, inflight } = makeStatefulLedger()
+      const fetchImpl = vi.fn(async () => new Response(new ReadableStream({ pull() {} }), { status: 200, headers: { 'content-type': 'audio/wav' } })) as unknown as typeof fetch
+
+      const router = makePoolRouter(config, crypto, ledger, fetchImpl)
+      const response = await router.routeTts({ modelName: 'tts-pool', input: { text: 'hi' } })
+      await response.body!.cancel('client left')
+
+      await vi.waitFor(() => expect(release).toHaveBeenCalledTimes(1))
+      expect(inflight.get('app-1')).toBe(0)
     })
 
     it('makes zero ledger calls when no upstream declares maxConcurrency (no regression)', async () => {
