@@ -10,7 +10,6 @@ import { CharacterRail, ChatSessionsDrawer } from '@proj-airi/stage-ui/component
 import { useBackdropSurface } from '@proj-airi/stage-ui/composables/backdrop-surface'
 import { useDanmakuFeedExpiry } from '@proj-airi/stage-ui/composables/use-danmaku-feed-expiry'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
-import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { Dock, DockButton, dockItemClasses, DockSeparator, Tooltip, TransitionBud } from '@proj-airi/ui'
 import { refDebounced, useElementSize, useEventListener, useFocusWithin, useLocalStorage, useMutationObserver, usePreferredReducedMotion } from '@vueuse/core'
@@ -41,12 +40,11 @@ import { useControlsIslandStore } from '../stores/controls-island'
 
 const panel = useTemplateRef<HTMLElement>('panel')
 
-const { activeCard } = storeToRefs(useAiriCardStore())
+const { t } = useI18n()
 const sessionsDrawerOpen = shallowRef(false)
 const { activeSessionId, sessionMetas } = storeToRefs(useChatSessionStore())
 const activeSessionTitle = computed(() => sessionMetas.value[activeSessionId.value]?.title?.trim() || t('stage.chat.sessions.new-chat-fallback'))
 const interactiveArea = useTemplateRef<InstanceType<typeof InteractiveArea>>('interactive-area')
-const { t } = useI18n()
 
 // Folded until the main process answers, so the first unfold plays the same
 // animation as every later one.
