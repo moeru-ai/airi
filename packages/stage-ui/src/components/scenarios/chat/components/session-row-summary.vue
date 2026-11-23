@@ -5,7 +5,7 @@ import { useI18n } from 'vue-i18n'
 
 /**
  * The title and the details line of a conversation row. The row places it in its select button.
- * The marks show the state of the conversation: the current conversation, its pin, and its cloud copy. A row in
+ * The marks show the state of the conversation: the current conversation and its pin. A row in
  * selection mode leaves them out, so only its selection check marks it.
  */
 const props = defineProps<{
@@ -30,13 +30,6 @@ const { t } = useI18n()
       />
       <span>{{ props.row.activityAtLabel }}</span>
       <span v-if="props.marks && props.row.isActive && !props.compact" :class="['text-primary-600 dark:text-primary-300']">{{ t('stage.chat.sessions.current') }}</span>
-      <span
-        v-if="props.marks && props.row.meta.cloudChatId"
-        role="img"
-        :aria-label="t('stage.chat.sessions.cloud-badge')"
-        :title="t('stage.chat.sessions.cloud-badge')"
-        :class="['i-mingcute:cloud-line size-4 shrink-0']"
-      />
       <span :class="['sr-only']">{{ props.row.characterName }}</span>
     </span>
   </span>

@@ -34,7 +34,6 @@ function createTestI18n() {
               'current': 'Current',
               'cancel': 'Cancel',
               'confirm-delete': 'Delete this conversation and its messages?',
-              'cloud-badge': 'Cloud synced',
               'rename': 'Rename conversation',
               'rename-input': 'Conversation name',
               'rename-placeholder': 'Enter a conversation name',

@@ -265,7 +265,6 @@ chat:
     confirm-delete: Delete this chat and its messages?
     cancel: Cancel
     empty: No chats yet. Use New chat above to start one.
-    cloud-badge: Synced to cloud
     new-chat-fallback: New chat
     delete: Delete chat
     rename: Rename chat

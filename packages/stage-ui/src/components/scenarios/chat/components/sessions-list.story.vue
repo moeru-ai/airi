@@ -25,7 +25,7 @@ function rowOf(sessionId: string, title: string, details: Partial<ChatSessionMet
 const rows: SessionRow[] = [
   rowOf('weekend', 'Weekend trip ideas', { label: '2 minutes ago', isActive: true }),
   rowOf('book', 'Notes on the new book', { label: '1 hour ago', pinnedAt: CREATED_AT }),
-  rowOf('review', 'Review a pull request', { label: '3 hours ago', cloudChatId: 'cloud-review' }),
+  rowOf('review', 'Review a pull request', { label: '3 hours ago' }),
   rowOf('bug', 'Draft a bug report', { label: 'yesterday' }),
   rowOf('groceries', 'Grocery list for the week', { label: '2 days ago' }),
   rowOf('intro', 'Practice a self-introduction', { label: 'last week', archivedAt: CREATED_AT }),

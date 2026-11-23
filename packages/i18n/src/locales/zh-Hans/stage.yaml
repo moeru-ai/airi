@@ -271,7 +271,6 @@ chat:
     confirm-delete: 删除此对话及其中的消息？
     cancel: 取消
     empty: 还没有对话。点上面的“新建对话”开始。
-    cloud-badge: 已同步到云
     new-chat-fallback: 新建对话
     delete: 删除对话
     rename: 重命名对话
