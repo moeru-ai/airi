@@ -2,6 +2,7 @@ import type { RequestLogService } from '../../services/domain/request-log'
 import type { HonoEnv } from '../../types/hono'
 
 import { createBadRequestError, createNotFoundError } from '@proj-airi/http-error-shared'
+import { ok, paginated } from '@proj-airi/http-response-shared'
 import { Hono } from 'hono'
 import { maxLength, nonEmpty, parse, pipe, safeParse, string } from 'valibot'
 
@@ -15,7 +16,7 @@ export function createLlmRequestRoutes(service: RequestLogService) {
     .get('/', async (context) => {
       const { limit, offset } = parse(LimitOffsetPaginationQuerySchema, { limit: context.req.query('limit'), offset: context.req.query('offset') })
       const rows = await service.listRequests(context.get('user')!.id, limit + 1, offset)
-      return context.json({ records: rows.slice(0, limit).map(request => ({
+      return paginated(context, { records: rows.slice(0, limit).map(request => ({
         requestId: request.requestId,
         model: request.model,
         state: request.state,
@@ -31,7 +32,7 @@ export function createLlmRequestRoutes(service: RequestLogService) {
       const { request, attempts } = await service.getRequest(context.get('user')!.id, requestId.output)
       if (!request)
         throw createNotFoundError('LLM request not found')
-      return context.json({
+      return ok(context, {
         request: request
           ? {
               requestId: request.requestId,

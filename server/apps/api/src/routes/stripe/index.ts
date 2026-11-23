@@ -8,6 +8,7 @@ import type { PaymentService } from '../../services/domain/payment'
 import type { ProductEventService } from '../../services/domain/product-events'
 import type { HonoEnv } from '../../types/hono'
 
+import { ok } from '@proj-airi/http-response-shared'
 import { Hono } from 'hono'
 
 import { authGuard } from '../../middlewares/auth'
@@ -34,16 +35,19 @@ export function createStripeRoutes(
     .get('/packages', async (c) => {
       const fluxProductId = await configKV.getOptional('STRIPE_FLUX_PRODUCT_ID')
       if (!priceCatalog || !fluxProductId)
+        // eslint-disable-next-line no-restricted-syntax -- Known deviation in 2026-10-19-http-response-conventions.md: clients read a bare array.
         return c.json([])
+      // eslint-disable-next-line no-restricted-syntax -- Known deviation in 2026-10-19-http-response-conventions.md: clients read a bare array.
       return c.json(await listStripePackages(priceCatalog, fluxProductId))
     })
     .post('/checkout', authGuard, rateLimiter({ max: 10, windowSec: 60, metrics: rateLimitMetrics, routeLabel: 'stripe.checkout' }), async (c) => {
       const body = await c.req.json()
-      return c.json(await checkout(c.get('user')!, body, c.req.raw))
+      return ok(c, await checkout(c.get('user')!, body, c.req.raw))
     })
     .post('/webhook', async (c) => {
       const signature = c.req.header('stripe-signature') ?? null
       const body = signature ? await c.req.text() : ''
+      // eslint-disable-next-line no-restricted-syntax -- Stripe owns the webhook response.
       return c.json(await webhook(signature, body))
     })
 }

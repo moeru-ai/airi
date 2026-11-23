@@ -4,6 +4,7 @@ import type { FluxTransactionService } from '../../services/domain/flux-transact
 import type { HonoEnv } from '../../types/hono'
 
 import { createBadRequestError } from '@proj-airi/http-error-shared'
+import { ok, paginated } from '@proj-airi/http-response-shared'
 import { Hono } from 'hono'
 import { boolean, nonEmpty, object, parse, pipe, safeParse, string } from 'valibot'
 
@@ -26,7 +27,7 @@ export function createFluxRoutes(
     .get('/', async (c) => {
       const user = c.get('user')!
       const flux = await fluxService.getFlux(user.id)
-      return c.json(flux)
+      return ok(c, flux)
     })
     .put('/fallback', async (c) => {
       const user = c.get('user')!
@@ -36,11 +37,11 @@ export function createFluxRoutes(
       // Reading first creates the wallet row of a user who has none.
       await fluxService.getFlux(user.id)
       await billingService.setFallbackToFlux(user.id, body.output.fallbackToFlux)
-      return c.json({ fallbackToFlux: body.output.fallbackToFlux })
+      return ok(c, { fallbackToFlux: body.output.fallbackToFlux })
     })
     .get('/capacitor/usage', async (c) => {
       const user = c.get('user')!
-      return c.json(await fluxService.getCapacitorUsage(user.id))
+      return ok(c, await fluxService.getCapacitorUsage(user.id))
     })
     .get('/usage', async (c) => {
       const user = c.get('user')!
@@ -49,7 +50,7 @@ export function createFluxRoutes(
         offset: c.req.query('offset'),
       })
       const { records, hasMore } = await fluxTransactionService.getUsageHistory(user.id, limit, offset)
-      return c.json({
+      return paginated(c, {
         records: records.map(record => ({ ...record, createdAt: record.createdAt.toISOString() })),
         hasMore,
       })
@@ -59,12 +60,12 @@ export function createFluxRoutes(
       const query = safeParse(TimeZoneQuerySchema, { timeZone: c.req.query('timeZone') })
       if (!query.success)
         throw createBadRequestError('Invalid time zone', 'INVALID_TIME_ZONE', query.issues)
-      return c.json(await fluxTransactionService.getDailyUsage(user.id, query.output.timeZone))
+      return ok(c, await fluxTransactionService.getDailyUsage(user.id, query.output.timeZone))
     })
     .get('/stats', async (c) => {
       const user = c.get('user')!
       const stats = await fluxTransactionService.getStats(user.id)
-      return c.json(stats)
+      return ok(c, stats)
     })
     .get('/history', async (c) => {
       const user = c.get('user')!
@@ -75,7 +76,7 @@ export function createFluxRoutes(
 
       const { records, hasMore } = await fluxTransactionService.getHistory(user.id, limit, offset)
 
-      return c.json({
+      return paginated(c, {
         records: records.map(r => ({
           id: r.id,
           type: r.type,

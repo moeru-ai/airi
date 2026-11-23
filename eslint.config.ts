@@ -3,6 +3,49 @@ import slop from 'eslint-plugin-slop'
 
 import { defineConfig } from '@moeru/eslint-config'
 
+const sharedRestrictedSyntax = [
+  {
+    message: 'Avoid `error instanceof Error ? error.message : ...`. Use `errorMessageFrom(error)` from \'@moeru/std\' (or `errorMessageFromUnknown(error, fallback)` from \'@proj-airi/stage-shared\'). Pair with `?? \'fallback\'` when a default is needed.',
+    selector: 'ConditionalExpression[test.type=\'BinaryExpression\'][test.operator=\'instanceof\'][test.right.name=\'Error\'][consequent.type=\'MemberExpression\'][consequent.property.name=\'message\']',
+  },
+  {
+    message: 'Omit TypeScript and JavaScript source extensions from relative imports, dynamic imports, and re-exports.',
+    selector: [
+      'ImportDeclaration[source.value=/^\\.{1,2}\\/.*\\.[cm]?[jt]sx?$/]',
+      'ExportNamedDeclaration[source.value=/^\\.{1,2}\\/.*\\.[cm]?[jt]sx?$/]',
+      'ExportAllDeclaration[source.value=/^\\.{1,2}\\/.*\\.[cm]?[jt]sx?$/]',
+      'ImportExpression[source.value=/^\\.{1,2}\\/.*\\.[cm]?[jt]sx?$/]',
+    ].join(', '),
+  },
+  'TSEnumDeclaration[const=true]',
+  'TSExportAssignment',
+]
+
+const apiRestrictedSyntax = [
+  {
+    message: 'Do not mock internal project modules with vi.mock or vi.doMock. Inject the collaborator through the route, service, or factory boundary and pass a fake or spy in tests.',
+    selector: 'CallExpression[callee.type=\'MemberExpression\'][callee.object.name=\'vi\'][callee.property.name=/^(mock|doMock)$/][arguments.0.type=\'Literal\'][arguments.0.value=/^(\\.|@proj-airi\\/|~)/]',
+  },
+  {
+    message: 'Do not use vi.hoisted. If a test needs a collaborator spy, expose an explicit dependency injection point instead of hoisting module mocks.',
+    selector: 'CallExpression[callee.type=\'MemberExpression\'][callee.object.name=\'vi\'][callee.property.name=\'hoisted\']',
+  },
+  {
+    message: 'Omit TypeScript and JavaScript source extensions from relative imports, dynamic imports, and re-exports.',
+    selector: [
+      'ImportDeclaration[source.value=/^\\.{1,2}\\/.*\\.[cm]?[jt]sx?$/]',
+      'ExportNamedDeclaration[source.value=/^\\.{1,2}\\/.*\\.[cm]?[jt]sx?$/]',
+      'ExportAllDeclaration[source.value=/^\\.{1,2}\\/.*\\.[cm]?[jt]sx?$/]',
+      'ImportExpression[source.value=/^\\.{1,2}\\/.*\\.[cm]?[jt]sx?$/]',
+    ].join(', '),
+  },
+]
+
+const honoJsonRestriction = {
+  message: 'Use `ok`, `created`, `noContent`, `list`, or `paginated` from \'@proj-airi/http-response-shared\'. See server/docs/ai/adr/2026-10-19-http-response-conventions.md for the exceptions.',
+  selector: 'CallExpression[callee.type=\'MemberExpression\'][callee.object.type=\'Identifier\'][callee.object.name=/^(c|context)$/][callee.property.name=\'json\']',
+}
+
 export default defineConfig({
   masknet: false,
   // Load the root Oxlint plugin below. Package auto-detection depends on the virtual store location.
@@ -109,24 +152,7 @@ export default defineConfig({
     // so it does NOT false-positive on `error instanceof Error ? error : new Error(...)`
     // (where the consequent is the error itself, not its `.message`). Antfu's
     // default no-restricted-syntax patterns are preserved alongside.
-    'no-restricted-syntax': [
-      'error',
-      {
-        message: 'Avoid `error instanceof Error ? error.message : ...`. Use `errorMessageFrom(error)` from \'@moeru/std\' (or `errorMessageFromUnknown(error, fallback)` from \'@proj-airi/stage-shared\'). Pair with `?? \'fallback\'` when a default is needed.',
-        selector: 'ConditionalExpression[test.type=\'BinaryExpression\'][test.operator=\'instanceof\'][test.right.name=\'Error\'][consequent.type=\'MemberExpression\'][consequent.property.name=\'message\']',
-      },
-      {
-        message: 'Omit TypeScript and JavaScript source extensions from relative imports, dynamic imports, and re-exports.',
-        selector: [
-          'ImportDeclaration[source.value=/^\\.{1,2}\\/.*\\.[cm]?[jt]sx?$/]',
-          'ExportNamedDeclaration[source.value=/^\\.{1,2}\\/.*\\.[cm]?[jt]sx?$/]',
-          'ExportAllDeclaration[source.value=/^\\.{1,2}\\/.*\\.[cm]?[jt]sx?$/]',
-          'ImportExpression[source.value=/^\\.{1,2}\\/.*\\.[cm]?[jt]sx?$/]',
-        ].join(', '),
-      },
-      'TSEnumDeclaration[const=true]',
-      'TSExportAssignment',
-    ],
+    'no-restricted-syntax': ['error', ...sharedRestrictedSyntax],
     'pnpm/json-enforce-catalog': 'off',
     'pnpm/json-valid-catalog': 'off',
     'pnpm/yaml-enforce-settings': 'off',
@@ -151,26 +177,20 @@ export default defineConfig({
 }, {
   files: ['server/apps/api/**/*.ts'],
   rules: {
-    'no-restricted-syntax': [
-      'error',
-      {
-        message: 'Do not mock internal project modules with vi.mock or vi.doMock. Inject the collaborator through the route, service, or factory boundary and pass a fake or spy in tests.',
-        selector: 'CallExpression[callee.type=\'MemberExpression\'][callee.object.name=\'vi\'][callee.property.name=/^(mock|doMock)$/][arguments.0.type=\'Literal\'][arguments.0.value=/^(\\.|@proj-airi\\/|~)/]',
-      },
-      {
-        message: 'Do not use vi.hoisted. If a test needs a collaborator spy, expose an explicit dependency injection point instead of hoisting module mocks.',
-        selector: 'CallExpression[callee.type=\'MemberExpression\'][callee.object.name=\'vi\'][callee.property.name=\'hoisted\']',
-      },
-      {
-        message: 'Omit TypeScript and JavaScript source extensions from relative imports, dynamic imports, and re-exports.',
-        selector: [
-          'ImportDeclaration[source.value=/^\\.{1,2}\\/.*\\.[cm]?[jt]sx?$/]',
-          'ExportNamedDeclaration[source.value=/^\\.{1,2}\\/.*\\.[cm]?[jt]sx?$/]',
-          'ExportAllDeclaration[source.value=/^\\.{1,2}\\/.*\\.[cm]?[jt]sx?$/]',
-          'ImportExpression[source.value=/^\\.{1,2}\\/.*\\.[cm]?[jt]sx?$/]',
-        ].join(', '),
-      },
-    ],
+    'no-restricted-syntax': ['error', ...apiRestrictedSyntax],
+  },
+}, {
+  // Routes answer through the typed success responses, so each body follows the HTTP response rules.
+  files: ['server/apps/api/src/**/*.ts'],
+  ignores: ['**/*.test.ts'],
+  rules: {
+    'no-restricted-syntax': ['error', ...apiRestrictedSyntax, honoJsonRestriction],
+  },
+}, {
+  files: ['server/apps/auth/src/**/*.ts'],
+  ignores: ['**/*.test.ts'],
+  rules: {
+    'no-restricted-syntax': ['error', ...sharedRestrictedSyntax, honoJsonRestriction],
   },
 }, {
   ignores: [
