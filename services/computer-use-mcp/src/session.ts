@@ -6,13 +6,15 @@ import type {
   SessionTraceEntry,
   TerminalState,
 } from './types'
+import type { AuditDispatchEvent, UnconfirmedDispatch } from './unconfirmed-dispatch'
 
 import process from 'node:process'
 
 import { randomUUID } from 'node:crypto'
-import { appendFile, mkdir } from 'node:fs/promises'
+import { appendFile, mkdir, readFile } from 'node:fs/promises'
 
 import { buildTraceContracts } from './contracts/agent-execution'
+import { listUnconfirmedDispatches } from './unconfirmed-dispatch'
 
 export class ComputerUseSession {
   private initialized = false
@@ -21,6 +23,8 @@ export class ComputerUseSession {
   private pointerPosition?: { x: number, y: number }
   private operationsExecuted = 0
   private operationUnitsConsumed = 0
+  private loadedAudit: AuditDispatchEvent[] = []
+  private unconfirmedDispatches: UnconfirmedDispatch[] = []
   private lastScreenshot?: LastScreenshotInfo
   private terminalState: TerminalState
 
@@ -36,7 +40,44 @@ export class ComputerUseSession {
 
     await mkdir(this.config.sessionRoot, { recursive: true })
     await mkdir(this.config.screenshotsDir, { recursive: true })
+    await this.loadAudit()
     this.initialized = true
+  }
+
+  getUnconfirmedDispatches() {
+    return this.unconfirmedDispatches.map(entry => ({ ...entry }))
+  }
+
+  private async loadAudit() {
+    let text = ''
+    try {
+      text = await readFile(this.config.auditLogPath, 'utf8')
+    }
+    catch (error) {
+      if (isMissingFile(error))
+        return
+      throw error
+    }
+
+    const entries: AuditDispatchEvent[] = []
+    for (const line of text.split('\n')) {
+      if (!line.trim())
+        continue
+      try {
+        const parsed: unknown = JSON.parse(line)
+        if (isAuditDispatchEvent(parsed))
+          entries.push(parsed)
+      }
+      catch {
+        // A crash can leave a partial last line. Skip that line.
+      }
+    }
+    this.loadedAudit = entries.slice(-500)
+    this.unconfirmedDispatches = listUnconfirmedDispatches(this.loadedAudit)
+  }
+
+  private refreshUnconfirmedDispatches() {
+    this.unconfirmedDispatches = listUnconfirmedDispatches([...this.loadedAudit, ...this.traceEntries])
   }
 
   getSnapshot() {
@@ -146,6 +187,7 @@ export class ComputerUseSession {
     if (this.traceEntries.length > 500) {
       this.traceEntries.splice(0, this.traceEntries.length - 500)
     }
+    this.refreshUnconfirmedDispatches()
 
     await appendFile(this.config.auditLogPath, `${JSON.stringify(fullEntry)}\n`, 'utf-8')
 
@@ -155,4 +197,15 @@ export class ComputerUseSession {
   getRecentTrace(limit = 50) {
     return this.traceEntries.slice(-Math.max(limit, 1))
   }
+}
+
+function isMissingFile(error: unknown) {
+  return typeof error === 'object' && error !== null && 'code' in error && error.code === 'ENOENT'
+}
+
+function isAuditDispatchEvent(value: unknown): value is AuditDispatchEvent {
+  if (!value || typeof value !== 'object')
+    return false
+  const record = value as Record<string, unknown>
+  return typeof record.event === 'string' && typeof record.at === 'string' && typeof record.toolName === 'string'
 }

@@ -36,6 +36,8 @@ An AUV input receipt proves delivery only. It does not prove the requested appli
 
 If a dispatched action loses its response, its outcome is unknown. The Agent must observe current application state before it considers another dispatch. Compact must preserve pending and unverified work without replaying an action.
 
+A restart reads dispatch markers that have no later terminal event. Those markers stay unconfirmed. AIRI does not replay them. An empty list does not prove that an unmarked command never ran. A missing pending action does not prove that either.
+
 The Agent must reason about capability and risk from available tools and observed state. It must remain proactive within that scope and state a specific blocker when progress stops.
 
 Core Agent limits model decision rounds with `StreamOptions.maxSteps`. The default is 30. One decision round can contain any number of tool calls. The runtime settles the complete final batch before it emits `step-limit`. It stores the result in `AssistantTurn.stopReason`. This checkpoint adds `goalState: 'not-verified'` to later context. It does not verify the task or authorize replay. A later request continues from exact receipts. No tool-count limit implements this policy.

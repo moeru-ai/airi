@@ -175,6 +175,23 @@ function createCombinedDisplayBoundsConfig() {
 }
 
 describe('createExecuteAction', () => {
+  it('records dispatch before the backend runs and reuses that id on the result', async () => {
+    const { runtime, executor, session } = createRuntimeForActionTest()
+    executor.wait.mockImplementation(async () => {
+      expect(session.record).toHaveBeenCalledWith(expect.objectContaining({ event: 'dispatching' }))
+      return { performed: true, backend: 'dry-run', notes: [] }
+    })
+
+    const executeAction = createExecuteAction(runtime)
+    const result = await executeAction({ kind: 'wait', input: { durationMs: 0 } }, 'computer_act')
+    const dispatch = session.record.mock.calls.find(call => call[0].event === 'dispatching')?.[0]
+    const executed = session.record.mock.calls.find(call => call[0].event === 'executed')?.[0]
+
+    expect(result.isError).not.toBe(true)
+    expect(dispatch?.result.dispatchId).toEqual(expect.any(String))
+    expect(executed?.result.dispatchId).toBe(dispatch?.result.dispatchId)
+  })
+
   it('executes desktop_click_target through the shared policy and audit pipeline', async () => {
     const { runtime, executor, session, stateManager } = createRuntimeForActionTest()
     stateManager.updateGroundingSnapshot({
