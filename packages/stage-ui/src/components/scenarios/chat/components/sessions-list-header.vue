@@ -83,7 +83,6 @@ const menuCheckClasses = ['i-mingcute:check-line size-4 shrink-0 text-primary-50
         <span :class="menuCountClasses">{{ props.liveCount }}</span>
         <span v-if="props.place.kind === 'all'" aria-hidden="true" :class="menuCheckClasses" />
       </MenuItem>
-      <MenuSeparator />
       <MenuItem @select="emit('selectPlace', { kind: 'archive' })">
         <span aria-hidden="true" :class="['i-mingcute:archive-line size-4 shrink-0']" />
         <span :class="['min-w-0 truncate']">{{ t('stage.chat.sessions.archived') }}</span>
