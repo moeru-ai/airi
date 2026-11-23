@@ -211,7 +211,7 @@ function runSwipeAction(value: string) {
                 type="button"
                 :aria-label="`${archived ? t('stage.chat.sessions.unarchive') : t('stage.chat.sessions.archive')}: ${props.row.preview}`"
                 :title="archived ? t('stage.chat.sessions.unarchive') : t('stage.chat.sessions.archive')"
-                :class="[iconButtonClasses, quietIconClasses, 'size-8 opacity-0 group-hover:opacity-100 focus-visible:opacity-100']"
+                :class="[iconButtonClasses, quietIconClasses, 'size-8 hidden group-hover:inline-flex group-focus-within:inline-flex']"
                 @click="emit('archive', !archived)"
               >
                 <span aria-hidden="true" :class="[archived ? 'i-mingcute:unarchive-line' : 'i-mingcute:archive-line', 'size-4']" />
@@ -249,7 +249,7 @@ function runSwipeAction(value: string) {
                     iconButtonClasses,
                     menuOpen ? 'text-primary-500 dark:text-primary-400' : quietIconClasses,
                     props.compact
-                      ? ['size-8', menuOpen ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100']
+                      ? ['size-8', menuOpen ? 'inline-flex' : 'hidden group-hover:inline-flex group-focus-within:inline-flex']
                       : 'size-11',
                   ]"
                   :style="props.compact ? undefined : { opacity: 'calc(1 - var(--swipe-progress, 0))' }"
