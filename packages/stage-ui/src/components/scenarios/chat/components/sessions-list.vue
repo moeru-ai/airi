@@ -2,9 +2,9 @@
 import type { ChatSessionFolder, ChatSessionsPlace } from '../../../../types/chat-session'
 import type { SessionRow } from './session-row-model'
 
-import { AnimatedHeight, Avatar, BasicButton, Button, DropdownMenu, GhostButton, ScrollableArea } from '@proj-airi/ui'
-import { useEventListener, usePreferredReducedMotion, useResizeObserver, useScroll } from '@vueuse/core'
-import { computed, nextTick, onMounted, shallowRef, useTemplateRef, watch } from 'vue'
+import { AnimatedHeight, BasicButton, Button, DropdownMenu, GhostButton, ScrollableArea } from '@proj-airi/ui'
+import { useEventListener, useResizeObserver } from '@vueuse/core'
+import { computed, shallowRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import SessionFolderTargets from './session-folder-targets.vue'
@@ -14,10 +14,8 @@ import SessionsListHeader from './sessions-list-header.vue'
 import { useListReorderMotion } from '../composables/use-list-reorder-motion'
 
 const props = withDefaults(defineProps<{
-  /** Every conversation of the user, archived ones included. */
+  /** Every conversation of the user with the current character, archived ones included. */
   rows: SessionRow[]
-  /** Every character of the user. The filter offers each one, also one without conversations, so a first conversation can go to it. */
-  characters: Array<{ id: string, name: string, preview?: string }>
   folders: readonly ChatSessionFolder[]
   isCreatingSession: boolean
   /** The desktop popover. Rows are denser, and the list keeps a fixed maximum height. */
@@ -29,8 +27,8 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{
   deleteSession: [sessionId: string]
   deleteSessions: [sessionIds: string[]]
-  /** Creates a conversation in the folder and for the character of the payload. Each one left out uses the default. */
-  newSession: [payload: { folderId?: string, characterId?: string }]
+  /** Creates a conversation with the current character. A folder ID puts it into that folder. */
+  newSession: [payload: { folderId?: string }]
   renameSession: [payload: { sessionId: string, title: string }]
   selectSession: [sessionId: string]
   pinSession: [payload: { sessionId: string, pinned: boolean }]
@@ -49,8 +47,6 @@ const { t } = useI18n()
  * The place that the user chose. The owner can keep it after the list closes, so the list opens where the user left it.
  */
 const chosenPlace = defineModel<ChatSessionsPlace>('place', { default: () => ({ kind: 'all' }) })
-/** The character that the user chose for the filter. `undefined` shows every character. The owner can keep it too. */
-const chosenCharacterId = defineModel<string>('characterId')
 // The swipe area that is open belongs to this open list, never to persisted session state.
 const expandedSessionId = shallowRef<string>()
 /** The compact row that waits for the second press on its delete button. */
@@ -62,8 +58,6 @@ const selectedIds = shallowRef(new Set<string>())
 const confirmingBatchDelete = shallowRef(false)
 const confirmingFolderDelete = shallowRef(false)
 const batchMoveOpen = shallowRef(false)
-
-const chips = useTemplateRef<HTMLElement>('chips')
 
 /** The chosen folder. It is missing when this list or another window deleted it. */
 const currentFolder = computed(() => {
@@ -85,39 +79,18 @@ const folderCounts = computed(() => {
   return counts
 })
 
-/** The conversations of the current place, before the character filter. */
-const placeRows = computed(() => {
-  const current = place.value
-  if (current.kind === 'archive')
-    return props.rows.filter(row => row.meta.archivedAt !== undefined)
-  if (current.kind === 'folder')
-    return liveRows.value.filter(row => row.meta.folderId === current.folderId)
-  return liveRows.value
-})
-
-/** Every character with the number of its conversations in the current place. */
-const characterChips = computed(() => {
-  const counts = new Map<string, number>()
-  for (const row of placeRows.value)
-    counts.set(row.meta.characterId, (counts.get(row.meta.characterId) ?? 0) + 1)
-
-  return props.characters.map(character => ({ ...character, count: counts.get(character.id) ?? 0 }))
-})
-
-/**
- * The character that the filter applies. A new conversation goes to it, and the empty state and the primary action
- * name it. A chosen character that no longer exists applies no filter.
- */
-const filteredCharacter = computed(() => characterChips.value.find(chip => chip.id === chosenCharacterId.value))
-const characterFilter = computed(() => filteredCharacter.value?.id)
-
 /** The rows that the list shows. Pinned conversations come first, and the rows already arrive in the order of their last message. */
 const visibleRows = computed(() => {
-  const rows = placeRows.value.filter(row => characterFilter.value === undefined || row.meta.characterId === characterFilter.value)
+  const current = place.value
+  let rows = liveRows.value
+  if (current.kind === 'archive')
+    rows = props.rows.filter(row => row.meta.archivedAt !== undefined)
+  else if (current.kind === 'folder')
+    rows = liveRows.value.filter(row => row.meta.folderId === current.folderId)
   return [...rows].sort((first, second) => Number(!!second.meta.pinnedAt) - Number(!!first.meta.pinnedAt))
 })
 
-// The selection survives a change of place or character. Only the rows that the list shows count and take a batch action.
+// The selection survives a change of place. Only the rows that the list shows count and take a batch action.
 const selectedRows = computed(() => visibleRows.value.filter(row => selectedIds.value.has(row.meta.sessionId)))
 const allSelected = computed(() => visibleRows.value.length > 0 && selectedRows.value.length === visibleRows.value.length)
 /** The folder that every selected conversation is in. The batch menu marks it, also in all conversations and the archive. */
@@ -187,26 +160,11 @@ const actionButtons = computed(() => {
 })
 
 const emptyState = computed(() => {
-  const name = filteredCharacter.value?.name
-  if (place.value.kind === 'archive') {
-    return {
-      icon: 'i-mingcute:archive-line',
-      text: name === undefined ? t('stage.chat.sessions.empty-archive') : t('stage.chat.sessions.empty-archive-character', { name }),
-    }
-  }
-  if (place.value.kind === 'folder') {
-    const folder = currentFolder.value?.name ?? ''
-    return {
-      icon: 'i-mingcute:folder-line',
-      text: name === undefined
-        ? t('stage.chat.sessions.empty-folder', { folder })
-        : t('stage.chat.sessions.empty-folder-character', { folder, name }),
-    }
-  }
-  return {
-    icon: 'i-mingcute:chat-1-line',
-    text: name === undefined ? t('stage.chat.sessions.empty') : t('stage.chat.sessions.empty-character', { name }),
-  }
+  if (place.value.kind === 'archive')
+    return { icon: 'i-mingcute:archive-line', text: t('stage.chat.sessions.empty-archive') }
+  if (place.value.kind === 'folder')
+    return { icon: 'i-mingcute:folder-line', text: t('stage.chat.sessions.empty-folder', { folder: currentFolder.value?.name ?? '' }) }
+  return { icon: 'i-mingcute:chat-1-line', text: t('stage.chat.sessions.empty') }
 })
 
 watch(selectedIds, () => {
@@ -222,7 +180,7 @@ watch(selecting, (value) => {
   }
 })
 
-watch([place, characterFilter], () => {
+watch(place, () => {
   expandedSessionId.value = undefined
   pendingDeleteSessionId.value = undefined
   confirmingBatchDelete.value = false
@@ -261,18 +219,12 @@ function toggleAllSelected() {
 
 function newSessionLabel() {
   const folder = currentFolder.value?.name
-  const name = filteredCharacter.value?.name
-  if (folder !== undefined) {
-    return name === undefined
-      ? t('stage.chat.sessions.new-in-folder', { folder })
-      : t('stage.chat.sessions.new-in-folder-with-character', { folder, name })
-  }
-  return name === undefined ? t('stage.chat.sessions.new') : t('stage.chat.sessions.new-with-character', { name })
+  return folder === undefined ? t('stage.chat.sessions.new') : t('stage.chat.sessions.new-in-folder', { folder })
 }
 
 function runPrimaryAction() {
   if (!selecting.value) {
-    emit('newSession', { folderId: currentFolder.value?.id, characterId: characterFilter.value })
+    emit('newSession', { folderId: currentFolder.value?.id })
     return
   }
   const sessionIds = selectedRows.value.map(row => row.meta.sessionId)
@@ -412,46 +364,6 @@ const { holdLeavingItem } = useListReorderMotion({
   keyOf: item => item.dataset.sessionKey,
   leaveActiveClass: 'session-item-leave-active',
 })
-
-// The character row scrolls sideways. A faded edge shows that more characters are there.
-const { arrivedState, measure: measureChips } = useScroll(chips)
-const chipsFade = computed(() => {
-  const start = !arrivedState.left
-  const end = !arrivedState.right
-  if (start && end)
-    return 'session-chips--fade-both'
-  if (start)
-    return 'session-chips--fade-start'
-  if (end)
-    return 'session-chips--fade-end'
-  return undefined
-})
-useResizeObserver(chips, () => measureChips())
-onMounted(() => measureChips())
-
-const reducedMotion = usePreferredReducedMotion()
-
-watch([characterChips, characterFilter], async () => {
-  await nextTick()
-  measureChips()
-  chips.value?.querySelector('[aria-pressed="true"]')?.scrollIntoView({
-    block: 'nearest',
-    inline: 'nearest',
-    behavior: reducedMotion.value === 'reduce' ? 'auto' : 'smooth',
-  })
-})
-
-function chipClasses(pressed: boolean) {
-  return [
-    'shrink-0 inline-flex items-center gap-1.5 rounded-full active:scale-95',
-    'transition-[color,background-color,transform] duration-200 motion-reduce:transition-none',
-    'focus-visible:outline-2 focus-visible:outline-primary-500',
-    props.compact ? 'h-7 text-xs' : 'h-8 text-sm',
-    pressed
-      ? 'bg-primary-100 font-semibold text-primary-700 dark:bg-primary-900/60 dark:text-primary-200'
-      : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200/80 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700/80',
-  ]
-}
 </script>
 
 <template>
@@ -519,43 +431,6 @@ function chipClasses(pressed: boolean) {
           <span :key="String(selecting)" aria-hidden="true" :class="[selecting ? 'i-mingcute:close-line' : 'i-mingcute:list-check-3-line', actionButtons.iconSize]" />
         </Transition>
       </component>
-    </div>
-
-    <!-- The character filter stays while selecting, so a selection can be made one character at a time. -->
-    <div
-      ref="chips"
-      role="group"
-      :aria-label="t('stage.chat.sessions.filter-by-character')"
-      :class="['session-chips flex shrink-0 gap-1.5 overflow-x-auto scroll-px-6 p-0.5', props.compact ? 'mt-1' : 'mt-2.5', chipsFade]"
-    >
-      <button
-        type="button"
-        :aria-pressed="characterFilter === undefined"
-        :class="[chipClasses(characterFilter === undefined), props.compact ? 'px-2.5' : 'px-3']"
-        @click="chosenCharacterId = undefined"
-      >
-        {{ t('stage.chat.sessions.all') }}
-        <span :class="['tabular-nums opacity-60']">{{ placeRows.length }}</span>
-      </button>
-      <button
-        v-for="chip in characterChips"
-        :key="chip.id"
-        type="button"
-        :aria-pressed="characterFilter === chip.id"
-        :class="[chipClasses(characterFilter === chip.id), props.compact ? 'pl-1 pr-2.5' : 'pl-1 pr-3']"
-        @click="chosenCharacterId = characterFilter === chip.id ? undefined : chip.id"
-      >
-        <Avatar
-          :src="chip.preview"
-          :class="[props.compact ? 'size-5' : 'size-6', 'block shrink-0 rounded-full bg-white text-neutral-400 dark:bg-neutral-700', '[&_[data-avatar-image]]:object-top']"
-        >
-          <template #fallback>
-            <span aria-hidden="true" :class="['i-mingcute:user-3-line size-3.5']" />
-          </template>
-        </Avatar>
-        <span :class="['max-w-24 truncate']">{{ chip.name }}</span>
-        <span :class="['tabular-nums opacity-60']">{{ chip.count }}</span>
-      </button>
     </div>
 
     <div v-if="props.compact" :class="['mb-1 mt-1.5 h-px shrink-0 bg-neutral-200/70 dark:bg-neutral-700/70']" />
@@ -675,22 +550,6 @@ function chipClasses(pressed: boolean) {
 }
 .session-primary-action--start :deep(.basic-button-content) {
   justify-content: flex-start;
-}
-
-.session-chips {
-  scrollbar-width: none;
-}
-.session-chips::-webkit-scrollbar {
-  display: none;
-}
-.session-chips--fade-start {
-  mask-image: linear-gradient(to right, transparent, #000 1.75rem);
-}
-.session-chips--fade-end {
-  mask-image: linear-gradient(to right, #000 calc(100% - 1.75rem), transparent);
-}
-.session-chips--fade-both {
-  mask-image: linear-gradient(to right, transparent, #000 1.75rem, #000 calc(100% - 1.75rem), transparent);
 }
 
 .session-action-swap-enter-active,
