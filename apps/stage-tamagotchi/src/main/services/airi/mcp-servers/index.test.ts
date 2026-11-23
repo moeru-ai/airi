@@ -7,6 +7,7 @@ import type { AutoApprovalReviewResult } from '../../../../shared/eventa/termina
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { platform } from 'node:process'
 
 import { createContext, defineInvoke } from '@moeru/eventa'
 import { resolveLlmTools } from '@proj-airi/stage-ui/stores/ai/chat-llm/tool-resolver'
@@ -848,6 +849,84 @@ describe('createMcpManager', () => {
     expect(JSON.parse((await manager.readConfigText()).text)).toEqual({ terminalEnabled: true, mcpServers: {} })
   })
 
+  it.each([
+    { display: undefined },
+    { display: ' ' },
+  ])('keeps the platform default without a usable Wayland display ($display)', async ({ display }) => {
+    vi.stubEnv('COMPUTER_USE_EXECUTOR', 'auv-wayland')
+    vi.stubEnv('WAYLAND_DISPLAY', display)
+    const manager = createMcpManager()
+    managers.push(manager)
+    await manager.writeConfigText(JSON.stringify({ terminalEnabled: true, mcpServers: {} }))
+
+    expect((await manager.applyAndRestart()).failed).toEqual([])
+
+    const defaultExecutors: Partial<Record<typeof platform, string>> = { win32: 'auv', darwin: 'macos-local' }
+    expect(clientMocks.connect).toHaveBeenCalledWith(expect.objectContaining({
+      server: expect.objectContaining({ env: expect.objectContaining({ COMPUTER_USE_EXECUTOR: defaultExecutors[platform] ?? 'dry-run' }) }),
+    }))
+  })
+
+  it.runIf(platform === 'linux')('selects AUV on Wayland automatically and routes observation through the normal Chat request', async () => {
+    const runtimeDir = join(userDataPath, 'runtime')
+    const busAddress = `unix:path=${join(runtimeDir, 'bus')}`
+    vi.stubEnv('COMPUTER_USE_EXECUTOR', undefined)
+    vi.stubEnv('WAYLAND_DISPLAY', 'wayland-0')
+    vi.stubEnv('XDG_RUNTIME_DIR', runtimeDir)
+    vi.stubEnv('DBUS_SESSION_BUS_ADDRESS', busAddress)
+    vi.stubEnv('XDG_CURRENT_DESKTOP', 'fixture-desktop')
+    vi.stubEnv('XDG_SESSION_TYPE', 'wayland')
+    vi.stubEnv('PIPEWIRE_REMOTE', 'fixture-pipewire')
+    const actions = new PendingActionManager()
+    const attribution = { sessionId: 'session-wayland', turnId: 'turn-wayland', toolCallId: 'call-wayland' }
+    const request = actions.registerRequest({ sessionId: attribution.sessionId, turnId: attribution.turnId, text: 'Observe the desktop.' }, 71)
+    const manager = createMcpManager({
+      actions,
+      present: vi.fn(async () => false),
+      presentComputerUse: vi.fn(async () => false),
+      executeInSlot: async operation => operation(new AbortController().signal, () => {}),
+      notify: async notice => ({ status: 'stored', sessionId: notice.sessionId, messageId: `fixture:${notice.actionId}` }),
+    })
+    managers.push(manager)
+    await manager.writeConfigText(JSON.stringify({ terminalEnabled: true, mcpServers: {} }))
+    clientMocks.listTools.mockResolvedValue({
+      tools: ['computer_observe', 'computer_verify', 'terminal_exec'].map(name => ({ name, inputSchema: { type: 'object' } })),
+    })
+
+    expect((await manager.applyAndRestart()).started).toEqual([{ name: 'airi-terminal' }])
+    expect(clientMocks.connect).toHaveBeenCalledWith(expect.objectContaining({
+      server: expect.objectContaining({
+        env: expect.objectContaining({
+          COMPUTER_USE_EXECUTOR: 'auv-wayland',
+          COMPUTER_USE_BROWSER_DOM_BRIDGE_ENABLED: 'false',
+          COMPUTER_USE_DEFAULT_CAPTURE_AFTER: 'true',
+          WAYLAND_DISPLAY: 'wayland-0',
+          XDG_RUNTIME_DIR: runtimeDir,
+          DBUS_SESSION_BUS_ADDRESS: busAddress,
+          XDG_CURRENT_DESKTOP: 'fixture-desktop',
+          XDG_SESSION_TYPE: 'wayland',
+          PIPEWIRE_REMOTE: 'fixture-pipewire',
+        }),
+      }),
+    }))
+    const descriptors = await manager.listTools()
+    expect(descriptors.map(tool => [tool.toolName, tool.exposure, tool.defaultExposure])).toEqual([
+      ['computer_observe', 'direct', 'direct'],
+      ['computer_verify', 'direct', 'direct'],
+      ['terminal_exec', 'direct', 'direct'],
+    ])
+    expect(descriptors.find(tool => tool.toolName === 'terminal_exec')?.description).toContain('does not send desktop input')
+    await expect(manager.callTool({ name: 'airi-terminal::computer_observe' })).resolves.toMatchObject({ dispatchOutcome: 'failed_before_dispatch' })
+    expect(clientMocks.callTool).not.toHaveBeenCalled()
+
+    clientMocks.callTool.mockResolvedValue({ content: [{ type: 'text', text: 'Capture complete.' }] })
+    for (const [toolName, args] of [['computer_observe', {}], ['computer_verify', { check: 'screenshot_ready' }]] as const) {
+      const result = await manager.callTool({ name: `airi-terminal::${toolName}`, arguments: args, requestId: request.id, attribution }, 71)
+      expect(result.content).toEqual([{ type: 'text', text: 'Capture complete.' }])
+      expect(clientMocks.callTool).toHaveBeenLastCalledWith({ name: toolName, arguments: args }, undefined, expect.any(Object))
+    }
+  })
+
   it('reports a closed current connection as stopped', async () => {
     const manager = await startServers('memory')
 
@@ -1109,6 +1188,7 @@ describe('createMcpManager', () => {
   })
 
   it('keeps only stable Agent tools direct behind Main request ownership', async () => {
+    vi.stubEnv('WAYLAND_DISPLAY', undefined)
     const actions = new PendingActionManager()
     const manager = createMcpManager({
       actions,

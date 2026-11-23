@@ -21,7 +21,7 @@ import type { TerminalApprovalOptions } from './terminal-approval'
 import { randomBytes } from 'node:crypto'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { execPath, platform } from 'node:process'
+import { env, execPath, platform } from 'node:process'
 
 import { useLogg } from '@guiiai/logg'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
@@ -71,9 +71,22 @@ function bundledComputerUseExecutor() {
       return 'auv'
     case 'darwin':
       return 'macos-local'
+    case 'linux':
+      return env.WAYLAND_DISPLAY?.trim() ? 'auv-wayland' : 'dry-run'
     default:
       return 'dry-run'
   }
+}
+
+function waylandSessionEnv(): Record<string, string> {
+  const sessionEnv: Record<string, string> = {}
+  // The SDK's stdio transport inherits shell variables, but not the display or portal session.
+  for (const key of ['WAYLAND_DISPLAY', 'XDG_RUNTIME_DIR', 'DBUS_SESSION_BUS_ADDRESS', 'XDG_CURRENT_DESKTOP', 'XDG_SESSION_TYPE', 'PIPEWIRE_REMOTE']) {
+    const value = env[key]
+    if (value !== undefined)
+      sessionEnv[key] = value
+  }
+  return sessionEnv
 }
 
 interface McpServerSession {
@@ -382,16 +395,18 @@ export function createMcpManager(terminalApproval?: TerminalApprovalOptions): Mc
     if (config.terminalEnabled) {
       if (bundledTerminalServerName in servers)
         throw new Error(`The server name "${bundledTerminalServerName}" is reserved for the bundled Terminal. Rename the external server or disable the bundled Terminal.`)
+      const executor = bundledComputerUseExecutor()
       servers[bundledTerminalServerName] = {
         command: execPath,
         args: [join(app.getAppPath(), 'out', 'bundle', 'main', 'terminal.mjs')],
         cwd: app.getPath('userData'),
         env: {
+          ...(executor === 'auv-wayland' ? waylandSessionEnv() : undefined),
           ELECTRON_RUN_AS_NODE: '1',
           [terminalControlEnabledEnv]: '1',
           [computerUseControlEnabledEnv]: '1',
           COMPUTER_USE_APPROVAL_MODE: 'actions',
-          COMPUTER_USE_EXECUTOR: bundledComputerUseExecutor(),
+          COMPUTER_USE_EXECUTOR: executor,
           COMPUTER_USE_BROWSER_DOM_BRIDGE_ENABLED: 'false',
           COMPUTER_USE_DEFAULT_CAPTURE_AFTER: 'true',
           COMPUTER_USE_SESSION_ROOT: join(app.getPath('userData'), 'terminal-sessions'),
@@ -471,7 +486,9 @@ export function createMcpManager(terminalApproval?: TerminalApprovalOptions): Mc
         description: session.bundledTerminal && item.name === 'terminal_exec'
           ? [
               item.description ?? 'Run a command in a local Shell.',
-              'The bundled MCP includes AUV desktop observation and input. Use it for visual work. AIRI asks before each change unless Computer Use full mode is on for this conversation. Terminal permission is separate.',
+              !isHttpServerConfig(session.config) && bundledComputerUseExecutor() === 'auv-wayland'
+                ? 'On Wayland, computer_observe can return a display screenshot. The bundled backend does not send desktop input.'
+                : 'The bundled MCP includes AUV desktop observation and input. Use it for visual work. AIRI asks before each change unless Computer Use full mode is on for this conversation. Terminal permission is separate.',
               'Use confirmed facts to work toward the user’s goal.',
               'If evidence is incomplete, choose an observation that can resolve the gap.',
               'Verify the requested outcome before reporting completion.',
