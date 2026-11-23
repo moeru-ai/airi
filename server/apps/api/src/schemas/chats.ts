@@ -49,6 +49,16 @@ export const chats = pgTable(
     type: text('type').notNull().$type<ChatType>(),
     title: text('title'),
 
+    // A summary of the messages, so a chat list can show each chat without its messages.
+    // `pushMessages` writes it in the same transaction as the messages. The ids have no
+    // foreign key, as `messages.senderId`, because the summary only follows the messages.
+    firstMessageId: text('first_message_id'),
+    firstMessageText: text('first_message_text'),
+    lastMessageId: text('last_message_id'),
+    lastMessageText: text('last_message_text'),
+    lastMessageRole: text('last_message_role').$type<'user' | 'assistant'>(),
+    lastMessageAt: timestamp('last_message_at'),
+
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
     deletedAt: timestamp('deleted_at'),

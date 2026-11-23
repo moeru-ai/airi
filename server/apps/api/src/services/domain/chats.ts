@@ -36,6 +36,59 @@ export function clampLimit(limit?: number): number {
   return Math.min(limit, 500)
 }
 
+/** The longest text that a chat summary keeps of a message. A chat list shows one line of it. */
+export const SUMMARY_TEXT_MAX_LENGTH = 200
+
+/**
+ * The text of a message for a chat summary: one line, at most {@link SUMMARY_TEXT_MAX_LENGTH} characters.
+ *
+ * @example
+ * summaryTextOf('Plan the\n  weekend hike')
+ * // => 'Plan the weekend hike'
+ */
+export function summaryTextOf(content: string): string {
+  return Array.from(content.replace(/\s+/g, ' ').trim()).slice(0, SUMMARY_TEXT_MAX_LENGTH).join('')
+}
+
+/**
+ * The summary columns that a push changes. A new message with text becomes the last message, and the first one when the
+ * chat has none. An edit of the first or the last message changes its text. Messages without text, for example tool
+ * calls, do not count.
+ */
+export function summaryUpdateOf(
+  current: Pick<schema.Chat, 'firstMessageId' | 'lastMessageId'>,
+  inserted: readonly PushMessage[],
+  updated: readonly PushMessage[],
+  now: Date,
+): Partial<schema.NewChat> {
+  const insertedWithText = inserted.filter(message => summaryTextOf(message.content) !== '')
+  const first = insertedWithText.at(0)
+  const last = insertedWithText.at(-1)
+  const summary: Partial<schema.NewChat> = {}
+
+  const editedFirst = updated.find(message => message.id === current.firstMessageId)
+  if (current.firstMessageId == null && first) {
+    summary.firstMessageId = first.id
+    summary.firstMessageText = summaryTextOf(first.content)
+  }
+  else if (editedFirst) {
+    summary.firstMessageText = summaryTextOf(editedFirst.content)
+  }
+
+  const editedLast = updated.find(message => message.id === current.lastMessageId)
+  if (last) {
+    summary.lastMessageId = last.id
+    summary.lastMessageText = summaryTextOf(last.content)
+    summary.lastMessageRole = last.role === 'user' ? 'user' : 'assistant'
+    summary.lastMessageAt = now
+  }
+  else if (editedLast) {
+    summary.lastMessageText = summaryTextOf(editedLast.content)
+  }
+
+  return summary
+}
+
 export function resolveSenderId(role: string, userId: string): string | null {
   if (role === 'user' || role === 'assistant')
     return userId
@@ -237,7 +290,7 @@ export function createChatService(db: Database, metrics?: EngagementMetrics | nu
 
         // Lock chat row to serialize seq assignment
         const [chatRow] = await tx
-          .select({ id: schema.chats.id })
+          .select({ id: schema.chats.id, firstMessageId: schema.chats.firstMessageId, lastMessageId: schema.chats.lastMessageId })
           .from(schema.chats)
           .where(eq(schema.chats.id, chatId))
           .for('update')
@@ -332,9 +385,8 @@ export function createChatService(db: Database, metrics?: EngagementMetrics | nu
             .where(and(eq(schema.messages.id, m.id), eq(schema.messages.chatId, chatId)))
         }
 
-        // Update chat updatedAt
         await tx.update(schema.chats)
-          .set({ updatedAt: now })
+          .set({ updatedAt: now, ...summaryUpdateOf(chatRow, newMsgs, updateMsgs, now) })
           .where(eq(schema.chats.id, chatId))
 
         return {

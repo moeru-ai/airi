@@ -4,7 +4,7 @@ import { eq } from 'drizzle-orm'
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import { mockDB } from '../../libs/mock-db'
-import { clampLimit, createChatService, resolveSenderId } from './chats'
+import { clampLimit, createChatService, resolveSenderId, SUMMARY_TEXT_MAX_LENGTH, summaryTextOf } from './chats'
 
 import * as schema from '../../schemas'
 
@@ -34,6 +34,18 @@ describe('clampLimit', () => {
   it('clamps to max 500', () => {
     expect(clampLimit(501)).toBe(500)
     expect(clampLimit(1000)).toBe(500)
+  })
+})
+
+describe('summaryTextOf', () => {
+  it('keeps one line of the message', () => {
+    expect(summaryTextOf('  Plan the\n\n  weekend hike  ')).toBe('Plan the weekend hike')
+  })
+
+  it('cuts a long message without splitting a character', () => {
+    const text = summaryTextOf('🌙'.repeat(SUMMARY_TEXT_MAX_LENGTH + 10))
+    expect(Array.from(text)).toHaveLength(SUMMARY_TEXT_MAX_LENGTH)
+    expect(text.endsWith('🌙')).toBe(true)
   })
 })
 
@@ -290,6 +302,66 @@ describe('listChats', () => {
 
   beforeEach(async () => {
     db = await mockDB(schema)
+  })
+
+  it('returns the first and the last message of each chat', async () => {
+    const service = createChatService(db)
+    await service.createChat('owner', { id: 'luna-chat', type: 'bot', members: [{ type: 'character', characterId: 'luna' }] })
+    await service.pushMessages('owner', 'luna-chat', [
+      { id: 'question', role: 'user', content: 'Plan the\n weekend hike' },
+      { id: 'tool-call', role: 'assistant', content: '   ' },
+    ])
+    await service.pushMessages('owner', 'luna-chat', [{ id: 'answer', role: 'assistant', content: 'Bring water.' }])
+
+    const [chat] = await service.listChats('owner')
+
+    expect(chat).toMatchObject({
+      firstMessageText: 'Plan the weekend hike',
+      lastMessageText: 'Bring water.',
+      lastMessageRole: 'assistant',
+    })
+    expect(chat?.lastMessageAt).toBeInstanceOf(Date)
+  })
+
+  it('keeps the last message when an earlier message changes', async () => {
+    const service = createChatService(db)
+    await service.createChat('owner', { id: 'luna-chat', type: 'bot', members: [{ type: 'character', characterId: 'luna' }] })
+    await service.pushMessages('owner', 'luna-chat', [
+      { id: 'question', role: 'user', content: 'Plan the hike' },
+      { id: 'answer', role: 'assistant', content: 'Bring water.' },
+    ])
+    await service.pushMessages('owner', 'luna-chat', [{ id: 'question', role: 'user', content: 'Plan the weekend hike' }])
+
+    const [chat] = await service.listChats('owner')
+
+    expect(chat).toMatchObject({
+      firstMessageText: 'Plan the weekend hike',
+      lastMessageText: 'Bring water.',
+      lastMessageRole: 'assistant',
+    })
+  })
+
+  it('follows an edit of the last message', async () => {
+    const service = createChatService(db)
+    await service.createChat('owner', { id: 'luna-chat', type: 'bot', members: [{ type: 'character', characterId: 'luna' }] })
+    await service.pushMessages('owner', 'luna-chat', [
+      { id: 'question', role: 'user', content: 'Plan the hike' },
+      { id: 'answer', role: 'assistant', content: 'Bring' },
+    ])
+    await service.pushMessages('owner', 'luna-chat', [{ id: 'answer', role: 'assistant', content: 'Bring water.' }])
+
+    const [chat] = await service.listChats('owner')
+
+    expect(chat).toMatchObject({ firstMessageText: 'Plan the hike', lastMessageText: 'Bring water.', lastMessageRole: 'assistant' })
+  })
+
+  it('returns no summary for a chat without messages', async () => {
+    const service = createChatService(db)
+    await service.createChat('owner', { id: 'luna-chat', type: 'bot', members: [{ type: 'character', characterId: 'luna' }] })
+
+    const [chat] = await service.listChats('owner')
+
+    expect(chat).toMatchObject({ firstMessageText: null, lastMessageText: null, lastMessageRole: null, lastMessageAt: null })
   })
 
   it('returns the members of each chat of the user', async () => {
