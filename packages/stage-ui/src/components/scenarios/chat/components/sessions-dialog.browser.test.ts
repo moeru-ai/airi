@@ -34,7 +34,6 @@ function createTestI18n() {
               'current': 'Current',
               'cancel': 'Cancel',
               'confirm-delete': 'Delete this conversation and its messages?',
-              'cloud-badge': 'Cloud synced',
               'rename': 'Rename conversation',
               'rename-input': 'Conversation name',
               'rename-placeholder': 'Enter a conversation name',
@@ -84,7 +83,6 @@ function createHarness(rows = [
       <SessionsDialog
         :open="true"
         :rows="rows"
-        :folders="[]"
         :is-desktop="isDesktop"
         :is-creating-session="false"
         @new-session="created += 1"
@@ -100,6 +98,36 @@ function createHarness(rows = [
 }
 
 describe('sessions dialog actions', () => {
+  it('renders the list in place beside the chat in the inline mode', async () => {
+    const rows = [
+      { meta: sessionMeta('session-one', 2), preview: 'First chat', isActive: true, activityAtLabel: 'now', characterName: 'Airi' },
+    ]
+    const screen = await render(defineComponent({
+      components: { SessionsDialog },
+      setup() {
+        return { rows, selected: ref('none') }
+      },
+      template: `
+        <SessionsDialog
+          :open="false"
+          :rows="rows"
+          :folders="[]"
+          :is-desktop="false"
+          :is-creating-session="false"
+          desktop-mode="inline"
+          @select-session="selected = $event"
+        />
+        <output aria-label="selected-session-id">{{ selected }}</output>
+      `,
+    }), { global: { plugins: [createTestI18n()] } })
+
+    // A closed state and a narrow width still show the list: the window keeps it as a column.
+    await expect.element(screen.getByTestId('sessions-inline')).toBeVisible()
+    expect(document.querySelector('[role="dialog"]')).toBeNull()
+    await screen.getByRole('button', { name: /^First chat/ }).click()
+    await expect.element(screen.getByLabelText('selected-session-id')).toHaveTextContent('session-one')
+  })
+
   it('opens the compact desktop list from its conversation trigger', async () => {
     const rows = [
       { meta: sessionMeta('session-one', 2), preview: 'First chat', isActive: true, activityAtLabel: 'now', characterName: 'Airi' },
@@ -113,7 +141,6 @@ describe('sessions dialog actions', () => {
         <SessionsDialog
           v-model:open="open"
           :rows="rows"
-          :folders="[]"
           :is-desktop="true"
           :is-creating-session="false"
           desktop-mode="popover"
@@ -147,7 +174,6 @@ describe('sessions dialog actions', () => {
         <SessionsDialog
           v-model:open="open"
           :rows="rows"
-          :folders="[]"
           :is-desktop="true"
           :is-creating-session="false"
           desktop-mode="popover"
@@ -160,12 +186,17 @@ describe('sessions dialog actions', () => {
     }), { global: { plugins: [createTestI18n()] } })
 
     await screen.getByRole('button', { name: 'Current chat' }).click()
-    await screen.getByRole('button', { name: 'Delete conversation: Second chat' }).click()
+    // Archive stays on the compact row and shows on hover. Delete is in the menu of the row.
+    await screen.getByText('Second chat').hover()
+    await expect.element(screen.getByRole('button', { name: 'Archive: Second chat' })).toBeVisible()
+    await screen.getByRole('button', { name: 'More actions: Second chat' }).click()
+    // The first press turns the item into its confirmation and keeps the menu open.
+    await screen.getByRole('menuitem', { name: 'Delete' }).click()
 
-    await expect.element(screen.getByRole('button', { name: 'Confirm delete: Second chat' })).toBeVisible()
+    await expect.element(screen.getByRole('menuitem', { name: 'Confirm delete' })).toBeVisible()
     await expect.element(screen.getByLabelText('deleted-session-id')).toHaveTextContent('none')
 
-    await screen.getByRole('button', { name: 'Confirm delete: Second chat' }).click()
+    await screen.getByRole('menuitem', { name: 'Confirm delete' }).click()
     await expect.element(screen.getByLabelText('deleted-session-id')).toHaveTextContent('session-two')
   })
 

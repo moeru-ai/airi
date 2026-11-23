@@ -1377,6 +1377,22 @@ export const useChatStore = defineStore('chat', () => {
       throw new Error(t('stage.chat.archived-session.description'))
   }
 
+  /**
+   * Refuses a turn when the character of the session has no chat model.
+   *
+   * The composer already shows the setup notice for this state, so the refusal stores no error message. A second
+   * notice in the history said the same thing. Voice and other inputs get the reason from the thrown error.
+   */
+  function assertChatReady(sessionId: string) {
+    // The same check as the turn, on the same character. A session without a character fails later with its own error.
+    const [characterId] = chatSession.characterMembersOf(sessionId)
+    if (!characterId)
+      return
+    const { provider, model } = cardStore.getModules(characterId).consciousness
+    if (!isChatSelectionReady(provider, model))
+      throw new Error(t('stage.chat.provider-configuration.title'))
+  }
+
   /** Deletes one message for the user. The session store also deletes messages for the chat itself, without this check. */
   async function deleteMessage(payload: DeleteChatMessagePayload) {
     assertSessionOpen(payload.sessionId)
@@ -1561,6 +1577,7 @@ export const useChatStore = defineStore('chat', () => {
   /** Returns the storage receipt while generation continues in the elected leader. */
   async function submit(payload: ChatSendPayload & { messageId: string }) {
     assertSessionOpen(payload.sessionId)
+    assertChatReady(payload.sessionId)
     const key = JSON.stringify([payload.sessionId, payload.messageId])
     if (payload.audioTranscriptPending && !liveTranscripts.has(key))
       liveTranscripts.set(key, Promise.withResolvers<void>())
@@ -1589,6 +1606,7 @@ export const useChatStore = defineStore('chat', () => {
   /** Sends one serializable chat request through the elected leader. */
   async function send(payload: ChatSendPayload): Promise<ChatSendResult> {
     assertSessionOpen(payload.sessionId)
+    assertChatReady(payload.sessionId)
     try {
       return await executeSend(payload)
     }
@@ -1601,6 +1619,7 @@ export const useChatStore = defineStore('chat', () => {
   /** Replaces one stored turn with a new execution of its user message. */
   async function retry(payload: ChatRetryPayload): Promise<ChatSendResult> {
     assertSessionOpen(payload.sessionId)
+    assertChatReady(payload.sessionId)
     if (!await chatSession.loadSession(payload.sessionId))
       throw new Error('Failed to load the target chat session')
 

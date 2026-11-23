@@ -35,8 +35,8 @@ function createTestI18n() {
               'current': 'Current',
               'cancel': 'Cancel',
               'confirm-delete': 'Delete this conversation and its messages?',
-              'cloud-badge': 'Cloud synced',
               'rename': 'Rename conversation',
+              'rename-short': 'Rename',
               'rename-input': 'Conversation name',
               'rename-placeholder': 'Enter a conversation name',
               'save-rename': 'Save conversation name',
@@ -177,7 +177,7 @@ describe('sessions drawer orchestration', () => {
 
     await screen.rerender({ modelValue: true })
     await screen.getByRole('button', { name: 'More actions: Chat B' }).click()
-    await screen.getByRole('menuitem', { name: 'Rename conversation' }).click()
+    await screen.getByRole('menuitem', { name: 'Rename' }).click()
     const input = screen.getByRole('textbox', { name: 'Conversation name' })
     await input.fill('Project notes')
     await screen.getByRole('button', { name: 'Save conversation name' }).click()
