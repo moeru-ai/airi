@@ -1,29 +1,25 @@
 import type { InferOutput } from 'valibot'
 
+import type { Database } from '../../../libs/db'
 import type { AccountEventPublisher } from '../../../services/adapters/account-events'
+import type { ConfigKVService } from '../../../services/adapters/config-kv'
 import type { RevenuecatSubscriberClient } from '../../../services/adapters/revenuecat-subscriber'
 import type { RevenuecatSubscriptionSync } from '../../../services/adapters/revenuecat-subscriptions'
+import type { PaymentService } from '../../../services/domain/payment'
+import type { EvidenceReceipt } from '../../../services/domain/payment/types'
 
 import { Buffer } from 'node:buffer'
 import { createHmac, timingSafeEqual } from 'node:crypto'
 
 import { useLogger } from '@guiiai/logg'
 import { createBadRequestError, createServiceUnavailableError, createUnauthorizedError } from '@proj-airi/http-error-shared'
-import { array, nonEmpty, number, object, optional, picklist, pipe, safeParse, string } from 'valibot'
+import { eq } from 'drizzle-orm'
+import { nonEmpty, number, object, picklist, pipe, safeParse, string } from 'valibot'
+
+import { user } from '../../../schemas'
+import { evidenceReceiptFromEvent, FLUX_GRANT_EVENT, resolveRevenuecatPack, revenuecatWebhookSchema } from '../event'
 
 const logger = useLogger('revenuecat')
-
-const webhookSchema = object({
-  api_version: string(),
-  event: object({
-    type: string(),
-    id: string(),
-    app_user_id: optional(string()),
-    // TRANSFER names its users here and omits `app_user_id`.
-    transferred_from: optional(array(string())),
-    transferred_to: optional(array(string())),
-  }),
-})
 
 /** Fields of a RENEWAL or BILLING_ISSUE event that the account event needs. */
 const subscriptionEventEntries = {
@@ -174,8 +170,16 @@ function countsForDeployment(
  * reconciliation. A publish error fails the request with 5xx, so RevenueCat retries the event.
  * The retry repeats the reconciliation, which is idempotent, and publishes the same `id` again.
  * Cloud deduplicates on that `id`.
+ * Valid pack purchases reconcile before idempotent settlement.
+ *
+ * Triggering workflow:
+ * `createRevenuecatRoutes` (../index) -> `POST /webhook` -> {@link createWebhookOperation}
+ *   -> {@link RevenuecatSubscriptionSync.reconcile}, {@link PaymentService.settle}, {@link AccountEventPublisher.publish}
  */
 export function createWebhookOperation(
+  payment: PaymentService,
+  db: Database,
+  configKV: ConfigKVService,
   subscriptionSync: RevenuecatSubscriptionSync,
   accountEvents: Pick<AccountEventPublisher, 'publish'>,
   subscriber: Pick<RevenuecatSubscriberClient, 'countsFor'>,
@@ -184,7 +188,7 @@ export function createWebhookOperation(
   return async (
     rawBody: string,
     headers: { authorization: string | null, signature: string | null },
-  ): Promise<{ received: true }> => {
+  ): Promise<{ received: true, granted?: boolean }> => {
     if (!secrets.authorization && !secrets.signingSecret)
       throw createServiceUnavailableError('RevenueCat is not configured', 'REVENUECAT_NOT_CONFIGURED')
 
@@ -202,7 +206,7 @@ export function createWebhookOperation(
       throw createBadRequestError('Invalid webhook body', 'INVALID_REQUEST')
     }
 
-    const parsed = safeParse(webhookSchema, body)
+    const parsed = safeParse(revenuecatWebhookSchema, body)
     if (!parsed.success)
       throw createBadRequestError('Invalid webhook event', 'INVALID_REQUEST', parsed.issues)
 
@@ -215,6 +219,38 @@ export function createWebhookOperation(
     // Map before the reconciliation, so an invalid event changes nothing.
     const publishAccountEvent = accountEventPublishFrom(body, event.type, subscriber, accountEvents)
 
+    let packReceipt: EvidenceReceipt | undefined
+    if (event.type === FLUX_GRANT_EVENT) {
+      if (!event.app_user_id || !event.product_id || !event.transaction_id) {
+        logger.withFields({ id: event.id }).warn('Non-renewing purchase is missing identifiers')
+        return { received: true }
+      }
+
+      // Deleted accounts must not create orphan payment rows or repeat failed grants.
+      const [account] = await db.select({ id: user.id }).from(user).where(eq(user.id, event.app_user_id)).limit(1)
+      if (!account) {
+        logger.withFields({ id: event.id, userId: event.app_user_id }).warn('Pack purchase names an unknown user')
+        return { received: true }
+      }
+
+      const environment = event.environment?.toLowerCase()
+      if (!environment || !subscriber.countsFor(event.app_user_id, environment)) {
+        logger.withFields({ id: event.id, environment: event.environment }).warn('Pack purchase environment is not granted here')
+        return { received: true }
+      }
+
+      const pack = await resolveRevenuecatPack(configKV, event.product_id)
+      if (!pack) {
+        logger.withFields({ id: event.id, productId: event.product_id }).warn('RevenueCat product is unknown')
+        return { received: true }
+      }
+
+      packReceipt = evidenceReceiptFromEvent(event, event.app_user_id, pack, {
+        productId: event.product_id,
+        transactionId: event.transaction_id,
+      })
+    }
+
     const userIds = new Set([
       ...(event.app_user_id ? [event.app_user_id] : []),
       ...(event.transferred_from ?? []),
@@ -225,6 +261,10 @@ export function createWebhookOperation(
 
     if (publishAccountEvent)
       await publishAccountEvent()
+    if (packReceipt) {
+      const result = await payment.settle(packReceipt)
+      return { received: true, granted: result.applied }
+    }
     return { received: true }
   }
 }

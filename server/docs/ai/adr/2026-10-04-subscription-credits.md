@@ -40,7 +40,7 @@ Admission uses the same rule. It counts the buckets that can pay now.
 
 ### Grant
 
-The server does not select a rule from the webhook event type.
+Except for pack purchases below, the server does not select a rule from the webhook event type.
 A webhook only tells the server that a customer changed.
 The server reads the customer's entitlements and calls `BillingService.syncCapacitor`.
 `POST /api/v1/revenuecat/sync` runs the same reconciliation for the signed-in user.
@@ -59,6 +59,16 @@ A smaller quota caps the bucket. The cap writes a `capacitor_quota_cap` ledger r
 With no active Capacitor, `capacitor_expires_at` becomes now.
 
 These rules cover purchase, renewal, product change, extension, expiration, refund, and transfer.
+
+### Pack grant
+
+A valid `NON_RENEWING_PURCHASE` event reconciles named accounts before it settles a Flux pack.
+The webhook verifies the signature, resolves the product in `REVENUECAT_FLUX_PACKS`,
+and settles a `revenuecat` evidence receipt through Payment CORE `settle`.
+The `(processor, processorOrderId)` guard makes a replay idempotent.
+A sandbox purchase grants only in a `sandbox` deployment or to an allowlisted account.
+A purchase that names an unknown user is acknowledged and ignored.
+`GET /packages` lists the configured packs as `{ records: [{ productId, fluxAmount }] }`.
 A repeated delivery or a late delivery gives the same result, so the server keeps no event log.
 `TRANSFER` names its users in `transferred_from` and `transferred_to`. The server reconciles each of them.
 A Capacitor without an expiry is not sold and does not grant Flux.
@@ -73,7 +83,7 @@ A sync with no products would expire every active Capacitor.
 The webhook returns an error when the read fails, or when `REVENUECAT_V2_API_KEY` or `REVENUECAT_PROJECT_ID` is unset.
 RevenueCat then sends the event again.
 `TEST` events do not read RevenueCat.
-RevenueCat sells Capacitors only. Flux packs stay on Stripe and Apple IAP.
+RevenueCat can sell configured Flux packs and Capacitors. Stripe and Apple IAP keep their existing pack channels.
 
 ### Refill
 
@@ -182,7 +192,6 @@ Show each configured Capacitor quota and refill interval on its package card.
 Capacitor Flux recall inside a period that stays active.
 A reconciliation job without a webhook.
 Yearly Capacitors.
-Flux packs through RevenueCat.
 An admin route in this API for resets.
 In-app product replacement checkout.
 Expiry batches for purchased Flux.
@@ -198,6 +207,11 @@ flowchart LR
   SyncRoute["POST /revenuecat/sync"] --> Sync
   CatalogRoute["GET /revenuecat/catalog"] --> Sync
   Sync --> ConfigKV["ConfigKV"]
+  Webhook --> PackEvent["event.ts: pack receipt"]
+  PackEvent --> ConfigKV
+  Webhook --> Payment["Payment CORE settle"]
+  Payment --> Billing
+  Webhook --> Events["Account event publisher"]
   Auth[Auth service] --> Check["POST /internal/auth/user-deletion/check"]
   Check --> Reader
   Sync --> Reader["revenuecat-subscriber.ts"]
@@ -217,6 +231,7 @@ sequenceDiagram
   participant API
   participant RC as RevenueCat
   participant DB
+  participant Events as Account event stream
   Client->>RC: Read customerInfo
   Client->>API: POST /revenuecat/sync when the page opens
   API->>RC: Read current entitlements
@@ -235,6 +250,12 @@ sequenceDiagram
   API->>RC: GET /v2 subscriptions, active entitlements, product
   RC-->>API: Current entitlements
   API->>DB: Store the period, refill when due
+  opt Valid configured Flux pack
+    API->>DB: Settle evidence receipt once per transaction
+  end
+  opt RENEWAL or BILLING_ISSUE
+    API->>Events: Publish after reconciliation. Failure retries the webhook.
+  end
   API-->>RC: 200
   Client->>API: POST /revenuecat/sync after a purchase
   API->>RC: GET /v2 subscriptions, active entitlements, product
@@ -259,6 +280,8 @@ server/apps/api/
   src/routes/flux/route.test.ts
   src/services/domain/flux.test.ts
   src/routes/revenuecat/index.ts
+  src/routes/revenuecat/event.ts
+  src/services/adapters/config-kv/definitions.ts
   src/routes/revenuecat/route.test.ts
   src/routes/revenuecat/operations/webhook.ts
 packages/stage-ui/src/stores/auth.ts
@@ -286,3 +309,7 @@ Run the subscriber client tests for each renewal status, for `in_billing_retry`,
 Run the internal route tests for the deletion check.
 Run the Auth tests for a refused request without an email, and for a refused email link without a revocation.
 Run the client tests for the sync before the balance read and for the product filter.
+
+Run pack tests for missing identifiers, unknown products, deleted accounts, and deployment environment gates.
+Run pack tests for reconciliation before settlement, failed-read retries, and duplicate transaction receipts.
+Run notification tests for field validation before writes, publication after reconciliation, and failed-publication retries.
