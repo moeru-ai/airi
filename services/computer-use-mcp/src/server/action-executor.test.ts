@@ -175,6 +175,93 @@ function createCombinedDisplayBoundsConfig() {
 }
 
 describe('createExecuteAction', () => {
+  it('runs two waits together when each call has budget', async () => {
+    const { runtime, executor, session } = createRuntimeForActionTest({
+      maxOperations: 2,
+      maxOperationUnits: 2,
+    })
+    const budget = { operationsExecuted: 0, operationUnitsConsumed: 0 }
+    session.getBudgetState.mockImplementation(() => ({ ...budget }))
+    session.consumeOperation.mockImplementation((units: number) => {
+      budget.operationsExecuted += 1
+      budget.operationUnitsConsumed += units
+    })
+    let entered = 0
+    let release = () => {}
+    const hold = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const bothEntered = new Promise<void>((resolve) => {
+      executor.wait.mockImplementation(async () => {
+        entered += 1
+        if (entered === 2)
+          resolve()
+        await hold
+        return { performed: true, backend: 'dry-run', notes: [] }
+      })
+    })
+
+    const executeAction = createExecuteAction(runtime)
+    const first = executeAction({ kind: 'wait', input: { durationMs: 0 } }, 'computer_act')
+    const second = executeAction({ kind: 'wait', input: { durationMs: 0 } }, 'computer_act')
+    await bothEntered
+
+    expect(entered).toBe(2)
+    release()
+    const results = await Promise.all([first, second])
+    expect(results[0]?.isError).not.toBe(true)
+    expect(results[1]?.isError).not.toBe(true)
+  })
+
+  it('denies the overlapping wait when one operation remains', async () => {
+    const { runtime, executor, session } = createRuntimeForActionTest({
+      maxOperations: 1,
+      maxOperationUnits: 1,
+    })
+    const budget = { operationsExecuted: 0, operationUnitsConsumed: 0 }
+    session.getBudgetState.mockImplementation(() => ({ ...budget }))
+    session.consumeOperation.mockImplementation((units: number) => {
+      budget.operationsExecuted += 1
+      budget.operationUnitsConsumed += units
+    })
+    let entered = 0
+    let release = () => {}
+    const hold = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    let markEntered = () => {}
+    const firstEntered = new Promise<void>((resolve) => {
+      markEntered = resolve
+    })
+    executor.wait.mockImplementation(async () => {
+      entered += 1
+      markEntered()
+      await hold
+      return { performed: true, backend: 'dry-run', notes: [] }
+    })
+
+    const executeAction = createExecuteAction(runtime)
+    const first = executeAction({ kind: 'wait', input: { durationMs: 0 } }, 'computer_act')
+    await firstEntered
+    const second = executeAction({ kind: 'wait', input: { durationMs: 0 } }, 'computer_act')
+    const finished = await Promise.race([
+      second.then(result => ({ done: true, result })),
+      new Promise<{ done: false }>(resolve => setTimeout(resolve, 200, { done: false })),
+    ])
+    release()
+    await first
+    if (!finished.done)
+      await second
+
+    expect(finished.done).toBe(true)
+    expect(entered).toBe(1)
+    expect(session.consumeOperation).toHaveBeenCalledTimes(1)
+    if (finished.done) {
+      expect(finished.result.isError).toBe(true)
+      expect(finished.result.content.find(item => item.type === 'text')?.text).toContain('session operation budget exhausted')
+    }
+  })
+
   it('executes desktop_click_target through the shared policy and audit pipeline', async () => {
     const { runtime, executor, session, stateManager } = createRuntimeForActionTest()
     stateManager.updateGroundingSnapshot({
@@ -895,7 +982,7 @@ describe('createExecuteAction', () => {
     expect(result.isError).toBe(true)
     expect(result.content.find(item => item.type === 'text')?.text).toContain('Chrome session unavailable')
     expect(executor.click).not.toHaveBeenCalled()
-    expect(session.consumeOperation).not.toHaveBeenCalled()
+    expect(session.consumeOperation).toHaveBeenCalledWith(1)
     expect(session.record).toHaveBeenCalledWith(expect.objectContaining({
       event: 'failed',
       toolName: 'desktop_click_target',
