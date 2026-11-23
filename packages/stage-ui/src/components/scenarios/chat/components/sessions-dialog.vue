@@ -16,6 +16,8 @@ const props = withDefaults(defineProps<{
   isCreatingSession: boolean
   /** `inline` renders the list in place, without a surface, and ignores `open`. A window that keeps the list beside the chat uses it. */
   desktopMode?: 'dialog' | 'popover' | 'inline'
+  /** The character of the conversations. The inline list names it in its title. */
+  character?: { name: string, preview?: string }
 }>(), {
   desktopMode: 'dialog',
 })
@@ -55,21 +57,17 @@ function preserveTriggerFocus(event: Event) {
       v-model:place="place"
       compact
       fill
+      :character="character"
       :class="['h-full']"
       :rows="rows"
-      :folders="folders"
       :is-creating-session="isCreatingSession"
-      @new-session="emit('newSession', $event)"
+      @new-session="emit('newSession')"
       @rename-session="emit('renameSession', $event)"
       @select-session="emit('selectSession', $event)"
       @delete-session="emit('deleteSession', $event)"
       @delete-sessions="emit('deleteSessions', $event)"
       @pin-session="emit('pinSession', $event)"
       @archive-sessions="emit('archiveSessions', $event)"
-      @move-sessions="emit('moveSessions', $event)"
-      @create-folder="emit('createFolder', $event)"
-      @rename-folder="emit('renameFolder', $event)"
-      @delete-folder="emit('deleteFolder', $event)"
     />
   </div>
   <BottomDrawer

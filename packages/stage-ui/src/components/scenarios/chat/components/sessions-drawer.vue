@@ -14,6 +14,7 @@ import SessionsDialog from './sessions-dialog.vue'
 
 import { useAnalytics } from '../../../../composables/use-analytics'
 import { useBreakpoints } from '../../../../composables/use-breakpoints'
+import { useCharacterPreviews } from '../../../../composables/use-character-previews'
 import { extractMessageText } from '../../../../libs/chat-sync'
 import { useAuthStore } from '../../../../stores/auth'
 import { useChatStore } from '../../../../stores/chat'
@@ -55,6 +56,12 @@ const isCreatingSession = ref(false)
 const effectiveUserId = computed(() => userId.value || 'local')
 
 const currentCharacterId = computed(() => activeCardId.value || 'default')
+const characterPreviews = useCharacterPreviews()
+/** The current character, for the title of a list that stands beside the chat. */
+const currentCharacter = computed(() => {
+  const card = cards.value.get(currentCharacterId.value)
+  return card ? { name: card.name, preview: characterPreviews.value.get(currentCharacterId.value) } : undefined
+})
 
 // The list shows the conversations of the current character only. The user changes the character to see the others.
 // Keep another account's sessions hidden while an account swap rehydrates.
@@ -223,6 +230,7 @@ watch(showDialog, async (open) => {
     :is-desktop="props.desktop || isDesktop"
     :is-creating-session="isCreatingSession"
     :desktop-mode="props.desktopMode"
+    :character="currentCharacter"
     @new-session="reportFailure(startNewSession)"
     @select-session="selectSession"
     @delete-session="sessionId => reportFailure(() => chat.deleteSession(sessionId))"

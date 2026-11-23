@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ChatSessionsPlace } from '../../../../types/chat-session'
 
-import { DropdownMenu, MenuItem, MenuSeparator } from '@proj-airi/ui'
+import { Avatar, DropdownMenu, MenuItem, MenuSeparator } from '@proj-airi/ui'
 import { computed, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -16,6 +16,11 @@ const props = defineProps<{
   liveCount: number
   archivedCount: number
   compact: boolean
+  /**
+   * The character of the conversations. A column beside the chat names it in the title, as Discord names the server
+   * above its channels. The archive then shows as a second line of the title.
+   */
+  character?: { name: string, preview?: string }
 }>()
 
 const emit = defineEmits<{
@@ -46,12 +51,29 @@ const menuCheckClasses = ['i-mingcute:check-line size-4 shrink-0 text-primary-50
             'focus-visible:outline-2 focus-visible:outline-primary-500',
             placeMenuOpen ? 'text-primary-600 dark:text-primary-300' : '',
             props.compact
-              ? 'h-8 gap-1 rounded-lg px-1.5 text-sm font-semibold'
+              ? 'min-h-8 gap-1.5 rounded-lg px-1.5 py-0.5 text-sm font-semibold'
               : '-ml-1 h-11 gap-1.5 rounded-xl px-1 text-xl font-semibold tracking-tight',
           ]"
         >
-          <span v-if="placeIcon" aria-hidden="true" :class="[placeIcon, props.compact ? 'size-4' : 'size-5.5', 'shrink-0']" />
-          <span :class="['truncate']">{{ placeLabel }}</span>
+          <template v-if="props.character">
+            <!-- Display model previews are portrait. Align them to the top so the circle keeps the head. -->
+            <Avatar
+              :src="props.character.preview"
+              :class="['block size-6 shrink-0 rounded-full bg-neutral-200/70 text-neutral-600 dark:bg-neutral-700/70 dark:text-neutral-300', '[&_[data-avatar-image]]:object-top']"
+            >
+              <template #fallback>
+                <span :class="['text-xs font-semibold']">{{ props.character.name.slice(0, 1) }}</span>
+              </template>
+            </Avatar>
+            <span :class="['min-w-0 flex flex-col items-start leading-tight']">
+              <span :class="['max-w-full truncate']">{{ props.character.name }}</span>
+              <span v-if="props.place.kind === 'archive'" :class="['text-xs font-normal text-neutral-500 dark:text-neutral-400']">{{ placeLabel }}</span>
+            </span>
+          </template>
+          <template v-else>
+            <span v-if="placeIcon" aria-hidden="true" :class="[placeIcon, props.compact ? 'size-4' : 'size-5.5', 'shrink-0']" />
+            <span :class="['truncate']">{{ placeLabel }}</span>
+          </template>
           <span
             aria-hidden="true"
             :class="[

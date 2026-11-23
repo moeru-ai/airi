@@ -20,6 +20,8 @@ const props = withDefaults(defineProps<{
   compact?: boolean
   /** The list fills the height of its column and scrolls inside it, for example beside the chat of a desktop window. */
   fill?: boolean
+  /** The character of the conversations. The title names it. See `SessionsListHeader`. */
+  character?: { name: string, preview?: string }
 }>(), {
   compact: false,
   fill: false,
@@ -305,6 +307,7 @@ const { holdLeavingItem } = useListReorderMotion({
       :live-count="liveRows.length"
       :archived-count="archivedCount"
       :compact="props.compact"
+      :character="props.character"
       @select-place="setPlace"
     />
 
