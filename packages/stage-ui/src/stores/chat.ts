@@ -863,8 +863,11 @@ export const useChatStore = defineStore('chat', () => {
                 completed = true
             }
 
-            if (!completed || !text?.trim())
+            if (!completed || !text?.trim()) {
+              // The log has no transcript text. It shows which recording failed and how the transcriber ended.
+              console.warn('[Chat] A recording has no completed transcription.', `completed=${completed} textLength=${text?.length ?? 0} currentTurn=${turn.id === projected.turns.findLast(item => item.type === 'user')?.id} format=${part.format} bytes=${blob.size}`)
               throw new Error('The recording has no completed transcription')
+            }
 
             if (sessionId && stored?.id)
               await writeAudioTranscript(sessionId, stored.id, sourceIndex, text)

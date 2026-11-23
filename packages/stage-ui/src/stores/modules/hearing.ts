@@ -175,6 +175,20 @@ export function describeEmptyTranscriptionResponse(response: unknown) {
 }
 
 /**
+ * Counts the segments of a transcription response for a diagnostic log.
+ * The result has no transcript text.
+ */
+export function describeTranscriptionSegments(response: unknown) {
+  const segments = response && typeof response === 'object' ? (response as Record<string, unknown>).segments : undefined
+  if (!Array.isArray(segments))
+    return 'segments=absent'
+
+  const withText = segments.filter(segment => stringField(segment, 'text')).length
+  const withAvgLogprob = segments.filter(segment => typeof (segment as { avg_logprob?: unknown } | null)?.avg_logprob === 'number').length
+  return `segments=${segments.length} withText=${withText} withAvgLogprob=${withAvgLogprob}`
+}
+
+/**
  * Resolves the upload filename for transcription requests.
  *
  * Use when:
@@ -530,20 +544,33 @@ export const useHearingStore = defineStore('hearing-store', () => {
 
       const threshold = options?.confidenceThreshold ?? confidenceThreshold.value
       const useVerboseJson = !format && threshold > CONFIDENCE_THRESHOLD_DISABLED
+      const responseFormat = useVerboseJson ? 'verbose_json' : format
       const response = await generateTranscription({
         ...provider.transcription(model, options?.providerOptions),
         abortSignal: signal,
         file: normalizedInput.file,
         fileName: resolveTranscriptionFileName(normalizedInput.file, normalizedInput.fileName),
-        responseFormat: useVerboseJson ? 'verbose_json' : format,
+        responseFormat,
       })
 
       signal.throwIfAborted()
+
+      // The log has no transcript text, provider address, or key. It shows the response shape that a provider returned.
+      const warnEmptyText = () => console.warn('[Hearing] Transcription response has no text.', [
+        `provider=${providerId}`,
+        `requestedFormat=${responseFormat ?? 'default'}`,
+        `threshold=${threshold}`,
+        `file=${normalizedInput.file?.type || 'unknown'},${normalizedInput.file?.size ?? 0}B`,
+        describeEmptyTranscriptionResponse(response),
+        describeTranscriptionSegments(response),
+      ].join(' '))
 
       if (useVerboseJson) {
         if (response.segments) {
           verboseJsonNotSupported.value = false
           const filteredText = filterTranscriptionByConfidence(response.segments, threshold)
+          if (!filteredText)
+            warnEmptyText()
           return {
             mode: 'generate',
             ...response,
@@ -557,6 +584,8 @@ export const useHearingStore = defineStore('hearing-store', () => {
       }
 
       const fallbackText = normalizeGeneratedTranscriptionText(response)
+      if (!fallbackText)
+        warnEmptyText()
       return {
         mode: 'generate',
         ...response,

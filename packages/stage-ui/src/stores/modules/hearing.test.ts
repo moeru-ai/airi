@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   describeEmptyTranscriptionResponse,
+  describeTranscriptionSegments,
   filterTranscriptionByConfidence,
   normalizeGeneratedTranscriptionText,
   resolveActiveTranscriptionModel,
@@ -146,6 +147,25 @@ describe('describeEmptyTranscriptionResponse', () => {
    */
   it('describes response keys when no usable text was returned', () => {
     expect(describeEmptyTranscriptionResponse({ result: { duration: 1 } })).toContain('keys=result')
+  })
+})
+
+describe('describeTranscriptionSegments', () => {
+  /**
+   * @example
+   * describeTranscriptionSegments({ text: '' })
+   */
+  it('reports absent segments', () => {
+    expect(describeTranscriptionSegments({ text: '' })).toBe('segments=absent')
+  })
+
+  /**
+   * @example
+   * describeTranscriptionSegments({ segments: [{ text: 'a', avg_logprob: -1 }, { text: '' }] })
+   */
+  it('counts segments, text, and avg_logprob without the text itself', () => {
+    expect(describeTranscriptionSegments({ segments: [{ text: 'secret', avg_logprob: -1 }, { text: '' }] }))
+      .toBe('segments=2 withText=1 withAvgLogprob=1')
   })
 })
 

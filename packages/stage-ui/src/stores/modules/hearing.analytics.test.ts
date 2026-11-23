@@ -99,3 +99,37 @@ describe('useHearingStore analytics lifecycle', () => {
     })
   }, 10000)
 })
+
+describe('useHearingStore empty response log', () => {
+  /**
+   * @example
+   * await hearingStore.transcription(providerId, provider, model, file)
+   */
+  it('logs the response shape without the provider address if a response has no text', async () => {
+    setActivePinia(createPinia())
+    analyticsMock.allowComposableCall = true
+    transcriptionMock.generateTranscription.mockReset()
+    transcriptionMock.generateTranscription.mockResolvedValueOnce({ text: '', task: 'transcribe' } as { text: string })
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const { useHearingStore } = await import('./hearing')
+    const hearingStore = useHearingStore()
+
+    await hearingStore.transcription(
+      'openai-compatible-audio-transcription',
+      { transcription: (model: string) => ({ apiKey: 'test-key', baseURL: 'https://example.com/v1/', model }) },
+      'whisper-1',
+      new File(['hello'], 'recording.wav', { type: 'audio/wav' }),
+      undefined,
+      { confidenceThreshold: -3 },
+    )
+
+    const message = warn.mock.calls.flat().join(' ')
+    expect(message).toContain('[Hearing] Transcription response has no text.')
+    expect(message).toContain('requestedFormat=default')
+    expect(message).toContain('keys=text,task')
+    expect(message).toContain('segments=absent')
+    expect(message).not.toContain('example.com')
+    expect(message).not.toContain('test-key')
+    warn.mockRestore()
+  })
+})
