@@ -8,6 +8,4 @@ export interface SessionRow {
   activityAtLabel: string
   /** The name of the character of the conversation. */
   characterName: string
-  /** The preview image of the default model of the character. Without it, the avatar shows its fallback. */
-  characterPreview?: string
 }

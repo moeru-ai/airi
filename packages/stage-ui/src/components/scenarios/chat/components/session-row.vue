@@ -10,7 +10,6 @@ import { useI18n } from 'vue-i18n'
 import SessionDeleteButton from './session-delete-button.vue'
 import SessionFolderTargets from './session-folder-targets.vue'
 import SessionNameField from './session-name-field.vue'
-import SessionRowAvatar from './session-row-avatar.vue'
 import SessionRowSummary from './session-row-summary.vue'
 
 import { useMenuCloseAction } from '../composables/use-menu-close-action'
@@ -218,7 +217,6 @@ const subMenuClasses = [
             v-if="renaming"
             :class="['session-rename', props.compact ? 'min-h-12.5 gap-2 px-2 py-1.5' : 'min-h-20 gap-3 px-3 py-3', 'min-w-0 flex flex-1 items-center']"
           >
-            <SessionRowAvatar :src="props.row.characterPreview" :compact="props.compact" :current="false" />
             <SessionNameField
               ref="nameField"
               v-model="renameTitle"

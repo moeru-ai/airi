@@ -14,7 +14,6 @@ import SessionsDialog from './sessions-dialog.vue'
 
 import { useAnalytics } from '../../../../composables/use-analytics'
 import { useBreakpoints } from '../../../../composables/use-breakpoints'
-import { useCharacterPreviews } from '../../../../composables/use-character-previews'
 import { extractMessageText } from '../../../../libs/chat-sync'
 import { useAuthStore } from '../../../../stores/auth'
 import { useChatStore } from '../../../../stores/chat'
@@ -47,7 +46,6 @@ const { sessionMetas, sessionMessages, activeSessionId, index } = storeToRefs(ch
 const { activeCardId, cards } = storeToRefs(useAiriCardStore())
 // The list keeps its place in memory, so a closed and reopened list shows it again.
 const { place: listPlace } = storeToRefs(useChatSessionsViewStore())
-const characterPreviews = useCharacterPreviews()
 const { userId } = storeToRefs(useAuthStore())
 const { activeModel } = storeToRefs(useConsciousnessStore())
 const { trackChatSessionSelected, trackChatSessionStarted, trackConversationRenamed } = useAnalytics()
@@ -126,7 +124,6 @@ const rows = computed<SessionRow[]>(() => {
       isActive: meta.sessionId === activeSessionId.value,
       activityAtLabel: intlFormatDistance(activityAt, referenceTime, { locale: locale.value }),
       characterName: cards.value.get(meta.characterId)?.name ?? t('stage.chat.sessions.unknown-character'),
-      characterPreview: characterPreviews.value.get(meta.characterId),
     }))
 })
 

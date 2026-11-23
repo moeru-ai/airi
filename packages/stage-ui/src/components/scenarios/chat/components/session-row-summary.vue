@@ -3,10 +3,8 @@ import type { SessionRow } from './session-row-model'
 
 import { useI18n } from 'vue-i18n'
 
-import SessionRowAvatar from './session-row-avatar.vue'
-
 /**
- * The avatar, the title, and the details line of a conversation row. The row places it in its select button.
+ * The title and the details line of a conversation row. The row places it in its select button.
  * The marks show the state of the conversation: the current conversation, its pin, and its cloud copy. A row in
  * selection mode leaves them out, so only its selection check marks it.
  */
@@ -22,7 +20,6 @@ const { t } = useI18n()
 </script>
 
 <template>
-  <SessionRowAvatar :src="props.row.characterPreview" :compact="props.compact" :current="props.marks && props.row.isActive" />
   <span :class="['min-w-0 flex-1']">
     <span :class="['block truncate text-sm font-medium']">{{ props.row.preview }}</span>
     <span :class="['flex items-center gap-2 text-xs font-normal text-neutral-500 dark:text-neutral-400', props.compact ? 'mt-0.5' : 'mt-1']">
