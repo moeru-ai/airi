@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Avatar, BasicButton } from '@proj-airi/ui'
+import { Avatar, BasicButton, Tooltip } from '@proj-airi/ui'
 import { useElementHover } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, shallowRef, useTemplateRef } from 'vue'
@@ -117,14 +117,19 @@ const labelClasses = computed(() => [
     @focusin="trackFocus"
     @focusout="trackBlur"
   >
-    <BasicButton
+    <Tooltip
       v-for="entry in entries"
       :key="entry.id"
+      :label="entry.name"
+      side="right"
+      :disabled="!docked"
+    >
+    <BasicButton
       size="unset"
       data-testid="character-rail-item"
       :aria-label="entry.name"
       :aria-pressed="entry.id === activeCardId"
-      :title="open ? undefined : entry.name"
+      :title="open || docked ? undefined : entry.name"
       :disabled="switching"
       :class="[
         rowClasses,
@@ -160,6 +165,7 @@ const labelClasses = computed(() => [
         {{ entry.name }}
       </span>
     </BasicButton>
+    </Tooltip>
     <!-- The line has no fixed width, so it spans the closed rail and the open rail. -->
     <span aria-hidden="true" :class="['mx-2 h-px shrink-0 bg-neutral-400/40']" />
     <BasicButton
