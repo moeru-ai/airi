@@ -85,12 +85,6 @@ function runSwipeAction(value: string) {
     emit('delete')
 }
 
-function pressDelete() {
-  if (props.confirmingDelete)
-    emit('delete')
-  else
-    emit('armDelete')
-}
 </script>
 
 <template>
@@ -197,20 +191,32 @@ function pressDelete() {
 
           <template v-if="!renaming">
             <!--
-              Delete stays on the row, outside the menu. The compact row turns the button into its confirmation in
-              place. The mobile row opens the swipe area, where Delete is the second press.
+              The compact row keeps Archive on the row, because it is the common action and an archived conversation comes
+              back. Delete is in its menu, and turns this button into its confirmation in place. The mobile row opens the
+              swipe area, where Archive and Delete are the second press.
             -->
-            <SessionDeleteButton
-              v-if="props.compact"
-              :data-session-confirm="`row:${props.row.meta.sessionId}`"
-              :confirming="props.confirmingDelete"
-              compact
-              :label="t('stage.chat.sessions.delete')"
-              :confirm-label="t('stage.chat.sessions.confirm-delete-short')"
-              :subject="props.row.preview"
-              reveal-on-hover
-              @press="pressDelete"
-            />
+            <template v-if="props.compact">
+              <SessionDeleteButton
+                v-if="props.confirmingDelete"
+                :data-session-confirm="`row:${props.row.meta.sessionId}`"
+                confirming
+                compact
+                :label="t('stage.chat.sessions.delete')"
+                :confirm-label="t('stage.chat.sessions.confirm-delete-short')"
+                :subject="props.row.preview"
+                @press="emit('delete')"
+              />
+              <button
+                v-else
+                type="button"
+                :aria-label="`${archived ? t('stage.chat.sessions.unarchive') : t('stage.chat.sessions.archive')}: ${props.row.preview}`"
+                :title="archived ? t('stage.chat.sessions.unarchive') : t('stage.chat.sessions.archive')"
+                :class="[iconButtonClasses, quietIconClasses, 'size-8 opacity-0 group-hover:opacity-100 focus-visible:opacity-100']"
+                @click="emit('archive', !archived)"
+              >
+                <span aria-hidden="true" :class="[archived ? 'i-mingcute:unarchive-line' : 'i-mingcute:archive-line', 'size-4']" />
+              </button>
+            </template>
             <button
               v-else
               type="button"
@@ -261,7 +267,11 @@ function pressDelete() {
                   {{ t('stage.chat.sessions.rename') }}
                 </MenuItem>
                 <MenuSeparator />
-                <MenuItem @select="emit('archive', !archived)">
+                <MenuItem v-if="props.compact" :class="['text-red-500 dark:text-red-400']" @select="menuClose.request(() => emit('armDelete'))">
+                  <span aria-hidden="true" :class="['i-mingcute:delete-2-line size-4 shrink-0']" />
+                  {{ t('stage.chat.sessions.delete') }}
+                </MenuItem>
+                <MenuItem v-else @select="emit('archive', !archived)">
                   <span aria-hidden="true" :class="[archived ? 'i-mingcute:unarchive-line' : 'i-mingcute:archive-line', 'size-4 shrink-0']" />
                   {{ archived ? t('stage.chat.sessions.unarchive') : t('stage.chat.sessions.archive') }}
                 </MenuItem>
