@@ -1032,7 +1032,7 @@ export const useProviderStore = defineStore('provider', () => {
       providerConfigStore.ensureProvider(providerId, definitionId, config)
     }
 
-    if (!config && !noCredentials && (providerId !== 'prompt-api'))
+    if (!config && !noCredentials)
       throw new Error(`Provider credentials for ${providerId} not found`)
 
     // Configuration snapshots can arrive after a follower creates an instance.

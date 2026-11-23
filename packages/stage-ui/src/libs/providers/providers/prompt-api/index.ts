@@ -25,12 +25,11 @@ export const providerPromptAPICompatible = defineProvider<OpenAICompatibleConfig
   tasks: ['chat'],
   icon: 'i-simple-icons:googlechrome',
   iconColor: 'i-logos:chrome',
-
+  requiresCredentials: false,
   createProviderConfig: () => openAICompatibleConfigSchema,
   createProvider() {
     return createChatProvider()
   },
-
   validationRequiredWhen: () => true,
   validators: {
     validateConfig: [
