@@ -294,7 +294,9 @@ const { holdLeavingItem } = useListReorderMotion({
 
 <template>
   <div ref="root" :class="['min-h-0 flex flex-col', props.fill ? 'h-full' : '']" @keydown.esc="handleEscape">
+    <!-- A list that fills its column keeps its scrollbar at the edge of the column, so each part pads its own right side. -->
     <SessionsListHeader
+      :class="[props.fill ? 'pr-2' : '']"
       :place="place"
       :live-count="liveRows.length"
       :archived-count="archivedCount"
@@ -304,7 +306,7 @@ const { holdLeavingItem } = useListReorderMotion({
       @open-character="emit('openCharacter')"
     />
 
-    <div :class="['flex shrink-0 items-center']">
+    <div :class="['flex shrink-0 items-center', props.fill ? 'pr-2' : '']">
       <component
         :is="actionButtons.primary"
         v-bind="actionButtons.primaryProps"
@@ -354,7 +356,7 @@ const { holdLeavingItem } = useListReorderMotion({
       </component>
     </div>
 
-    <div v-if="props.compact" :class="['mb-1 mt-1.5 h-px shrink-0 bg-neutral-200/70 dark:bg-neutral-700/70']" />
+    <div v-if="props.compact" :class="['mb-1 mt-1.5 h-px shrink-0 bg-neutral-200/70 dark:bg-neutral-700/70', props.fill ? 'mr-2' : '']" />
     <!--
       The list grows with its rows until its surface reaches the maximum height of the surface. `AnimatedHeight` is the
       only place where the height animates. It sits inside the scroll area and clips its rows, so a row that moves or
@@ -366,7 +368,7 @@ const { holdLeavingItem } = useListReorderMotion({
       <ScrollableArea :class="[props.fill ? 'h-full' : props.compact ? 'max-h-[min(24rem,60dvh)]' : '']" :style="listMaxStyle">
         <AnimatedHeight>
           <!-- The padding keeps the focus rings of the rows inside the clip area. -->
-          <div :class="[props.compact ? 'p-0.5' : 'p-1']">
+          <div :class="[props.fill ? 'py-0.5 pl-0.5 pr-2.5' : props.compact ? 'p-0.5' : 'p-1']">
             <TransitionGroup name="session-item" tag="ul" :class="['relative m-0 list-none p-0']" @before-leave="holdLeavingItem">
               <li
                 v-if="visibleRows.length === 0"
@@ -413,6 +415,7 @@ const { holdLeavingItem } = useListReorderMotion({
       :inert="!selecting"
       :class="[
         'grid shrink-0 transition-[grid-template-rows,opacity] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none',
+        props.fill ? 'pr-2' : '',
         selecting ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0',
       ]"
     >
