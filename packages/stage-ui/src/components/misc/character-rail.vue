@@ -11,6 +11,15 @@ import { useAuthStore } from '../../stores/auth'
 import { useChatSessionStore } from '../../stores/chat/session-store'
 import { useAiriCardStore } from '../../stores/modules/airi-card'
 
+const props = withDefaults(defineProps<{
+  /**
+   * Docks the rail as a column at the edge of a window: avatars only, no surface of its own, and it does not open on hover.
+   * Without it, the rail floats over the stage and opens to show names.
+   * @default false
+   */
+  docked?: boolean
+}>(), { docked: false })
+
 const emit = defineEmits<{
   /** The user asked for the character management page. The host opens it, because each app opens settings its own way. */
   manage: []
@@ -51,7 +60,7 @@ const rail = useTemplateRef<HTMLElement>('rail')
 const hovered = useElementHover(rail, { delayEnter: 80, delayLeave: 200 })
 const keyboardFocused = shallowRef(false)
 /** The rail shows avatars only. It opens to show names while the pointer is over it or the keyboard focus is in it. */
-const open = computed(() => hovered.value || keyboardFocused.value)
+const open = computed(() => !props.docked && (hovered.value || keyboardFocused.value))
 
 function trackFocus(event: FocusEvent) {
   // A click also focuses a button. Only keyboard focus opens the rail, so it closes when the pointer leaves after a click.
@@ -97,12 +106,14 @@ const labelClasses = computed(() => [
     data-testid="character-rail"
     :data-open="open"
     :aria-label="t('stage.character-switcher.title')"
-    :class="[
-      'max-h-[70dvh] flex flex-col gap-2 overflow-x-hidden overflow-y-auto rounded-[28px] p-2 [scrollbar-width:none]',
-      'shadow-sm backdrop-blur-md',
-      'transition-[width,background-color] duration-300 ease-in-out motion-reduce:transition-none',
-      open ? 'w-52 bg-white/85 dark:bg-neutral-900/85' : 'w-14 bg-white/60 dark:bg-neutral-900/60',
-    ]"
+    :class="docked
+      ? ['h-full w-16 flex shrink-0 flex-col items-center gap-2 overflow-x-hidden overflow-y-auto px-3 py-3 [scrollbar-width:none]']
+      : [
+        'max-h-[70dvh] flex flex-col gap-2 overflow-x-hidden overflow-y-auto rounded-[28px] p-2 [scrollbar-width:none]',
+        'shadow-sm backdrop-blur-md',
+        'transition-[width,background-color] duration-300 ease-in-out motion-reduce:transition-none',
+        open ? 'w-52 bg-white/85 dark:bg-neutral-900/85' : 'w-14 bg-white/60 dark:bg-neutral-900/60',
+      ]"
     @focusin="trackFocus"
     @focusout="trackBlur"
   >
@@ -139,6 +150,7 @@ const labelClasses = computed(() => [
         </template>
       </Avatar>
       <span
+        v-if="!docked"
         aria-hidden="true"
         :class="[
           labelClasses,
@@ -165,7 +177,7 @@ const labelClasses = computed(() => [
       <span :class="['size-10 flex shrink-0 items-center justify-center']">
         <span aria-hidden="true" :class="['i-solar:users-group-rounded-outline size-5']" />
       </span>
-      <span aria-hidden="true" :class="[labelClasses, 'font-medium']">
+      <span v-if="!docked" aria-hidden="true" :class="[labelClasses, 'font-medium']">
         {{ t('stage.character-switcher.manage') }}
       </span>
     </BasicButton>

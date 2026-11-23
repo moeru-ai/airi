@@ -15,7 +15,8 @@ const props = withDefaults(defineProps<{
   folders: readonly ChatSessionFolder[]
   isDesktop: boolean
   isCreatingSession: boolean
-  desktopMode?: 'dialog' | 'popover'
+  /** `inline` renders the list in place, without a surface, and ignores `open`. A window that keeps the list beside the chat uses it. */
+  desktopMode?: 'dialog' | 'popover' | 'inline'
 }>(), {
   desktopMode: 'dialog',
 })
@@ -53,8 +54,29 @@ function preserveTriggerFocus(event: Event) {
 </script>
 
 <template>
+  <div v-if="desktopMode === 'inline'" data-testid="sessions-inline" :class="['h-full min-h-0 overflow-y-auto px-2 py-2']">
+    <SessionsList
+      v-model:selecting="selecting"
+      v-model:place="place"
+      compact
+      :rows="rows"
+      :folders="folders"
+      :is-creating-session="isCreatingSession"
+      @new-session="emit('newSession', $event)"
+      @rename-session="emit('renameSession', $event)"
+      @select-session="emit('selectSession', $event)"
+      @delete-session="emit('deleteSession', $event)"
+      @delete-sessions="emit('deleteSessions', $event)"
+      @pin-session="emit('pinSession', $event)"
+      @archive-sessions="emit('archiveSessions', $event)"
+      @move-sessions="emit('moveSessions', $event)"
+      @create-folder="emit('createFolder', $event)"
+      @rename-folder="emit('renameFolder', $event)"
+      @delete-folder="emit('deleteFolder', $event)"
+    />
+  </div>
   <BottomDrawer
-    v-if="!isDesktop"
+    v-else-if="!isDesktop"
     :model-value="open"
     :title="t('stage.chat.sessions.title')"
     minimum-height="half"

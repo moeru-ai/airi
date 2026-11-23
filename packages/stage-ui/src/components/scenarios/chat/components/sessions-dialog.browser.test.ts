@@ -100,6 +100,36 @@ function createHarness(rows = [
 }
 
 describe('sessions dialog actions', () => {
+  it('renders the list in place beside the chat in the inline mode', async () => {
+    const rows = [
+      { meta: sessionMeta('session-one', 2), preview: 'First chat', isActive: true, activityAtLabel: 'now', characterName: 'Airi' },
+    ]
+    const screen = await render(defineComponent({
+      components: { SessionsDialog },
+      setup() {
+        return { rows, selected: ref('none') }
+      },
+      template: `
+        <SessionsDialog
+          :open="false"
+          :rows="rows"
+          :folders="[]"
+          :is-desktop="false"
+          :is-creating-session="false"
+          desktop-mode="inline"
+          @select-session="selected = $event"
+        />
+        <output aria-label="selected-session-id">{{ selected }}</output>
+      `,
+    }), { global: { plugins: [createTestI18n()] } })
+
+    // A closed state and a narrow width still show the list: the window keeps it as a column.
+    await expect.element(screen.getByTestId('sessions-inline')).toBeVisible()
+    expect(document.querySelector('[role="dialog"]')).toBeNull()
+    await screen.getByRole('button', { name: /^First chat/ }).click()
+    await expect.element(screen.getByLabelText('selected-session-id')).toHaveTextContent('session-one')
+  })
+
   it('opens the compact desktop list from its conversation trigger', async () => {
     const rows = [
       { meta: sessionMeta('session-one', 2), preview: 'First chat', isActive: true, activityAtLabel: 'now', characterName: 'Airi' },

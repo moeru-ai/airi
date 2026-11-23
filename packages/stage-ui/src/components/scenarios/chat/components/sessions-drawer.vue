@@ -24,7 +24,7 @@ import { useAiriCardStore } from '../../../../stores/modules/airi-card'
 import { useConsciousnessStore } from '../../../../stores/modules/consciousness'
 
 const props = withDefaults(defineProps<{
-  desktopMode?: 'dialog' | 'popover'
+  desktopMode?: 'dialog' | 'popover' | 'inline'
 }>(), {
   desktopMode: 'dialog',
 })
