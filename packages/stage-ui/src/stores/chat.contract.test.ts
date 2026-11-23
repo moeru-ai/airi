@@ -537,6 +537,51 @@ describe('chat store contract', () => {
     expect(llmStreamMock).not.toHaveBeenCalled()
   })
 
+  it('falls back to hearing-disabled placeholder when an older historical audio message has no completed transcript', async () => {
+    const requests: Conversation[] = []
+    llmStreamMock.mockImplementation(async (model: string, chatProvider: GenerationProvider, context: Conversation, options: LlmStreamOptions) => {
+      const measureContextBytes = (value: Conversation) => new TextEncoder().encode(JSON.stringify(conversationToChatMessages(value))).byteLength
+      requests.push(await options.prepareConversation!(context, { model, providerId: options.providerId, request: chatProvider.generation(model), scope: 'audio-model', measureContextBytes }))
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+
+    // Seed historical session messages with an older audio message that has no transcript
+    sessionMessages['session-1'] = [
+      { role: 'system', content: 'system prompt', createdAt: 1, id: 'system' },
+      {
+        role: 'user',
+        content: [{ type: 'input_audio', input_audio: { data: 'UklGRg==', format: 'wav' } }],
+        createdAt: 2,
+        id: 'old-voice-no-transcript',
+      },
+      {
+        role: 'assistant',
+        content: 'Historical reply',
+        createdAt: 3,
+        id: 'assistant-reply-1',
+      },
+    ]
+
+    const store = useChatStore()
+    await store.submit({
+      sessionId: 'session-1',
+      messageId: 'text-2',
+      text: 'Hello from typed message',
+    })
+
+    await vi.waitFor(() => expect(requests).toHaveLength(1))
+    const userTurns = requests[0].turns.filter(turn => turn.type === 'user')
+    expect(userTurns).toHaveLength(2)
+    // The older historical audio turn falls back to placeholder instead of throwing
+    expect(userTurns[0].content).toContainEqual(
+      { type: 'text', text: 'stage.chat.audio.hearing-disabled' },
+    )
+    // The current typed message succeeds
+    expect(userTurns[1].content).toEqual([
+      expect.objectContaining({ type: 'text', text: expect.stringContaining('Hello from typed message') }),
+    ])
+  })
+
   it('uses the target character settings for a text send to another session', async () => {
     cardSelections.set('bob', { provider: 'bob-provider', model: 'bob-model' })
     llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _messages: Conversation, options: StreamOptions) => {

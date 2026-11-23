@@ -842,7 +842,8 @@ export const useChatStore = defineStore('chat', () => {
           }
 
           if (!text) {
-            if (!hearing.enabled) {
+            const isCurrentTurn = turn.id === source.turns[source.turns.length - 1]?.id
+            if (!hearing.enabled || (!hearing.configured && !isCurrentTurn)) {
               // Stored recordings stay intact. A text-only model can continue the conversation while recognition is disabled.
               turn.content[index] = { type: 'text', text: t('stage.chat.audio.hearing-disabled') }
               continue
@@ -854,17 +855,34 @@ export const useChatStore = defineStore('chat', () => {
 
             const blob = new Blob([new Uint8Array(decodeBase64(part.data))], { type: part.format === 'mp3' ? 'audio/mpeg' : 'audio/wav' })
             let completed = false
-            // A stored recording is a source like the microphone, so every configured provider can transcribe it.
-            for await (const event of transcriber.transcribe({ audio: fileSource(blob).open(signal), signal })) {
+            try {
+              // A stored recording is a source like the microphone, so every configured provider can transcribe it.
+              for await (const event of transcriber.transcribe({ audio: fileSource(blob).open(signal), signal })) {
+                signal.throwIfAborted()
+                if (event.type === 'update')
+                  text = event.segments.map(segment => segment.text).join('')
+                else
+                  completed = true
+              }
+            }
+            catch (error) {
               signal.throwIfAborted()
-              if (event.type === 'update')
-                text = event.segments.map(segment => segment.text).join('')
-              else
-                completed = true
+              if (isCurrentTurn)
+                throw error
+              console.warn('[Chat] Failed to transcribe historical audio recording:', error)
             }
 
-            if (!completed || !text?.trim())
-              throw new Error('The recording has no completed transcription')
+            if (!completed || !text?.trim()) {
+              // NOTICE:
+              // Only fail if current turn lacks transcript; older turns fallback.
+              // Root cause: historical voice recordings without transcript brick all subsequent messages.
+              // Source: https://github.com/moeru-ai/airi/issues/3552
+              // Removal condition: chat persistence tracks transcript status per turn.
+              if (isCurrentTurn)
+                throw new Error('The recording has no completed transcription')
+              turn.content[index] = { type: 'text', text: t('stage.chat.audio.hearing-disabled') }
+              continue
+            }
 
             if (sessionId && stored?.id)
               await writeAudioTranscript(sessionId, stored.id, sourceIndex, text)
