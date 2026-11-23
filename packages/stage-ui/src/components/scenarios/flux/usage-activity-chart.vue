@@ -207,7 +207,7 @@ onMounted(() => {
             :aria-selected="activeIndex === index"
             :class="[
               'grid min-h-0 min-w-0 place-items-center',
-              view === 'daily' ? 'grid-rows-1 rounded-[30%]' : 'grid-rows-7 rounded-[30%/calc(30%/7)]',
+              view === 'daily' ? 'grid-rows-1 rounded-[31.6%]' : 'grid-rows-7 rounded-[31.6%/calc(31.6%/7)]',
               activeIndex === index && 'bg-neutral-950/8 dark:bg-white/10',
             ]"
             :style="{ gridColumnStart: group.column + 1, gridRow: view === 'daily' ? group.row + 1 : '1 / -1' }"
@@ -218,7 +218,7 @@ onMounted(() => {
             <span
               v-for="(level, row) in group.levels"
               :key="row"
-              :class="['pointer-events-none block size-4/5 rounded-[25%]', levelClasses[level]]"
+              :class="['pointer-events-none block size-4/5 rounded-[27%]', levelClasses[level]]"
             />
           </div>
         </div>
