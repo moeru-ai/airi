@@ -21,6 +21,7 @@ export const settingsSearchModules: Readonly<Record<string, SettingsSearchModule
   'settings:flux': { routes: ['/settings/flux'] },
   'settings:usage': { routes: ['/settings/usage'] },
   'settings:memory': { routes: ['/settings/memory'] },
+  'settings:model-library': { routes: ['/settings/model-library'] },
   'settings:models': () => import('./pages/settings/models/index.search'),
   'settings:modules': { routes: ['/settings/modules'] },
   'modules:consciousness': () => import('./pages/settings/modules/consciousness.search'),

@@ -20,6 +20,7 @@
     "./components/scenarios/chat": "./src/components/scenarios/chat/index.ts",
     "./components/scenarios/flux": "./src/components/scenarios/flux/index.ts",
     "./components/scenarios/home-assistant": "./src/components/scenarios/home-assistant/index.ts",
+    "./components/scenarios/settings/model-library": "./src/components/scenarios/settings/model-library/index.ts",
     "./components/scenarios/settings/model-settings": "./src/components/scenarios/settings/model-settings/index.ts",
     "./components/scenes": "./src/components/scenes/index.ts",
     "./components/*": "./src/components/*.ts",
