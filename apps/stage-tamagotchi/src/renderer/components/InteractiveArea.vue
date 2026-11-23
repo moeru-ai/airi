@@ -537,8 +537,9 @@ defineExpose({
           solidSurfaces
             ? 'border border-neutral-200 bg-white p-2 dark:border-neutral-800 dark:bg-neutral-900'
             : [
-              'bg-neutral-100/70 p-2 backdrop-blur-xl dark:bg-neutral-900/65',
-              'transition-colors duration-200 ease-out focus-within:bg-neutral-100 dark:focus-within:bg-neutral-900 motion-reduce:transition-none',
+              // The composer is a step lighter than the chat surface in dark mode, so it stands out on the solid chat.
+              'bg-neutral-100/70 p-2 backdrop-blur-xl dark:bg-neutral-800/70',
+              'transition-colors duration-200 ease-out focus-within:bg-neutral-100 dark:focus-within:bg-neutral-800 motion-reduce:transition-none',
             ],
         ]"
       >

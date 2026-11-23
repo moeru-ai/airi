@@ -64,7 +64,7 @@ useChatDraftHandover(interactiveArea)
       <!--
         The chat area has two root elements, so it takes no class. This wrapper paints its solid surface.
       -->
-      <div :class="['h-full min-w-0 flex-1 bg-neutral-50 dark:bg-neutral-950']">
+      <div :class="['h-full min-w-0 flex-1 bg-white dark:bg-neutral-900']">
         <InteractiveArea
           ref="interactive-area"
           :class="['interaction-area block h-full w-full transition-opacity duration-250']"
