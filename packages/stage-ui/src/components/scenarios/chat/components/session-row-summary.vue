@@ -19,17 +19,21 @@ const { t } = useI18n()
 
 <template>
   <span :class="['min-w-0 flex-1']">
-    <span :class="['block truncate text-sm font-medium']">{{ props.row.preview }}</span>
-    <span :class="['flex items-center gap-2 text-xs font-normal text-neutral-500 dark:text-neutral-400', props.compact ? 'mt-0.5' : 'mt-1']">
+    <!-- The title and the time share the first line, and the last message takes the second line, as in a messenger. -->
+    <span :class="['flex items-baseline gap-2']">
+      <span :class="['min-w-0 flex-1 truncate text-sm font-medium']">{{ props.row.preview }}</span>
       <span
         v-if="props.marks && props.row.meta.pinnedAt"
         role="img"
         :aria-label="t('stage.chat.sessions.pinned')"
         :title="t('stage.chat.sessions.pinned')"
-        :class="['i-mingcute:pin-line size-3.5 shrink-0']"
+        :class="['i-mingcute:pin-line size-3.5 shrink-0 self-center text-neutral-400 dark:text-neutral-500']"
       />
-      <span>{{ props.row.activityAtLabel }}</span>
-      <span v-if="props.marks && props.row.isActive && !props.compact" :class="['text-primary-600 dark:text-primary-300']">{{ t('stage.chat.sessions.current') }}</span>
+      <span :class="['shrink-0 text-xs text-neutral-400 dark:text-neutral-500']">{{ props.row.activityAtLabel }}</span>
+    </span>
+    <span :class="['flex items-center gap-2 text-xs font-normal text-neutral-500 dark:text-neutral-400', props.compact ? 'mt-0.5' : 'mt-1']">
+      <span :class="['min-w-0 flex-1 truncate']">{{ props.row.lastMessage ?? '' }}</span>
+      <span v-if="props.marks && props.row.isActive && !props.compact" :class="['shrink-0 text-primary-600 dark:text-primary-300']">{{ t('stage.chat.sessions.current') }}</span>
       <span :class="['sr-only']">{{ props.row.characterName }}</span>
     </span>
   </span>

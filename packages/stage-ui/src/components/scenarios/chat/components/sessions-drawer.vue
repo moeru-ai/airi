@@ -95,6 +95,25 @@ function previewFor(meta: ChatSessionMeta): string {
   return t('stage.chat.sessions.new-chat-fallback')
 }
 
+/**
+ * The last message of a conversation for the second line of its row. The words of the user carry a prefix, as in a
+ * messenger. A conversation whose messages are not loaded yet has none.
+ */
+function lastMessageFor(meta: ChatSessionMeta): string | undefined {
+  const messages = sessionMessages.value[meta.sessionId] ?? []
+  for (let index = messages.length - 1; index >= 0; index--) {
+    const message = messages[index]
+    if (message.role !== 'user' && message.role !== 'assistant')
+      continue
+    const text = extractMessageText(message).replace(/\s+/g, ' ').trim()
+    if (!text)
+      continue
+    const short = text.length > 80 ? `${text.slice(0, 80)}…` : text
+    return message.role === 'user' ? t('stage.chat.sessions.last-message-you', { text: short }) : short
+  }
+  return undefined
+}
+
 function activityAtFor(meta: ChatSessionMeta): number {
   let lastMessageAt: number | undefined
   for (const message of sessionMessages.value[meta.sessionId] ?? []) {
@@ -116,6 +135,7 @@ const rows = computed<SessionRow[]>(() => {
     .map(({ meta, activityAt }) => ({
       meta,
       preview: previewFor(meta),
+      lastMessage: lastMessageFor(meta),
       isActive: meta.sessionId === activeSessionId.value,
       activityAtLabel: intlFormatDistance(activityAt, referenceTime, { locale: locale.value }),
       characterName: cards.value.get(meta.characterId)?.name ?? t('stage.chat.sessions.unknown-character'),
@@ -207,7 +227,10 @@ async function renameSession(payload: { sessionId: string, title: string }) {
 // re-added to `loadedSessions` as a phantom entry.
 let openGeneration = 0
 
-watch(showDialog, async (open) => {
+// The inline list is always shown, so it loads the messages when it mounts and when the character changes.
+const listShown = computed(() => showDialog.value || props.desktopMode === 'inline')
+
+watch([listShown, currentCharacterId], async ([open]) => {
   if (!open)
     return
   openGeneration += 1
@@ -218,11 +241,11 @@ watch(showDialog, async (open) => {
   // that the user is about to scroll.
   const batchSize = 4
   for (let i = 0; i < knownSessionIds.length; i += batchSize) {
-    if (myGeneration !== openGeneration || !showDialog.value)
+    if (myGeneration !== openGeneration || !listShown.value)
       return
     await Promise.all(knownSessionIds.slice(i, i + batchSize).map(id => chatSession.loadSession(id)))
   }
-})
+}, { immediate: true })
 </script>
 
 <template>
