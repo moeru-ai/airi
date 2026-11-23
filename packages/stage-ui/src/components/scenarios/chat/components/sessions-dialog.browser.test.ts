@@ -84,7 +84,6 @@ function createHarness(rows = [
       <SessionsDialog
         :open="true"
         :rows="rows"
-        :folders="[]"
         :is-desktop="isDesktop"
         :is-creating-session="false"
         @new-session="created += 1"
@@ -113,7 +112,6 @@ describe('sessions dialog actions', () => {
         <SessionsDialog
           v-model:open="open"
           :rows="rows"
-          :folders="[]"
           :is-desktop="true"
           :is-creating-session="false"
           desktop-mode="popover"
@@ -147,7 +145,6 @@ describe('sessions dialog actions', () => {
         <SessionsDialog
           v-model:open="open"
           :rows="rows"
-          :folders="[]"
           :is-desktop="true"
           :is-creating-session="false"
           desktop-mode="popover"

@@ -13,8 +13,6 @@ import SessionRowAvatar from './session-row-avatar.vue'
 const props = defineProps<{
   row: SessionRow
   compact: boolean
-  /** The folder of the conversation. The folder view leaves it out, because its title names the folder. */
-  folderName?: string
   marks: boolean
 }>()
 
@@ -35,10 +33,6 @@ const { t } = useI18n()
       />
       <span>{{ props.row.activityAtLabel }}</span>
       <span v-if="props.marks && props.row.isActive && !props.compact" :class="['text-primary-600 dark:text-primary-300']">{{ t('stage.chat.sessions.current') }}</span>
-      <span v-if="props.folderName" :class="['min-w-0 inline-flex items-center gap-1']">
-        <span aria-hidden="true" :class="['i-mingcute:folder-line size-3.5 shrink-0']" />
-        <span :class="['truncate']">{{ props.folderName }}</span>
-      </span>
       <span
         v-if="props.marks && props.row.meta.cloudChatId"
         role="img"

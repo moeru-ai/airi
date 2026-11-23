@@ -4,10 +4,10 @@ import type {} from 'pinia-plugin-synced'
 import type { ChatSendOutboxEntry } from '../../database/repos/chat-sessions.repo'
 import type { ChatWsClient, CloudChatMapper } from '../../libs/chat-sync'
 import type { ChatHistoryItem } from '../../types/chat'
-import type { ChatSessionFolder, ChatSessionMeta, ChatSessionRecord, ChatSessionsExport, ChatSessionsIndex, ChatSessionTask, StoredVoiceInterruption } from '../../types/chat-session'
+import type { ChatSessionMeta, ChatSessionRecord, ChatSessionsExport, ChatSessionsIndex, ChatSessionTask, StoredVoiceInterruption } from '../../types/chat-session'
 
 import { errorMessageFrom } from '@moeru/std'
-import { cloneDeep, omit } from 'es-toolkit'
+import { cloneDeep } from 'es-toolkit'
 import { nanoid } from 'nanoid'
 import { defineStore, getActivePinia, storeToRefs } from 'pinia'
 import { computed, ref, toRaw, watch } from 'vue'
@@ -741,56 +741,6 @@ export const useChatSessionStore = defineStore('chat-session', () => {
         opened[characterId] = openedSessionId
     }
     return opened
-  }
-
-  /** Moves conversations into a folder, or out of their folder with `undefined`. An unknown folder moves nothing. */
-  async function moveSessionsToFolder(sessionIds: string[], folderId: string | undefined) {
-    if (folderId !== undefined && !index.value?.folders?.[folderId])
-      return
-    await updateSessionMetas(sessionIds, meta => ({ ...meta, folderId }))
-  }
-
-  /** Creates a folder of the conversation list and returns its ID. A blank name creates nothing. */
-  async function createFolder(name: string): Promise<string | undefined> {
-    const normalizedName = name.trim()
-    if (!normalizedName)
-      return undefined
-    // A folder goes into the loaded index of the current account. While an account change loads it, a new index here
-    // has no conversations, and its save replaces the stored index.
-    if (!index.value || index.value.userId !== getCurrentUserId())
-      throw new Error('Chat sessions are not ready')
-
-    const folder: ChatSessionFolder = { id: nanoid(), name: normalizedName, createdAt: Date.now() }
-    index.value.folders = { ...index.value.folders, [folder.id]: folder }
-    await persistIndex()
-    return folder.id
-  }
-
-  async function renameFolder(folderId: string, name: string): Promise<boolean> {
-    const folder = index.value?.folders?.[folderId]
-    const normalizedName = name.trim()
-    if (!index.value || !folder || !normalizedName)
-      return false
-
-    index.value.folders = { ...index.value.folders, [folderId]: { ...folder, name: normalizedName } }
-    await persistIndex()
-    return true
-  }
-
-  /**
-   * Deletes a folder. Its conversations stay and return to the conversation list.
-   *
-   * A conversation is in a folder only while the index has the folder, so one save of the index deletes it. The
-   * conversations then drop the folder from their records. A record that still names it is in no folder.
-   */
-  async function deleteFolder(folderId: string) {
-    if (!index.value?.folders?.[folderId])
-      return
-
-    index.value.folders = omit(index.value.folders, [folderId])
-    await persistIndex()
-    const members = Object.values(sessionMetas.value).filter(meta => meta.folderId === folderId).map(meta => meta.sessionId)
-    await updateSessionMetas(members, meta => ({ ...meta, folderId: undefined }))
   }
 
   async function syncPendingSessionTitle(sessionId: string): Promise<boolean> {
@@ -2221,10 +2171,6 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     renameSession,
     setSessionPinned,
     setSessionsArchived,
-    moveSessionsToFolder,
-    createFolder,
-    renameFolder,
-    deleteFolder,
     deleteSession,
     deleteSessions,
     activateCurrentUser,
@@ -2263,10 +2209,6 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       'renameSession',
       'setSessionPinned',
       'setSessionsArchived',
-      'moveSessionsToFolder',
-      'createFolder',
-      'renameFolder',
-      'deleteFolder',
       'resetAllSessions',
       'setSessionTask',
       'deleteHiddenSession',
