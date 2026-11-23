@@ -148,7 +148,8 @@ const labelClasses = computed(() => [
         {{ entry.name }}
       </span>
     </BasicButton>
-    <span aria-hidden="true" :class="['mx-2 h-px w-6 shrink-0 bg-neutral-400/40']" />
+    <!-- The line has no fixed width, so it spans the closed rail and the open rail. -->
+    <span aria-hidden="true" :class="['mx-2 h-px shrink-0 bg-neutral-400/40']" />
     <BasicButton
       size="unset"
       data-testid="character-rail-manage"
