@@ -727,6 +727,20 @@
     {
       "path": "packages/i18n/src/locales/en/settings.yaml",
       "code": "unused-key",
+      "key": "settings.pages.models.library.description",
+      "message": "\"settings.pages.models.library.description\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.models.library.title",
+      "message": "\"settings.pages.models.library.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
       "key": "settings.pages.models.sections.section.live2d.description",
       "message": "\"settings.pages.models.sections.section.live2d.description\" is not used.",
       "count": 1
