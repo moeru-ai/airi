@@ -3,7 +3,7 @@ import type { ProviderCatalogService } from '../../services/domain/provider-cata
 
 import { Buffer } from 'node:buffer'
 
-import { ApiError } from '@proj-airi/http-error-shared'
+import { ApiError } from '@proj-airi/http-shared'
 import { describe, expect, it, vi } from 'vitest'
 
 import { createEnvelopeCrypto } from '../../utils/envelope-crypto'

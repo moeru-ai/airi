@@ -1,7 +1,7 @@
 import type { Database } from '../../../libs/db'
 import type { Verifier } from '../verifier'
 
-import { createInternalError } from '@proj-airi/http-error-shared'
+import { createInternalError } from '@proj-airi/http-shared'
 
 import { APPLE_IAP_PROCESSOR, findLiveAccount } from '../evidence'
 import { requireVerifier } from '../verifier'

@@ -8,7 +8,7 @@ import type { RateLimitMetrics } from './otel'
 import { createHash } from 'node:crypto'
 
 import { account, isUserBannedNow, user } from '@proj-airi/auth-shared'
-import { createBadRequestError, createForbiddenError, createInternalError, ok } from '@proj-airi/http-error-shared'
+import { createBadRequestError, createForbiddenError, createInternalError, ok } from '@proj-airi/http-shared'
 import { and, eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { boolean, email, jwsCompact, nonEmpty, object, pipe, safeParse, string, transform } from 'valibot'

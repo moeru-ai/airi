@@ -1,5 +1,5 @@
 {
-  "name": "@proj-airi/http-error-shared",
+  "name": "@proj-airi/http-shared",
   "type": "module",
   "version": "0.15.4",
   "private": true,

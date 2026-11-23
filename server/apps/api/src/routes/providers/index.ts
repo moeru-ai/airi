@@ -1,7 +1,7 @@
 import type { ProviderService } from '../../services/domain/providers'
 import type { HonoEnv } from '../../types/hono'
 
-import { createBadRequestError, noContent, ok } from '@proj-airi/http-error-shared'
+import { createBadRequestError, noContent, ok } from '@proj-airi/http-shared'
 import { Hono } from 'hono'
 import { safeParse } from 'valibot'
 

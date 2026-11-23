@@ -6,7 +6,7 @@ import type { HonoEnv } from './routes'
 import { isIP } from 'node:net'
 
 import { getConnInfo } from '@hono/node-server/conninfo'
-import { createTooManyRequestsError } from '@proj-airi/http-error-shared'
+import { createTooManyRequestsError } from '@proj-airi/http-shared'
 import { rateLimiter as createRateLimiter } from 'hono-rate-limiter'
 
 interface RateLimitOptions {

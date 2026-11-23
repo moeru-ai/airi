@@ -1,7 +1,7 @@
 import type { CharacterService } from '../../services/domain/characters'
 import type { HonoEnv } from '../../types/hono'
 
-import { createBadRequestError, created, createForbiddenError, createNotFoundError, noContent, ok } from '@proj-airi/http-error-shared'
+import { createBadRequestError, created, createForbiddenError, createNotFoundError, noContent, ok } from '@proj-airi/http-shared'
 import { Hono } from 'hono'
 import { safeParse } from 'valibot'
 

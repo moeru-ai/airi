@@ -1,7 +1,7 @@
 import type { CharacterCardService } from '../../services/domain/character-cards'
 import type { HonoEnv } from '../../types/hono'
 
-import { createNotFoundError, noContent, ok } from '@proj-airi/http-error-shared'
+import { createNotFoundError, noContent, ok } from '@proj-airi/http-shared'
 import { Hono } from 'hono'
 
 import { authGuard } from '../../middlewares/auth'

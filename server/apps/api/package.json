@@ -49,7 +49,7 @@
     "@opentelemetry/sdk-trace-node": "catalog:",
     "@opentelemetry/semantic-conventions": "catalog:",
     "@proj-airi/auth-shared": "workspace:*",
-    "@proj-airi/http-error-shared": "workspace:*",
+    "@proj-airi/http-shared": "workspace:*",
     "@proj-airi/server-sdk-shared": "workspace:*",
     "@proj-airi/trace-kit": "workspace:^",
     "@xsai/shared-stream": "catalog:",

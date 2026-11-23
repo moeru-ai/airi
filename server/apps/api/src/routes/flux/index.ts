@@ -3,7 +3,7 @@ import type { FluxService } from '../../services/domain/flux'
 import type { FluxTransactionService } from '../../services/domain/flux-transaction'
 import type { HonoEnv } from '../../types/hono'
 
-import { createBadRequestError, ok, paginated } from '@proj-airi/http-error-shared'
+import { createBadRequestError, ok, paginated } from '@proj-airi/http-shared'
 import { Hono } from 'hono'
 import { boolean, nonEmpty, object, parse, pipe, safeParse, string } from 'valibot'
 

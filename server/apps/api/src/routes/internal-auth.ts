@@ -3,7 +3,7 @@ import type { ProductEventService } from '../services/domain/product-events'
 import type { UserDeletionExecutor, UserDeletionReason } from '../services/domain/user-deletion'
 import type { HonoEnv } from '../types/hono'
 
-import { createBadRequestError, createSubscriptionActiveError, ok } from '@proj-airi/http-error-shared'
+import { createBadRequestError, createSubscriptionActiveError, ok } from '@proj-airi/http-shared'
 import { Hono } from 'hono'
 import { nonEmpty, object, picklist, pipe, safeParse, string, trim } from 'valibot'
 

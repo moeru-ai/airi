@@ -3,7 +3,7 @@ import type { Context } from 'hono'
 import type { HonoEnv } from '../../../types/hono'
 import type { V1RouteDeps } from './types'
 
-import { createBadRequestError } from '@proj-airi/http-error-shared'
+import { createBadRequestError } from '@proj-airi/http-shared'
 
 import { authGuard } from '../../../middlewares/auth'
 import { configGuard } from '../../../middlewares/config-guard'

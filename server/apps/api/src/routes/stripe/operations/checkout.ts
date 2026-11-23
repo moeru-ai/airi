@@ -7,7 +7,7 @@ import type { PaymentService } from '../../../services/domain/payment'
 import type { ProductEventService } from '../../../services/domain/product-events'
 import type { StripePriceCatalog } from '../price-catalog'
 
-import { createBadRequestError, createServiceUnavailableError } from '@proj-airi/http-error-shared'
+import { createBadRequestError, createServiceUnavailableError } from '@proj-airi/http-shared'
 import { safeParse } from 'valibot'
 
 import { resolveCheckoutRedirectBase } from '../../../utils/origin'

@@ -10,7 +10,7 @@ import type {
   ProviderCatalogTtsVoiceLanguage,
 } from '../../../schemas/provider-catalog'
 
-import { createBadRequestError } from '@proj-airi/http-error-shared'
+import { createBadRequestError } from '@proj-airi/http-shared'
 import { and, asc, eq, inArray } from 'drizzle-orm'
 
 import {

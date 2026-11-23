@@ -3,7 +3,7 @@ import type { Voice } from 'unspeech'
 import type { TtsAdapterContext, TtsResult, TtsVoiceCatalogContext } from './types'
 
 import { errorMessageFrom } from '@moeru/std'
-import { createBadGatewayError, createInternalError } from '@proj-airi/http-error-shared'
+import { createBadGatewayError, createInternalError } from '@proj-airi/http-shared'
 import { generateSpeechResponse, listVoices, UnSpeechAPIError } from 'unspeech'
 
 import { TtsUpstreamResponseError } from './types'

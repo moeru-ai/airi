@@ -1,7 +1,7 @@
 import type { ChatService } from '../../services/domain/chats'
 import type { HonoEnv } from '../../types/hono'
 
-import { createBadRequestError, created, ok } from '@proj-airi/http-error-shared'
+import { createBadRequestError, created, ok } from '@proj-airi/http-shared'
 import { Hono } from 'hono'
 import { safeParse } from 'valibot'
 

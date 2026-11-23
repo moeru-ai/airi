@@ -21,7 +21,7 @@ The counts are calls, not routes. `get-session` has two calls and `GET /stripe/p
 
 ## Decision
 
-- Add `ok`, `created`, `noContent`, `list`, and `paginated` to `@proj-airi/http-error-shared`.
+- Rename `@proj-airi/http-error-shared` to `@proj-airi/http-shared`. Add `ok`, `created`, `noContent`, `list`, and `paginated` to it.
 - `ok` returns `200` and `created` returns `201`. Each rejects an array at compile time.
 - `noContent` returns `204` with no body. `list` returns `{ records }`. `paginated` returns `{ records, hasMore }`.
 - Each function returns the Hono typed response, so `hc<AppType>` still infers each body and status.
@@ -29,7 +29,7 @@ The counts are calls, not routes. `get-session` has two calls and `GET /stripe/p
 - A known deviation or a protocol-owned response keeps `c.json`. It disables the rule on its line and names the reason.
 - Each route that follows the rules uses the functions. Its body and status do not change.
 
-The functions go in `http-error-shared`, not in a new package. They serve the same routes and need only `hono`. A new package adds Dockerfile, manifest, and lockfile entries for no gain. The package keeps its name, because a rename changes 93 files.
+The functions go in the existing package, not in a new package. They serve the same routes and need only `hono`. A new package adds Dockerfile, manifest, and lockfile entries for no gain. The package now holds more than errors, so its name changes to `http-shared`. Earlier ADRs use the new name.
 
 ## Non-goals
 
@@ -41,7 +41,7 @@ The functions go in `http-error-shared`, not in a new package. They serve the sa
 
 ```mermaid
 graph LR
-  ApiRoutes[api routes] --> Shared[http-error-shared]
+  ApiRoutes[api routes] --> Shared[http-shared]
   AuthRoutes[auth routes] --> Shared
   Shared --> Hono[hono Context]
   Client[stage-ui hc client] -. AppType .-> ApiRoutes
@@ -51,16 +51,21 @@ graph LR
 
 ```text
 eslint.config.ts                              forbids c.json in server app sources
-server/packages/http-error-shared/
+server/packages/http-shared/                  renamed from http-error-shared
   src/response.ts, src/response.test.ts       success responses and tests
   README.md, package.json                     documents the success responses
 server/apps/api/
+  Dockerfile, production/railway/Dockerfile   copy the renamed package
+  package.json, src/**                        import the renamed package
   src/app.ts                                  marks probes and 404
   src/routes/**                               uses the functions, marks deviations
 server/apps/auth/
+  Dockerfile, package.json, src/**            import the renamed package
   src/server.ts, src/routes.ts                uses ok, marks protocol responses
 server/docs/ai/adr/
   2026-11-23-typed-success-responses.md
+  2026-10-09, 2026-10-19 ADRs                 use the new package name
+pnpm-lock.yaml                                renamed importer
 ```
 
 ## Response flow
@@ -84,7 +89,7 @@ sequenceDiagram
 
 ## Test plan
 
-- `http-error-shared/src/response.test.ts` checks each status and body. A `@ts-expect-error` line proves that `ok` rejects an array.
-- Typecheck `@proj-airi/http-error-shared`, `@proj-airi/api-server`, `@proj-airi/auth-server`, and `@proj-airi/stage-ui`. The `stage-ui` typecheck proves that `hc` still infers each body.
+- `http-shared/src/response.test.ts` checks each status and body. A `@ts-expect-error` line proves that `ok` rejects an array.
+- Typecheck `@proj-airi/http-shared`, `@proj-airi/api-server`, `@proj-airi/auth-server`, and `@proj-airi/stage-ui`. The `stage-ui` typecheck proves that `hc` still infers each body.
 - Run the `test:run` script of each changed workspace. The route tests assert the bodies and statuses that did not change.
 - Run ESLint on the changed files. It must report no `c.json` call without a reason.

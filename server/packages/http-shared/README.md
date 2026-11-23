@@ -1,4 +1,4 @@
-# `@proj-airi/http-error-shared`
+# `@proj-airi/http-shared`
 
 The HTTP error model and the typed success responses that the resource API and the auth service share.
 
@@ -39,7 +39,7 @@ A success response has no envelope. Each function keeps the Hono response type, 
 `ok` and `created` reject an array at compile time.
 
 ```ts
-import { created, list, noContent, ok } from '@proj-airi/http-error-shared'
+import { created, list, noContent, ok } from '@proj-airi/http-shared'
 
 new Hono<HonoEnv>()
   .get('/', async c => list(c, await service.list(c.get('user')!.id)))

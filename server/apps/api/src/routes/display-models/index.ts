@@ -1,7 +1,7 @@
 import type { DisplayModelService } from '../../services/domain/display-models'
 import type { HonoEnv } from '../../types/hono'
 
-import { noContent, ok } from '@proj-airi/http-error-shared'
+import { noContent, ok } from '@proj-airi/http-shared'
 import { Hono } from 'hono'
 
 import { authGuard } from '../../middlewares/auth'

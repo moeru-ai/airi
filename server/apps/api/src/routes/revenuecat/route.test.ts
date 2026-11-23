@@ -8,7 +8,7 @@ import type { HonoEnv } from '../../types/hono'
 
 import { createHmac } from 'node:crypto'
 
-import { ApiError } from '@proj-airi/http-error-shared'
+import { ApiError } from '@proj-airi/http-shared'
 import { eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
