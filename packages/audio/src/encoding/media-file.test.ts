@@ -134,4 +134,3 @@ it('cancels the body when the decoded stream is cancelled', async () => {
 
   await vi.waitFor(() => expect(cancel).toHaveBeenCalled())
 })
-

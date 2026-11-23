@@ -1,5 +1,4 @@
 import type { AudioSource, PcmBlock } from '@proj-airi/pipelines-audio'
-
 import type { Source } from 'mediabunny'
 
 import { ALL_FORMATS, AudioSample, AudioSampleSink, AudioSampleSource, BlobSource, BufferTarget, Input, Output, ReadableStreamSource, WavOutputFormat } from 'mediabunny'
@@ -105,11 +104,18 @@ export function fileSource(file: Blob): AudioSource {
  * playback.enqueue({ id, audio: streamSource(response.body!).open(signal) })
  */
 export function streamSource(body: ReadableStream<Uint8Array>): AudioSource {
-  return decodedSource(() => new ReadableStreamSource(body))
+  // Mediabunny cancels the body only when it has started to read it. A release before the first read cancels it here.
+  return decodedSource(() => new ReadableStreamSource(body), () => {
+    if (!body.locked)
+      void body.cancel().catch(() => {})
+  })
 }
 
-/** Decodes the media from `createSource` into PCM blocks. Each `open` creates a new source. */
-function decodedSource(createSource: () => Source): AudioSource {
+/**
+ * Decodes the media from `createSource` into PCM blocks. Each `open` creates a new source.
+ * `onRelease` runs once when the decoder is released.
+ */
+function decodedSource(createSource: () => Source, onRelease?: () => void): AudioSource {
   return {
     open(signal) {
       const input = new Input({ source: createSource(), formats: ALL_FORMATS })
@@ -126,6 +132,7 @@ function decodedSource(createSource: () => Source): AudioSource {
         signal.removeEventListener('abort', abort)
         void samples?.return(undefined).catch(() => {})
         input.dispose()
+        onRelease?.()
       }
       let output: ReadableStreamDefaultController<PcmBlock> | undefined
       function abort() {
