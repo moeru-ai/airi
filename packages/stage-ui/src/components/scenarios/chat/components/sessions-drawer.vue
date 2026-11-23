@@ -14,7 +14,6 @@ import SessionsDialog from './sessions-dialog.vue'
 
 import { useAnalytics } from '../../../../composables/use-analytics'
 import { useBreakpoints } from '../../../../composables/use-breakpoints'
-import { useCharacterPreviews } from '../../../../composables/use-character-previews'
 import { extractMessageText } from '../../../../libs/chat-sync'
 import { useAuthStore } from '../../../../stores/auth'
 import { useChatStore } from '../../../../stores/chat'
@@ -31,6 +30,11 @@ const props = withDefaults(defineProps<{
   desktopMode: 'dialog',
   desktop: false,
 })
+
+const emit = defineEmits<{
+  /** The user asked for the settings of the character. The host opens them, because each app opens settings its own way. */
+  openCharacterSettings: [characterId: string]
+}>()
 
 const showDialog = defineModel({ type: Boolean, default: false, required: false })
 
@@ -56,11 +60,10 @@ const isCreatingSession = ref(false)
 const effectiveUserId = computed(() => userId.value || 'local')
 
 const currentCharacterId = computed(() => activeCardId.value || 'default')
-const characterPreviews = useCharacterPreviews()
 /** The current character, for the title of a list that stands beside the chat. */
 const currentCharacter = computed(() => {
   const card = cards.value.get(currentCharacterId.value)
-  return card ? { name: card.name, preview: characterPreviews.value.get(currentCharacterId.value) } : undefined
+  return card ? { name: card.name } : undefined
 })
 
 // The list shows the conversations of the current character only. The user changes the character to see the others.
@@ -231,6 +234,7 @@ watch(showDialog, async (open) => {
     :is-creating-session="isCreatingSession"
     :desktop-mode="props.desktopMode"
     :character="currentCharacter"
+    @open-character="emit('openCharacterSettings', currentCharacterId)"
     @new-session="reportFailure(startNewSession)"
     @select-session="selectSession"
     @delete-session="sessionId => reportFailure(() => chat.deleteSession(sessionId))"

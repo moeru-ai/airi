@@ -281,6 +281,7 @@ chat:
     delete-selected: Delete {count}
     confirm-delete-selected: Confirm delete {count}
     all-conversations: All chats
+    character-settings: Character settings
     switch-place: Switch view
     unknown-character: Unknown character
     pinned: Pinned

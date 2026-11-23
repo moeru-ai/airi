@@ -17,7 +17,7 @@ const props = withDefaults(defineProps<{
   /** `inline` renders the list in place, without a surface, and ignores `open`. A window that keeps the list beside the chat uses it. */
   desktopMode?: 'dialog' | 'popover' | 'inline'
   /** The character of the conversations. The inline list names it in its title. */
-  character?: { name: string, preview?: string }
+  character?: { name: string }
 }>(), {
   desktopMode: 'dialog',
 })
@@ -31,6 +31,7 @@ const emit = defineEmits<{
   'pinSession': [payload: { sessionId: string, pinned: boolean }]
   'archiveSessions': [payload: { sessionIds: string[], archived: boolean }]
   'update:open': [open: boolean]
+  'openCharacter': []
 }>()
 
 /** The place of the list. The owner can keep it, so the list opens where the user left it. */
@@ -59,6 +60,7 @@ function preserveTriggerFocus(event: Event) {
       fill
       :character="character"
       :class="['h-full']"
+      @open-character="emit('openCharacter')"
       :rows="rows"
       :is-creating-session="isCreatingSession"
       @new-session="emit('newSession')"

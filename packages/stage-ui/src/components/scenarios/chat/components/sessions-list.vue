@@ -21,7 +21,7 @@ const props = withDefaults(defineProps<{
   /** The list fills the height of its column and scrolls inside it, for example beside the chat of a desktop window. */
   fill?: boolean
   /** The character of the conversations. The title names it. See `SessionsListHeader`. */
-  character?: { name: string, preview?: string }
+  character?: { name: string }
 }>(), {
   compact: false,
   fill: false,
@@ -36,6 +36,8 @@ const emit = defineEmits<{
   selectSession: [sessionId: string]
   pinSession: [payload: { sessionId: string, pinned: boolean }]
   archiveSessions: [payload: { sessionIds: string[], archived: boolean }]
+  /** Opens the settings of the character of the list. */
+  openCharacter: []
 }>()
 
 const { t } = useI18n()
@@ -299,6 +301,7 @@ const { holdLeavingItem } = useListReorderMotion({
       :compact="props.compact"
       :character="props.character"
       @select-place="setPlace"
+      @open-character="emit('openCharacter')"
     />
 
     <div :class="['flex shrink-0 items-center']">

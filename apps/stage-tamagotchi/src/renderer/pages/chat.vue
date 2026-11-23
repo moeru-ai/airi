@@ -48,6 +48,7 @@ useChatDraftHandover(interactiveArea)
       <ChatSessionsDrawer
         desktop-mode="inline"
         desktop
+        @open-character-settings="characterId => openSettings({ route: `/settings/airi-card/${encodeURIComponent(characterId)}` })"
         :class="['w-60 shrink-0 border-r border-neutral-200/70 dark:border-neutral-800/70']"
       />
       <InteractiveArea

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ChatSessionsPlace } from '../../../../types/chat-session'
 
-import { Avatar, DropdownMenu, MenuItem, MenuSeparator } from '@proj-airi/ui'
+import { DropdownMenu, MenuItem, MenuSeparator } from '@proj-airi/ui'
 import { computed, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -20,11 +20,13 @@ const props = defineProps<{
    * The character of the conversations. A column beside the chat names it in the title, as Discord names the server
    * above its channels. The archive then shows as a second line of the title.
    */
-  character?: { name: string, preview?: string }
+  character?: { name: string }
 }>()
 
 const emit = defineEmits<{
   selectPlace: [place: ChatSessionsPlace]
+  /** Opens the settings of the character, like the server settings in the server menu of Discord. */
+  openCharacter: []
 }>()
 
 const { t } = useI18n()
@@ -56,15 +58,6 @@ const menuCheckClasses = ['i-mingcute:check-line size-4 shrink-0 text-primary-50
           ]"
         >
           <template v-if="props.character">
-            <!-- Display model previews are portrait. Align them to the top so the circle keeps the head. -->
-            <Avatar
-              :src="props.character.preview"
-              :class="['block size-6 shrink-0 rounded-full bg-neutral-200/70 text-neutral-600 dark:bg-neutral-700/70 dark:text-neutral-300', '[&_[data-avatar-image]]:object-top']"
-            >
-              <template #fallback>
-                <span :class="['text-xs font-semibold']">{{ props.character.name.slice(0, 1) }}</span>
-              </template>
-            </Avatar>
             <span :class="['min-w-0 flex flex-col items-start leading-tight']">
               <span :class="['max-w-full truncate']">{{ props.character.name }}</span>
               <span v-if="props.place.kind === 'archive'" :class="['text-xs font-normal text-neutral-500 dark:text-neutral-400']">{{ placeLabel }}</span>
@@ -97,6 +90,13 @@ const menuCheckClasses = ['i-mingcute:check-line size-4 shrink-0 text-primary-50
         <span :class="menuCountClasses">{{ props.archivedCount }}</span>
         <span v-if="props.place.kind === 'archive'" aria-hidden="true" :class="menuCheckClasses" />
       </MenuItem>
+      <template v-if="props.character">
+        <MenuSeparator />
+        <MenuItem @select="emit('openCharacter')">
+          <span aria-hidden="true" :class="['i-mingcute:settings-3-line size-4 shrink-0']" />
+          <span :class="['min-w-0 truncate']">{{ t('stage.chat.sessions.character-settings') }}</span>
+        </MenuItem>
+      </template>
     </DropdownMenu>
   </div>
 </template>
