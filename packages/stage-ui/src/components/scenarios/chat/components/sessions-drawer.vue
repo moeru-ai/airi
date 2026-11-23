@@ -227,10 +227,12 @@ async function renameSession(payload: { sessionId: string, title: string }) {
 // re-added to `loadedSessions` as a phantom entry.
 let openGeneration = 0
 
-// The inline list is always shown, so it loads the messages when it mounts and when the character changes.
+// The inline list is always shown, so it loads the messages when it mounts and when its conversations change, for
+// example after the index loads or the character changes. A loaded conversation returns at once.
 const listShown = computed(() => showDialog.value || props.desktopMode === 'inline')
+const ownedSessionKey = computed(() => ownedSessions.value.map(meta => meta.sessionId).join('\n'))
 
-watch([listShown, currentCharacterId], async ([open]) => {
+watch([listShown, ownedSessionKey], async ([open]) => {
   if (!open)
     return
   openGeneration += 1
