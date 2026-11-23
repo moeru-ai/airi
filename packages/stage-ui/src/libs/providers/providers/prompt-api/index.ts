@@ -81,4 +81,15 @@ export const providerPromptAPICompatible = defineProvider<OpenAICompatibleConfig
       }),
     ],
   },
+  extraMethods: {
+    listModels: async () => {
+      return [
+        {
+          id: 'prompt-api-model',
+          name: 'Prompt API',
+          provider: 'Browser',
+        },
+      ]
+    },
+  },
 })
