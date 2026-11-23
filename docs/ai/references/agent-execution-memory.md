@@ -28,7 +28,7 @@ The bundled Agent currently receives only `computer_observe`, `computer_act`, `c
 
 ## Execution invariants
 
-Each approval lane uses Ask, Auto, or Full. Auto is not implemented yet. Ask requires confirmation before each action. Full grants session-scoped execution for that lane only.
+Each approval lane uses Ask, Auto, or Full. Ask confirms each action. Auto applies a closed policy per lane and reviews only admitted actions. Full grants session-scoped execution for that lane.
 
 Computer Use Full does not depend on Command Full. Chat and Agent use the same Host action, approval, settlement, and trace path.
 

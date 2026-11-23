@@ -1,7 +1,12 @@
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import type { TerminalNotice, TerminalSnapshot } from '@proj-airi/stage-shared/terminal-approval'
 
+import type { AutoApprovalReviewResult } from '../../../../shared/eventa/terminal-approval'
 import type { TerminalApprovalOptions } from './terminal-approval'
+
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { ErrorCode, McpError } from '@modelcontextprotocol/sdk/types.js'
@@ -23,8 +28,20 @@ function barrier<T>() {
   }
 }
 
+const modelAllow: AutoApprovalReviewResult = { decision: 'allow', reasonCode: 'model_allow', hasUserTranscript: true }
 const evidence: Array<Record<string, unknown>> = []
 const cleanups: Array<() => Promise<void>> = []
+
+function autoWorkspaceDir() {
+  const root = mkdtempSync(join(tmpdir(), 'auto-term-'))
+  writeFileSync(join(root, 'file'), 'x')
+  cleanups.push(async () => {
+    rmSync(root, { recursive: true, force: true })
+  })
+  const executorPlatform = process.platform === 'win32' ? 'win32' as const : 'linux' as const
+  return { root, executorPlatform }
+}
+
 afterEach(async () => {
   for (const cleanup of cleanups.splice(0))
     await cleanup()
@@ -33,12 +50,25 @@ afterEach(async () => {
     console.info(JSON.stringify({ boundary: 'Mock Main UI decision and controlled executor. No real approval or spawn.', ...record }))
 })
 
-function fixture(shared: { actions?: PendingActionManager, runtime?: ReturnType<typeof createComputerUseRuntime>, sessionId?: string, turnId?: string, turbo?: boolean, snapshot?: Partial<TerminalSnapshot> } = {}) {
+function fixture(shared: {
+  actions?: PendingActionManager
+  runtime?: ReturnType<typeof createComputerUseRuntime>
+  sessionId?: string
+  turnId?: string
+  turbo?: boolean
+  bundled?: boolean
+  autoWorkspace?: string
+  reviewAuto?: TerminalApprovalOptions['reviewAuto']
+  reviewTimeoutMs?: number
+  snapshot?: Partial<TerminalSnapshot>
+} = {}) {
   const actions = shared.actions ?? new PendingActionManager()
   const attribution = { sessionId: shared.sessionId ?? 'session-a', turnId: shared.turnId ?? 'turn-a', toolCallId: `call-${shared.sessionId ?? 'a'}`, senderWebContentsId: 71 }
   const request = actions.registerRequest({ sessionId: attribution.sessionId, turnId: attribution.turnId, text: 'Run the isolated fixture.' }, attribution.senderWebContentsId)
   if (shared.turbo)
     actions.setTerminalTurbo(attribution.sessionId, attribution.senderWebContentsId, true)
+  if (shared.autoWorkspace)
+    actions.setGrant('terminal', attribution.sessionId, attribution.senderWebContentsId, 'auto', { workspaceRoot: shared.autoWorkspace })
   const snapshot: TerminalSnapshot = { protocol: 'airi-terminal-approval/1', preparedId: 'prepared-a', requestId: request.id, toolCallId: attribution.toolCallId, command: 'fixture-command', shell: 'fixture-shell', argv: ['--command', 'fixture-command'], effectiveCwd: '/fixture', cwdSource: 'runner-state', executorPid: 101, executorPlatform: 'fixture', executorCwd: '/fixture', timeoutMs: 1000, detached: false, windowsHide: true, ...shared.snapshot }
   const decision = barrier<boolean>()
   const ready = barrier<void>()
@@ -63,11 +93,11 @@ function fixture(shared: { actions?: PendingActionManager, runtime?: ReturnType<
   })
   const client = new Client({ name: 'mock-main', version: '1.0.0' })
   client.request = rpc as Client['request']
-  const connection = { client, serverName: 'fixture', nonce: 'c'.repeat(64), pid: 101, isCurrent: () => true, bundledTerminal: !!shared.turbo }
+  const connection = { client, serverName: 'fixture', nonce: 'c'.repeat(64), pid: 101, isCurrent: () => true, bundledTerminal: shared.bundled ?? !!shared.turbo }
   const options: TerminalApprovalOptions = { actions, present: vi.fn(() => decision.promise), presentComputerUse: vi.fn(async () => false), notify: vi.fn(async (notice: TerminalNotice) => {
     notices.push(structuredClone(notice))
     return { status: 'stored' as const, sessionId: notice.sessionId, messageId: `terminal:${notice.actionId}` }
-  }), executeInSlot: (operation, signal) => runtime.executeInSlot(async (lifetime, retainMutationRisk) => {
+  }), reviewAuto: shared.reviewAuto, reviewTimeoutMs: shared.reviewTimeoutMs, executeInSlot: (operation, signal) => runtime.executeInSlot(async (lifetime, retainMutationRisk) => {
     queued.release()
     await ready.promise
     try {
@@ -568,5 +598,119 @@ describe('main Terminal approval controller', () => {
     expect(a.actions.get(actionB)?.attribution.sessionId).toBe('session-b')
     a.record(actionA)
     b.record(actionB)
+  })
+
+  it('runs an Ask read-only command without a dialog', async () => {
+    const h = fixture({ bundled: true, snapshot: { command: 'pwd', effectiveCwd: '/workspace/app' } })
+    const resultPromise = h.bind()
+    expect(h.options.present).not.toHaveBeenCalled()
+    await h.queued.promise
+    h.ready.release()
+    const result = await resultPromise
+    expect(result.structuredContent).toMatchObject({ status: 'executed', approval: 'ask' })
+    expect(h.oracle.dispatches).toBe(1)
+  })
+
+  it('refuses an Auto command outside the workspace without dispatching it', async () => {
+    const review = vi.fn(async () => modelAllow)
+    const h = fixture({ bundled: true, autoWorkspace: '/workspace/app', reviewAuto: review, snapshot: { command: 'rm /etc/passwd', effectiveCwd: '/workspace/app' } })
+    const result = await h.bind()
+    expect(review).not.toHaveBeenCalled()
+    expect(h.options.present).not.toHaveBeenCalled()
+    expect(h.oracle).toMatchObject({ dispatches: 0, discarded: 1 })
+    expect(result.structuredContent).toMatchObject({ status: 'rejected', approval: 'auto', executorInvoked: false })
+  })
+
+  it('dispatches an Auto command only after review allows it', async () => {
+    const review = vi.fn(async () => modelAllow)
+    const workspace = autoWorkspaceDir()
+    const h = fixture({
+      bundled: true,
+      autoWorkspace: workspace.root,
+      reviewAuto: review,
+      snapshot: { command: 'rm ./file', effectiveCwd: workspace.root, executorCwd: workspace.root, executorPlatform: workspace.executorPlatform },
+    })
+    const resultPromise = h.bind()
+    await h.queued.promise
+    h.ready.release()
+    const result = await resultPromise
+    expect(review).toHaveBeenCalledOnce()
+    expect(h.options.present).not.toHaveBeenCalled()
+    expect(result.structuredContent).toMatchObject({ status: 'executed', approval: 'auto' })
+    expect(h.oracle.dispatches).toBe(1)
+  })
+
+  it('reviews the same Auto card again on a later turn', async () => {
+    const review = vi.fn(async () => modelAllow)
+    const actions = new PendingActionManager()
+    const workspace = autoWorkspaceDir()
+    const first = fixture({
+      actions,
+      bundled: true,
+      autoWorkspace: workspace.root,
+      reviewAuto: review,
+      snapshot: {
+        command: 'rm ./file',
+        effectiveCwd: workspace.root,
+        executorCwd: workspace.root,
+        executorPlatform: workspace.executorPlatform,
+        preparedId: 'prepared-a',
+      },
+    })
+    const firstResult = first.bind()
+    await first.queued.promise
+    first.ready.release()
+    await firstResult
+    const second = fixture({
+      actions,
+      bundled: true,
+      reviewAuto: review,
+      turnId: 'turn-b',
+      snapshot: {
+        command: 'rm ./file',
+        effectiveCwd: workspace.root,
+        executorCwd: workspace.root,
+        executorPlatform: workspace.executorPlatform,
+        preparedId: 'prepared-b',
+        toolCallId: 'call-b',
+      },
+    })
+    second.attribution.toolCallId = 'call-b'
+    const secondResult = second.bind()
+    await second.queued.promise
+    second.ready.release()
+    await secondResult
+    expect(review).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not review an Auto command whose card is too long', async () => {
+    const review = vi.fn(async () => modelAllow)
+    const h = fixture({ bundled: true, autoWorkspace: '/workspace/app', reviewAuto: review, snapshot: { command: `rm ${'a'.repeat(3000)}`, effectiveCwd: '/workspace/app' } })
+    const result = await h.bind()
+    expect(review).not.toHaveBeenCalled()
+    expect(result.structuredContent).toMatchObject({ status: 'rejected', approval: 'auto' })
+    expect(h.oracle.dispatches).toBe(0)
+  })
+
+  it('refuses an Auto command when review times out', async () => {
+    const review = vi.fn((_request: unknown, signal: AbortSignal) => new Promise<AutoApprovalReviewResult>((_resolve, reject) => {
+      signal.addEventListener('abort', () => reject(new Error('aborted')))
+    }))
+    const workspace = autoWorkspaceDir()
+    const h = fixture({
+      bundled: true,
+      autoWorkspace: workspace.root,
+      reviewAuto: review,
+      reviewTimeoutMs: 20,
+      snapshot: {
+        command: 'rm ./file',
+        effectiveCwd: workspace.root,
+        executorCwd: workspace.root,
+        executorPlatform: workspace.executorPlatform,
+      },
+    })
+    const result = await h.bind()
+    expect(h.oracle.dispatches).toBe(0)
+    expect(result.structuredContent).toMatchObject({ status: 'rejected', approval: 'auto' })
   })
 })

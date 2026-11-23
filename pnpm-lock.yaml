@@ -265,11 +265,11 @@ catalogs:
       specifier: 0.1.0-beta.17
       version: 0.1.0-beta.17
     '@moeru/three-mmd':
-      specifier: 0.2.0-beta.2
-      version: 0.2.0-beta.2
+      specifier: 0.2.0-beta.3
+      version: 0.2.0-beta.3
     '@moeru/three-mmd-physics-ammo':
-      specifier: 0.2.0-beta.2
-      version: 0.2.0-beta.2
+      specifier: 0.2.0-beta.3
+      version: 0.2.0-beta.3
     '@napi-rs/image':
       specifier: ^1.14.0
       version: 1.15.0
@@ -5771,10 +5771,10 @@ importers:
         version: 0.1.0-beta.17
       '@moeru/three-mmd':
         specifier: 'catalog:'
-        version: 0.2.0-beta.2(@types/three@0.185.4)(three@0.185.1)
+        version: 0.2.0-beta.3(@types/three@0.185.4)(three@0.185.1)
       '@moeru/three-mmd-physics-ammo':
         specifier: 'catalog:'
-        version: 0.2.0-beta.2(@moeru/three-mmd@0.2.0-beta.2(@types/three@0.185.4)(three@0.185.1))(@types/three@0.185.4)(three@0.185.1)
+        version: 0.2.0-beta.3(@moeru/three-mmd@0.2.0-beta.3(@types/three@0.185.4)(three@0.185.1))(@types/three@0.185.4)(three@0.185.1)
       '@proj-airi/model-driver-lipsync':
         specifier: workspace:^
         version: link:../model-driver-lipsync
@@ -6533,6 +6533,9 @@ importers:
       '@aws-sdk/s3-request-presigner':
         specifier: 'catalog:'
         version: 3.1139.0
+      '@date-fns/utc':
+        specifier: 'catalog:'
+        version: 2.1.1
       '@dotenvx/dotenvx':
         specifier: 'catalog:'
         version: 2.21.0
@@ -6629,6 +6632,9 @@ importers:
       '@xsai/shared-stream':
         specifier: 'catalog:'
         version: 0.5.1
+      date-fns:
+        specifier: 'catalog:'
+        version: 4.4.0
       drizzle-orm:
         specifier: 'catalog:'
         version: 0.45.2(@electric-sql/pglite@0.5.6)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.23.1)(better-sqlite3@12.11.1)(kysely@0.29.5)(pg@8.23.0)(postgres@3.4.9)
@@ -9752,15 +9758,15 @@ packages:
   '@moeru/std@0.1.0-beta.20':
     resolution: {integrity: sha512-09Nunc5dLT0+oAaLV18nIGHLkQO3LOUGOpGcQ2VIFTqWybJojT9geawhTVtuclYcJtIApgIt+3BLWI1K9dYpFw==}
 
-  '@moeru/three-mmd-physics-ammo@0.2.0-beta.2':
-    resolution: {integrity: sha512-nou6wQX6NlEVkohbcOIebTpKePBPRnKhSydfL2MwTpdJjkzwgKixDOV/yTfW2wFKFkLxh2qaEwEaj2D1AkID7Q==}
+  '@moeru/three-mmd-physics-ammo@0.2.0-beta.3':
+    resolution: {integrity: sha512-jBqSZkaTAJ8fmkONI/CHAJUL1AcoJMo36n4SloFlTZzuy7cbIut8lDO2J9ld9jVfQloM4fMNdwHI6j0D7A2Y1Q==}
     peerDependencies:
-      '@moeru/three-mmd': ^0.2.0-beta.2
+      '@moeru/three-mmd': ^0.2.0-beta.3
       '@types/three': '>=0.184.0'
       three: '>=0.184.0'
 
-  '@moeru/three-mmd@0.2.0-beta.2':
-    resolution: {integrity: sha512-P8gzxEPpf/k8N/282xfYHvGyiGvYqT7kb9CtIh6Tz1LuJF/pA3EigHbNxsa6/ni5H8JcUOVVifMfBodsKFiQ7w==}
+  '@moeru/three-mmd@0.2.0-beta.3':
+    resolution: {integrity: sha512-HdkMY/sv3W435Rtu458FKIIs6gve8OtsqjYVSATau1bnsHmAuXwD1U1zZ1FdzDkRyke81fIn7rS+SY+cWVrOxg==}
     peerDependencies:
       '@types/three': '>=0.184.0'
       three: '>=0.184.0'
@@ -25220,14 +25226,14 @@ snapshots:
 
   '@moeru/std@0.1.0-beta.20': {}
 
-  '@moeru/three-mmd-physics-ammo@0.2.0-beta.2(@moeru/three-mmd@0.2.0-beta.2(@types/three@0.185.4)(three@0.185.1))(@types/three@0.185.4)(three@0.185.1)':
+  '@moeru/three-mmd-physics-ammo@0.2.0-beta.3(@moeru/three-mmd@0.2.0-beta.3(@types/three@0.185.4)(three@0.185.1))(@types/three@0.185.4)(three@0.185.1)':
     dependencies:
-      '@moeru/three-mmd': 0.2.0-beta.2(@types/three@0.185.4)(three@0.185.1)
+      '@moeru/three-mmd': 0.2.0-beta.3(@types/three@0.185.4)(three@0.185.1)
       '@types/three': 0.185.4
       ammojs-typed: 1.0.6
       three: 0.185.1
 
-  '@moeru/three-mmd@0.2.0-beta.2(@types/three@0.185.4)(three@0.185.1)':
+  '@moeru/three-mmd@0.2.0-beta.3(@types/three@0.185.4)(three@0.185.1)':
     dependencies:
       '@types/three': 0.185.4
       three: 0.185.1

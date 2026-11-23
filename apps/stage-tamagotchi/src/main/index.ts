@@ -2,6 +2,7 @@ import type { BrowserWindow } from 'electron'
 
 import type { FullscreenMode, FullscreenSurfaceId } from '../shared/eventa'
 import type { FileLoggerHandle } from './app/file-logger'
+import type { ComputerUseApprovalRequest } from './services/airi/computer-use/requests'
 import type { AutoUpdater } from './services/electron/auto-updater'
 import type { ChatWindowManager } from './windows/chat'
 import type { SettingsWindowManager } from './windows/settings'
@@ -57,6 +58,7 @@ import { registerIOTraceHub } from './services/airi/io-trace-hub/register'
 import { IOTraceRecordingService } from './services/airi/io-trace-recording'
 import { recordHubRecords } from './services/airi/io-trace-recording/hub'
 import { setupMcpManager } from './services/airi/mcp-servers'
+import { reviewAutoApproval } from './services/airi/mcp-servers/auto-review-client'
 import { deliverTerminalNotice } from './services/airi/mcp-servers/terminal-notice'
 import { setupExtensionHost } from './services/airi/plugins'
 import { createBuiltInExtensionKits } from './services/airi/plugins/kits'
@@ -341,29 +343,43 @@ app.whenReady().then(async () => {
     dependsOn: { actions: pendingActions, i18n, serverChannel },
     build: ({ dependsOn }) => setupTerminalApprovalWindow(dependsOn),
   })
+  const approvalDispatch: { presentComputerUse?: (request: ComputerUseApprovalRequest, signal?: AbortSignal) => Promise<boolean> } = {}
   const computerUse = injeca.provide('services:computer-use', {
-    dependsOn: { pendingActions, i18n, terminalApproval },
+    dependsOn: { pendingActions },
     build: ({ dependsOn }) => {
       const { context } = createContext(ipcMain)
-      const host = setupComputerUse(context, { actionManager: dependsOn.pendingActions })
-      const chatRequests = setupChatRequests(context, dependsOn.pendingActions, {
-        getRuntime: () => userFacingMainWindow?.webContents,
-        isChatWindow: window => chatWindowManager?.owns(window) === true,
-        i18n: dependsOn.i18n,
-        presentConfirmation: dependsOn.terminalApproval.confirm,
-      })
-      return { ...host, ...chatRequests }
+      return setupComputerUse(context, { actionManager: dependsOn.pendingActions })
     },
   })
   const mcpManager = injeca.provide('modules:mcp-manager', {
     dependsOn: { pendingActions, computerUse, terminalApproval },
-    build: async ({ dependsOn }) => setupMcpManager({
-      actions: dependsOn.pendingActions,
-      present: dependsOn.terminalApproval.present,
-      presentComputerUse: dependsOn.computerUse.presentComputerUse,
-      executeInSlot: (operation, signal) => dependsOn.computerUse.getRuntime().executeInSlot(operation, signal),
-      notify: notice => deliverTerminalNotice(dependsOn.pendingActions, notice),
-    }),
+    build: async ({ dependsOn }) => {
+      const manager = await setupMcpManager({
+        actions: dependsOn.pendingActions,
+        present: dependsOn.terminalApproval.present,
+        presentComputerUse: (request, signal) => approvalDispatch.presentComputerUse?.(request, signal) ?? Promise.resolve(false),
+        executeInSlot: (operation, signal) => dependsOn.computerUse.getRuntime().executeInSlot(operation, signal),
+        notify: notice => deliverTerminalNotice(dependsOn.pendingActions, notice),
+        reviewAuto: reviewAutoApproval(() => userFacingMainWindow?.webContents),
+      })
+      return manager
+    },
+  })
+  const approvalGrantHandlers = injeca.provide('services:approval-grant-handlers', {
+    dependsOn: { i18n, mcpManager, pendingActions, terminalApproval },
+    build: ({ dependsOn }) => {
+      const { context } = createContext(ipcMain)
+      const handlers = setupChatRequests(context, dependsOn.pendingActions, {
+        getRuntime: () => userFacingMainWindow?.webContents,
+        isChatWindow: window => chatWindowManager?.owns(window) === true,
+        i18n: dependsOn.i18n,
+        presentConfirmation: dependsOn.terminalApproval.confirm,
+        readCommandWorkspace: dependsOn.mcpManager.readBundledTerminalCwd,
+        readForegroundApp: dependsOn.mcpManager.readBundledForeground,
+      })
+      approvalDispatch.presentComputerUse = handlers.presentComputerUse
+      return handlers
+    },
   })
 
   const ioTraceHub = injeca.provide('services:io-trace-hub', {
@@ -587,7 +603,7 @@ app.whenReady().then(async () => {
   }
 
   injeca.invoke({
-    dependsOn: { mainWindow, tray, serverChannel, airiHttpServer, godotStageManager, pluginHost, mcpManager, onboardingWindow: onboardingWindowManager, widgetsWindow: widgetsManager, spotlightWindow, artistryConfig },
+    dependsOn: { mainWindow, tray, serverChannel, airiHttpServer, godotStageManager, pluginHost, mcpManager, approvalGrantHandlers, onboardingWindow: onboardingWindowManager, widgetsWindow: widgetsManager, spotlightWindow, artistryConfig },
     callback: async (deps) => {
       const { context } = createContext(ipcMain)
       setupHomeAssistant(context)

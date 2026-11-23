@@ -23,22 +23,17 @@ function createMockFluxService(): FluxService {
 
 function createMockFluxTransactionService(): FluxTransactionService {
   return {
-    log: vi.fn(async () => undefined),
-    logBatch: vi.fn(async () => undefined),
     getStats: vi.fn(async () => ({ capacity: 100 })),
     getHistory: vi.fn(async (_userId: string, limit: number, offset: number) => ({
       records: [{ id: 'tx-1', type: 'credit', amount: 5, description: 'Top up', metadata: { source: 'test' }, createdAt: new Date('2026-03-27T10:00:00.000Z') }],
       hasMore: limit === 100 && offset === 0,
     })),
     getUsageHistory: vi.fn(async () => ({
-      records: [{
-        id: 'usage-1',
-        sourceType: 'tts',
-        sourceId: 'request-1',
-        amountMicroFlux: 550_000,
-        createdAt: new Date('2026-03-27T10:00:00.000Z'),
-      }],
-      hasMore: false,
+      records: [{ id: 'fee-1', sourceType: 'llm', sourceId: 'req-1', amountMicroFlux: 0, createdAt: new Date('2026-03-27T10:00:00Z') }],
+      hasMore: true,
+    })),
+    getDailyUsage: vi.fn(async () => ({
+      days: [{ date: '2026-03-27', microFlux: 1_550_000 }],
     })),
   }
 }
@@ -68,6 +63,19 @@ function createTestApp(
 }
 
 describe('fluxRoutes', () => {
+  it('preserves array metadata in history', async () => {
+    const metadata = ['note']
+    const transactions = createMockFluxTransactionService()
+    vi.mocked(transactions.getHistory).mockResolvedValue({
+      records: [{ id: 'tx-opaque', type: 'credit', amount: 5, description: 'Top up', metadata, createdAt: new Date('2026-03-27T10:00:00.000Z') }],
+      hasMore: false,
+    })
+    const app = createTestApp(createMockFluxService(), transactions)
+    const response = await app.request('/api/v1/flux/history')
+    expect(response.status).toBe(200)
+    expect(await response.json()).toMatchObject({ records: [{ metadata }] })
+  })
+
   it('returns both buckets with the capacitor percent and the fallback choice', async () => {
     const flux = createMockFluxService()
     const app = createTestApp(flux, createMockFluxTransactionService())
@@ -110,16 +118,39 @@ describe('fluxRoutes', () => {
     })
   })
 
-  it('returns service fees separately and scopes the query to the authenticated wallet', async () => {
+  it('keeps the deployed paginated fee listing available', async () => {
     const transactions = createMockFluxTransactionService()
     const app = createTestApp(createMockFluxService(), transactions)
     const response = await app.request('/api/v1/flux/usage?limit=20&offset=5')
     expect(response.status).toBe(200)
     expect(transactions.getUsageHistory).toHaveBeenCalledWith('user-1', 20, 5)
-    expect(await response.json()).toMatchObject({
-      records: [{ sourceType: 'tts', amountMicroFlux: 550_000, createdAt: '2026-03-27T10:00:00.000Z' }],
-      hasMore: false,
+    expect(await response.json()).toEqual({
+      records: [{ id: 'fee-1', sourceType: 'llm', sourceId: 'req-1', amountMicroFlux: 0, createdAt: '2026-03-27T10:00:00.000Z' }],
+      hasMore: true,
     })
+  })
+
+  it('returns the daily usage of the authenticated wallet in the requested time zone', async () => {
+    const transactions = createMockFluxTransactionService()
+    const app = createTestApp(createMockFluxService(), transactions)
+    const response = await app.request('/api/v1/flux/usage/daily?timeZone=Asia/Shanghai')
+    expect(response.status).toBe(200)
+    expect(transactions.getDailyUsage).toHaveBeenCalledWith('user-1', 'Asia/Shanghai')
+    expect(await response.json()).toEqual({
+      days: [{ date: '2026-03-27', microFlux: 1_550_000 }],
+    })
+  })
+
+  it.each([
+    ['a missing name', ''],
+    ['an empty name', '?timeZone='],
+  ])('rejects %s as the time zone', async (_label, query) => {
+    const transactions = createMockFluxTransactionService()
+    const app = createTestApp(createMockFluxService(), transactions)
+    const response = await app.request(`/api/v1/flux/usage/daily${query}`)
+    expect(response.status).toBe(400)
+    expect(await response.json()).toMatchObject({ error: 'INVALID_TIME_ZONE' })
+    expect(transactions.getDailyUsage).not.toHaveBeenCalled()
   })
 
   it('rejects unauthenticated fee history requests before reading the database', async () => {
@@ -128,6 +159,14 @@ describe('fluxRoutes', () => {
     const response = await app.request('/api/v1/flux/usage')
     expect(response.status).toBe(401)
     expect(transactions.getUsageHistory).not.toHaveBeenCalled()
+  })
+
+  it('rejects unauthenticated daily usage requests before reading the database', async () => {
+    const transactions = createMockFluxTransactionService()
+    const app = createTestApp(createMockFluxService(), transactions, false)
+    const response = await app.request('/api/v1/flux/usage/daily?timeZone=UTC')
+    expect(response.status).toBe(401)
+    expect(transactions.getDailyUsage).not.toHaveBeenCalled()
   })
 
   it('saves the fallback choice for the authenticated wallet', async () => {

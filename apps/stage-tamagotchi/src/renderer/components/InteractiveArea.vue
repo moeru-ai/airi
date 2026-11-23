@@ -156,7 +156,7 @@ const { state: computerUseGrantMode, executeImmediate: refreshComputerUseGrant, 
   'ask' satisfies ApprovalGrantMode,
   { immediate: false },
 )
-const approvalMenuActive = computed(() => commandGrantMode.value === 'full' || computerUseGrantMode.value === 'full')
+const approvalMenuActive = computed(() => commandGrantMode.value !== 'ask' || computerUseGrantMode.value !== 'ask')
 const loadingApproval = computed(() => loadingCommandGrant.value || loadingComputerUseGrant.value)
 const changingApprovalLane = ref<'terminal' | 'computer_use' | null>(null)
 const approvalError = ref('')
@@ -177,12 +177,24 @@ async function refreshApproval(sessionId: string | undefined) {
 
 async function changeApprovalGrant(lane: 'terminal' | 'computer_use', mode: ApprovalGrantMode) {
   const sessionId = activeSessionId.value
-  if (!sessionId || changingApprovalLane.value || loadingApproval.value || mode === 'auto')
+  if (!sessionId) {
+    approvalError.value = t('tamagotchi.stage.chat-window.computer-tools.approval-session-unavailable')
+    return
+  }
+  if (changingApprovalLane.value || loadingApproval.value)
     return
   changingApprovalLane.value = lane
   approvalError.value = ''
   try {
-    await setSessionApprovalGrant({ sessionId, lane, mode })
+    const result = await setSessionApprovalGrant({ sessionId, lane, mode })
+    if (typeof result === 'object' && result !== null && 'unavailableReason' in result) {
+      const message = result.unavailableReason === 'workspace_unavailable'
+        ? 'approval-command-auto-unavailable'
+        : result.unavailableReason === 'foreground_unavailable'
+          ? 'approval-computer-use-auto-foreground-unavailable'
+          : 'approval-computer-use-auto-foreground-denied'
+      approvalError.value = t(`tamagotchi.stage.chat-window.computer-tools.${message}`)
+    }
   }
   catch (error) {
     approvalError.value = errorMessageFrom(error) ?? t('tamagotchi.stage.chat-window.computer-tools.approval-error')
@@ -651,6 +663,7 @@ defineExpose({
             <template #trigger>
               <GhostButton
                 size="unset"
+                data-testid="approval-menu-trigger"
                 :class="['size-9']"
                 :active="approvalMenuActive"
                 :aria-label="approvalMenuActive ? t('tamagotchi.stage.chat-window.computer-tools.approval-active') : t('tamagotchi.stage.chat-window.computer-tools.label')"
