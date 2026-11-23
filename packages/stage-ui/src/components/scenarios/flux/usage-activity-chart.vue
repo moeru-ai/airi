@@ -206,7 +206,7 @@ onMounted(() => {
             :aria-label="groupLabels[index]"
             :aria-selected="activeIndex === index"
             :class="[
-              'grid min-h-0 min-w-0',
+              'grid min-h-0 min-w-0 gap-1 rounded-md p-0.5',
               view === 'daily' ? 'grid-rows-1' : 'grid-rows-7',
               activeIndex === index && 'bg-neutral-950/8 dark:bg-white/10',
             ]"
@@ -218,7 +218,7 @@ onMounted(() => {
             <span
               v-for="(level, row) in group.levels"
               :key="row"
-              :class="['pointer-events-none block size-11/14 rounded-[27%]', levelClasses[level]]"
+              :class="['pointer-events-none block rounded', levelClasses[level]]"
             />
           </div>
         </div>
