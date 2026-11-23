@@ -17,16 +17,44 @@ import Live2DReportModal from './reports/live2d/modal.vue'
 import TachieReportModal from './tachieReportModal.vue'
 
 import { DisplayModelFormat, useDisplayModelsStore } from '../../../../stores/display-models'
+import { useAiriCardStore } from '../../../../stores/modules/airi-card'
+import { useSettings } from '../../../../stores/settings'
 
 const props = defineProps<{
   selectedModel?: DisplayModel
+  /**
+   * Shows the models as a library page: the user can import, rename, and delete them, and no model can be picked.
+   * A character selects its model in the character settings, not here.
+   *
+   * @default false
+   */
+  library?: boolean
 }>()
 const emits = defineEmits<{
   (e: 'close', value: void): void
   (e: 'pick', value: DisplayModel | undefined): void
+  /** The user asked for the settings editor of the model that the stage shows now. Only the library fires it. */
+  (e: 'edit', modelId: string): void
 }>()
 
 const displayModelStore = useDisplayModelsStore()
+const { cards } = storeToRefs(useAiriCardStore())
+const { stageModelSelected } = storeToRefs(useSettings())
+
+/** The names of the characters that hold each model, by model ID. The library shows them, so the user knows what a deletion affects. */
+const characterNamesByModel = computed(() => {
+  const names = new Map<string, string[]>()
+  for (const card of cards.value.values()) {
+    for (const reference of card.extensions.airi.avatarModels) {
+      const list = names.get(reference.displayModelId)
+      if (list)
+        list.push(card.name)
+      else
+        names.set(reference.displayModelId, [card.name])
+    }
+  }
+  return names
+})
 const { displayModelsFromIndexedDBLoading, displayModels, cloudOnlyModels, syncStatuses, syncErrors, uploadProgress } = storeToRefs(displayModelStore)
 const { t } = useI18n()
 
@@ -242,7 +270,10 @@ mmdDialog.onChange(handleAddMMDModel)
 
     <div flex items-center>
       <div w-full flex-1 text-xl>
-        {{ t('settings.model-select.select-model.title') }}
+        <!-- The library page has its own title in the page header. -->
+        <template v-if="!props.library">
+          {{ t('settings.model-select.select-model.title') }}
+        </template>
       </div>
       <div>
         <DropdownMenuRoot>
@@ -330,15 +361,15 @@ mmdDialog.onChange(handleAddMMDModel)
     <div v-if="displayModelsFromIndexedDBLoading">
       Loading display models...
     </div>
-    <div class="flex-1 overflow-x-auto overflow-y-hidden md:flex-none sm:overflow-x-hidden sm:overflow-y-scroll" h-full w-full>
-      <div class="w-full flex gap-2 md:grid lg:grid-cols-2 md:grid-cols-1 lg:max-h-80dvh">
+    <div :class="props.library ? ['w-full'] : ['h-full w-full flex-1 overflow-x-auto overflow-y-hidden md:flex-none sm:overflow-x-hidden sm:overflow-y-scroll']">
+      <div :class="props.library ? ['grid grid-cols-2 w-full gap-3 lg:grid-cols-4 md:grid-cols-3'] : ['w-full flex gap-2 md:grid lg:grid-cols-2 md:grid-cols-1 lg:max-h-80dvh']">
         <div
           v-for="(model) of listedModels"
           :key="model.id"
           v-auto-animate
           relative gap-2
-          class="block h-full w-full md:flex md:flex-row"
-          @click="() => highlightDisplayModelCard = model.id"
+          :class="props.library ? ['min-w-0 flex flex-col'] : ['block h-full w-full md:flex md:flex-row']"
+          @click="() => { if (!props.library) highlightDisplayModelCard = model.id }"
         >
           <div absolute left-3 top-4 z-1>
             <DropdownMenuRoot>
@@ -415,7 +446,7 @@ mmdDialog.onChange(handleAddMMDModel)
             </DropdownMenuRoot>
           </div>
           <div
-            class="h-full min-w-80 w-full lg:min-h-60 md:min-w-70 sm:min-w-65"
+            :class="props.library ? ['w-full'] : ['h-full min-w-80 w-full lg:min-h-60 md:min-w-70 sm:min-w-65']"
             aspect="12/16"
             px-1 py-2
           >
@@ -482,6 +513,14 @@ mmdDialog.onChange(handleAddMMDModel)
                 <div i-solar:tag-horizontal-bold />
                 <div>{{ mapFormatRenderer[model.format] }}</div>
               </div>
+              <div v-if="props.library" :class="['flex items-start gap-1 text-sm text-neutral-500 dark:text-neutral-400']">
+                <div :class="['i-solar:user-rounded-bold mt-0.5 shrink-0']" />
+                <div :class="['line-clamp-2 min-w-0']">
+                  {{ characterNamesByModel.get(model.id)?.length
+                    ? t('settings.pages.models.library.used-by', { names: characterNamesByModel.get(model.id)!.join(', ') })
+                    : t('settings.pages.models.library.unused') }}
+                </div>
+              </div>
               <div v-if="syncStatuses[model.id]" flex items-center gap-1 text="xs neutral-400 dark:neutral-600">
                 <div i-solar:cloud-bold />
                 <div v-if="syncStatuses[model.id] === 'uploading' && uploadProgress[model.id] !== undefined">
@@ -505,14 +544,18 @@ mmdDialog.onChange(handleAddMMDModel)
                 {{ syncErrors[model.id] }}
               </div>
             </div>
-            <Button class="hidden md:block" @click="handlePick(model)">
+            <Button v-if="!props.library" class="hidden md:block" @click="handlePick(model)">
               {{ t('settings.model-select.select-model.select') }}
+            </Button>
+            <!-- The settings editor shows the model of the stage. Only that model offers it. -->
+            <Button v-else-if="stageModelSelected === model.id" @click="emits('edit', model.id)">
+              {{ t('settings.pages.models.library.edit') }}
             </Button>
           </div>
         </div>
       </div>
     </div>
-    <Button class="block md:hidden" @click="handleMobilePick()">
+    <Button v-if="!props.library" class="block md:hidden" @click="handleMobilePick()">
       {{ t('settings.model-select.select-model.confirm') }}
     </Button>
   </div>
