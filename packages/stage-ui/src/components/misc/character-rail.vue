@@ -6,6 +6,7 @@ import { computed, shallowRef, useTemplateRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 
+import { useBackdropSurface } from '../../composables/backdrop-surface'
 import { useCharacterPreviews } from '../../composables/use-character-previews'
 import { useAuthStore } from '../../stores/auth'
 import { useChatSessionStore } from '../../stores/chat/session-store'
@@ -56,6 +57,9 @@ const entries = computed(() => Array.from(cards.value, ([id, card], order) => ({
 })).sort((first, second) => second.lastActivity - first.lastActivity || first.order - second.order))
 
 const rail = useTemplateRef<HTMLElement>('rail')
+// The floating rail is glass. Over the stage the CSS blur draws it. Over the desktop, for example beside the floating chat
+// window, the host draws native window glass behind it.
+useBackdropSurface(rail, { enabled: () => !props.docked })
 // The delays keep the rail closed when the pointer only passes over it, and open when the pointer leaves for a moment.
 const hovered = useElementHover(rail, { delayEnter: 80, delayLeave: 200 })
 const keyboardFocused = shallowRef(false)
@@ -112,9 +116,9 @@ const labelClasses = computed(() => [
       ? ['h-full w-16 flex shrink-0 flex-col items-center gap-2 overflow-x-hidden overflow-y-auto px-3 py-3 [scrollbar-width:none]']
       : [
         'max-h-[70dvh] flex flex-col gap-1 overflow-x-hidden overflow-y-auto rounded-2xl p-2 [scrollbar-width:none]',
-        'border border-neutral-200/60 backdrop-blur-md dark:border-neutral-700/40',
+        'border border-white/40 backdrop-blur-xl backdrop-saturate-150 dark:border-white/10',
         'transition-[width,background-color,box-shadow] duration-300 ease-in-out motion-reduce:transition-none',
-        open ? 'w-48 bg-white/90 shadow-lg dark:bg-neutral-900/90' : 'w-14 bg-white/60 shadow-sm dark:bg-neutral-900/60',
+        open ? 'w-48 bg-white/70 shadow-lg dark:bg-neutral-900/70' : 'w-14 bg-white/45 shadow-sm dark:bg-neutral-900/45',
       ]"
     @focusin="trackFocus"
     @focusout="trackBlur"
