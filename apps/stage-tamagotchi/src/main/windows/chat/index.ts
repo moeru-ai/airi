@@ -203,10 +203,14 @@ export function setupChatWindowManager(params: {
   }
 
   const legacy = createReusableWindow(async () => {
+    // The window holds the character rail, the conversation column, and the chat, like Discord. The minimum width
+    // keeps about 450px for the chat beside the two columns.
     const window = new BrowserWindow({
       title: 'Chat',
-      width: 600.0,
-      height: 800.0,
+      width: 1000,
+      height: 700,
+      minWidth: 760,
+      minHeight: 480,
       show: false,
       icon,
       ...(isMacOS ? { transparent: true, backgroundColor: '#00000000' } : {}),
