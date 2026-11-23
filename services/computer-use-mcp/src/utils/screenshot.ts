@@ -10,18 +10,32 @@ import { runProcess, sanitizeFileSegment } from './process'
 
 const placeholderPngBase64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9pP8WwAAAABJRU5ErkJggg=='
 
+const pngSignature = '89504e470d0a1a0a'
+
 function readPngDimensions(buffer: Buffer) {
   if (buffer.length < 24)
     return {}
 
   const signature = buffer.subarray(0, 8).toString('hex')
-  if (signature !== '89504e470d0a1a0a')
+  if (signature !== pngSignature)
     return {}
 
   return {
     width: buffer.readUInt32BE(16),
     height: buffer.readUInt32BE(20),
   }
+}
+
+/**
+ * A screenshot `computer_verify` can keep.
+ * A placeholder, an empty body, a non-PNG body, or a side below 2 pixels returns false.
+ */
+export function isUsableScreenshot(screenshot: ScreenshotArtifact) {
+  if (screenshot.placeholder === true || screenshot.mimeType !== 'image/png' || !screenshot.dataBase64)
+    return false
+  const buffer = Buffer.from(screenshot.dataBase64, 'base64')
+  const dimensions = readPngDimensions(buffer)
+  return (dimensions.width ?? 0) >= 2 && (dimensions.height ?? 0) >= 2
 }
 
 function buildScreenshotArtifact(params: {

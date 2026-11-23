@@ -12,6 +12,7 @@ import type {
   PolicyDecision,
   PreparedGroundingBinding,
   ScreenshotArtifact,
+  SessionTraceEntry,
   TerminalCommandResult,
   TerminalExecution,
   TerminalState,
@@ -283,10 +284,17 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
     options.executionSignal?.throwIfAborted()
     const normalizedAction = normalizeConfiguredAppAction(action, runtime.config.openableApps)
     const modelDecision = options.modelDecision ?? createModelDecision(toolName, normalizedAction)
-    const finalize = (result: CallToolResult, authorizationSource?: 'policy' | 'host') => attachAgentExecutionContracts(
-      result,
-      buildAgentExecutionContracts({ result, modelDecision, authorizationSource }),
-    )
+    // The outcome trace and the tool result share one execution id.
+    // computer_verify looks up that id. A second id is always caller_supplied.
+    const publishOutcome = async (
+      entry: Omit<SessionTraceEntry, 'id' | 'at' | 'contracts'>,
+      result: CallToolResult,
+      authorizationSource?: 'policy' | 'host',
+    ) => {
+      const contracts = buildAgentExecutionContracts({ result, modelDecision, authorizationSource })
+      await runtime.session.record({ ...entry, contracts })
+      return attachAgentExecutionContracts(result, contracts)
+    }
     const isTerminal = normalizedAction.kind === 'terminal_exec' || normalizedAction.kind === 'terminal_reset'
     const isBrowserDomAction = normalizedAction.kind.startsWith('browser_dom_')
     const { executionTarget, context: actualContext, displayInfo } = isTerminal && runtime.config.executor === 'auv'
@@ -356,7 +364,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
         issues: preflight.blockingIssues,
       })
 
-      await runtime.session.record({
+      return await publishOutcome({
         event: 'denied',
         toolName,
         action: normalizedAction,
@@ -367,9 +375,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
           coordinateSpace: preflight.coordinateSpace,
           launchContext: preflight.launchContext,
         },
-      })
-
-      return finalize(buildDeniedResponse(deniedDecision, context, executionTarget, terminalBackend), options.authorizationSource)
+      }, buildDeniedResponse(deniedDecision, context, executionTarget, terminalBackend), options.authorizationSource)
     }
 
     const isMutationBlockedByPreflight = !isBrowserDomAction && isMutatingAction(normalizedAction)
@@ -382,7 +388,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
         issues: preflight.mutationReadinessIssues,
       })
 
-      await runtime.session.record({
+      return await publishOutcome({
         event: 'denied',
         toolName,
         action: normalizedAction,
@@ -393,13 +399,11 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
           coordinateSpace: preflight.coordinateSpace,
           launchContext: preflight.launchContext,
         },
-      })
-
-      return finalize(buildDeniedResponse(deniedDecision, context, executionTarget, terminalBackend), options.authorizationSource)
+      }, buildDeniedResponse(deniedDecision, context, executionTarget, terminalBackend), options.authorizationSource)
     }
 
     if (!decision.allowed) {
-      await runtime.session.record({
+      return await publishOutcome({
         event: 'denied',
         toolName,
         action: normalizedAction,
@@ -408,9 +412,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
         result: {
           executionTarget,
         },
-      })
-
-      return finalize(buildDeniedResponse(decision, context, executionTarget, terminalBackend), options.authorizationSource)
+      }, buildDeniedResponse(decision, context, executionTarget, terminalBackend), options.authorizationSource)
     }
 
     const actionDisplayPoint = resolveActionDisplayPoint(normalizedAction, displayInfo)
@@ -420,7 +422,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
         issues: [actionDisplayPoint.reason],
       })
 
-      await runtime.session.record({
+      return await publishOutcome({
         event: 'denied',
         toolName,
         action: normalizedAction,
@@ -432,9 +434,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
           coordinateSpace: preflight.coordinateSpace,
           targetPoint: actionDisplayPoint.target,
         },
-      })
-
-      return finalize(buildDeniedResponse(deniedDecision, context, executionTarget), options.authorizationSource)
+      }, buildDeniedResponse(deniedDecision, context, executionTarget), options.authorizationSource)
     }
     const structuredDisplayPoint = actionDisplayPoint?.status === 'ok'
       ? actionDisplayPoint.structured
@@ -484,7 +484,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
         }
         runtime.stateManager.setPendingApprovalCount(runtime.session.listPendingActions().length)
 
-        await runtime.session.record({
+        return await publishOutcome({
           event: 'approval_required',
           toolName,
           action: normalizedAction,
@@ -494,9 +494,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
             executionTarget,
             pendingActionId: pending.id,
           },
-        })
-
-        return finalize(buildApprovalResponse(pending, decision, context, {
+        }, buildApprovalResponse(pending, decision, context, {
           intent,
           approvalReason: explainApprovalReason(normalizedAction, decision, context),
           advisorySummary,
@@ -540,7 +538,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
           })
           runtime.session.consumeOperation(decision.estimatedOperationUnits)
 
-          await runtime.session.record({
+          return await publishOutcome({
             event: 'executed',
             toolName,
             action: normalizedAction,
@@ -553,9 +551,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
               height: screenshot.height,
               placeholder: screenshot.placeholder ?? false,
             },
-          })
-
-          return finalize(buildSuccessResponse({
+          }, buildSuccessResponse({
             summary: `Screenshot captured (${screenshot.width || '?'}x${screenshot.height || '?'}) on ${describeExecutionTarget(executionTarget)}.`,
             screenshot,
             structuredContent: {
@@ -946,7 +942,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
         backendResult.postActionCapture = { status: 'failed', error: postActionCaptureError, doNotReplay: true }
       }
 
-      await runtime.session.record({
+      return await publishOutcome({
         event: 'executed',
         toolName,
         action: normalizedAction,
@@ -959,9 +955,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
           screenshotPath: screenshot?.path,
           displayInfo,
         },
-      })
-
-      return finalize(buildSuccessResponse({
+      }, buildSuccessResponse({
         summary: summaryOverride ?? `${intent} ${outcome}${advisorySummary ? ` Strategy: ${advisorySummary}` : ''}`,
         screenshot,
         structuredContent: {
@@ -1010,7 +1004,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
         context,
       })
 
-      await runtime.session.record({
+      return await publishOutcome({
         event: 'failed',
         toolName,
         action: normalizedAction,
@@ -1021,9 +1015,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
           terminalBackend,
           error: errorMessage,
         },
-      })
-
-      return finalize(buildExecutionErrorResponse({
+      }, buildExecutionErrorResponse({
         errorMessage: `${failureExplanation}${advisorySummary ? ` Strategy: ${advisorySummary}` : ''}`,
         action: normalizedAction,
         context,

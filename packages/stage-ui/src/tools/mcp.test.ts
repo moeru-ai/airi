@@ -15,6 +15,8 @@ function createRuntime(): McpToolRuntime {
 
 describe('mcp Agent execution prompt', () => {
   it('keeps scoped app lists and dry-run evidence from ending an available task early', () => {
+    expect(MCP_AGENT_EXECUTION_PROMPT).toContain('businessVerification.status stays unknown for these checks.')
+    expect(MCP_AGENT_EXECUTION_PROMPT).toContain('That link does not prove that the new observation is the post-state of that action.')
     expect(MCP_AGENT_EXECUTION_PROMPT).toContain('The Agent runtime compacts conversation context. The bundled Computer Use path provides AUV desktop observation and input plus Terminal process control.')
     expect(MCP_AGENT_EXECUTION_PROMPT).toContain('Use stable computer_* and terminal_exec tools first.')
     expect(MCP_AGENT_EXECUTION_PROMPT).toContain('A supported-app list names apps accepted by desktop open and focus tools.')

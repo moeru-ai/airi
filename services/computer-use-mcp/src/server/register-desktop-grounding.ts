@@ -2,6 +2,7 @@
 
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 
+import type { BusinessVerificationContract } from '../contracts/agent-execution'
 import type {
   ActionInvocation,
   ClickActionInput,
@@ -10,6 +11,7 @@ import type {
   OpenAppActionInput,
   PressKeysActionInput,
   ScrollActionInput,
+  SessionTraceEntry,
   TypeTextActionInput,
   WaitActionInput,
 } from '../types'
@@ -23,6 +25,7 @@ import { z } from 'zod'
 import { attachBusinessVerificationContract } from '../contracts/agent-execution'
 import { captureDesktopGrounding, formatGroundingForAgent } from '../desktop-grounding'
 import { errorMessageFromValue } from '../utils/error-message'
+import { isUsableScreenshot } from '../utils/screenshot'
 import { textContent } from './content'
 import { refreshRuntimeRunState } from './refresh-run-state'
 import { registerToolWithDescriptor, requireDescriptor } from './tool-descriptors/register-helper'
@@ -157,6 +160,92 @@ function invalidComputerVerifyResponse(reason: string) {
 
 function matchesExpected(observed: string | undefined, expected: string) {
   return observed?.trim().toLocaleLowerCase() === expected.trim().toLocaleLowerCase()
+}
+
+type ExecutionLink = 'record_found' | 'caller_supplied' | 'absent'
+
+function executionLinkFor(executionId: string | undefined, trace: SessionTraceEntry[]): ExecutionLink {
+  if (!executionId)
+    return 'absent'
+  const found = trace.some(entry => entry.contracts?.execution.executionId === executionId)
+  return found ? 'record_found' : 'caller_supplied'
+}
+
+function executionLinkText(link: ExecutionLink) {
+  if (link === 'record_found')
+    return 'The execution id exists in this session trace. That link does not prove that this observation is the post-state of that action.'
+  if (link === 'caller_supplied')
+    return 'The caller supplied an execution id. This session trace has no matching execution record.'
+  return 'No execution id was supplied.'
+}
+
+function windowCheckText(check: ComputerVerifyInput['check'], matched: boolean) {
+  if (check === 'foreground_app') {
+    return {
+      proves: matched
+        ? 'The foreground application name matches the expected name.'
+        : 'The foreground application name does not match the expected name.',
+      doesNotProve: 'This check does not prove that a task inside the application is complete.',
+    }
+  }
+  if (check === 'window_title') {
+    return {
+      proves: matched
+        ? 'The foreground window title matches the expected title.'
+        : 'The foreground window title does not match the expected title.',
+      doesNotProve: 'This check does not prove that the application state or a saved file matches the task.',
+    }
+  }
+  return {
+    proves: matched
+      ? 'A new screenshot was captured for this check.'
+      : 'This check did not capture a new usable PNG screenshot.',
+    doesNotProve: 'This check does not prove that the picture is the result of an earlier action, or that the target changed.',
+  }
+}
+
+function windowStateResult(input: {
+  check: ComputerVerifyInput['check']
+  expected?: string
+  observed: unknown
+  matched: boolean
+  executionId?: string
+  executionLink: ExecutionLink
+  evidenceRef?: string
+}) {
+  const copy = windowCheckText(input.check, input.matched)
+  const linkText = executionLinkText(input.executionLink)
+  const windowState = input.matched ? 'matched' : 'not_matched'
+  const verification: BusinessVerificationContract = {
+    kind: 'business_verification',
+    executionId: input.executionId,
+    status: 'unknown',
+    check: input.check,
+    expected: input.expected,
+    observed: input.observed,
+    evidenceRef: input.evidenceRef,
+    evidenceScope: 'window_state',
+    windowState,
+    executionLink: input.executionLink,
+    proves: copy.proves,
+    doesNotProve: `${copy.doesNotProve} ${linkText}`,
+    reason: `${copy.proves} ${copy.doesNotProve}`,
+  }
+  return {
+    content: [textContent(`computer_verify: ${copy.proves} ${copy.doesNotProve} ${linkText}`)],
+    structuredContent: {
+      status: input.matched ? 'window_state_matched' : 'window_state_not_matched',
+      check: input.check,
+      expected: input.expected,
+      observed: input.observed,
+      evidenceScope: verification.evidenceScope,
+      windowState: verification.windowState,
+      executionLink: verification.executionLink,
+      proves: verification.proves,
+      doesNotProve: verification.doesNotProve,
+    },
+    verification,
+  }
 }
 
 /**
@@ -319,69 +408,94 @@ export function registerDesktopGroundingTools(params: {
   registerToolWithDescriptor(server, {
     descriptor: requireDescriptor('computer_verify'),
     schema: {
-      check: z.enum(['foreground_app', 'window_title', 'screenshot_ready']).describe('Host-owned state check to perform.'),
-      expected: z.string().min(1).optional().describe('Expected app or window title. Required for foreground_app and window_title.'),
-      executionId: z.string().min(1).optional().describe('Execution id returned by computer_act. Links verification evidence to one execution without changing its result.'),
+      check: z.enum(['foreground_app', 'window_title', 'screenshot_ready']).describe('Window-state check. foreground_app and window_title read the current foreground window. screenshot_ready captures a new screenshot. None of these checks prove that a task is complete.'),
+      expected: z.string().min(1).optional().describe('Expected application name or window title. Required for foreground_app and window_title.'),
+      executionId: z.string().min(1).optional().describe('Caller-supplied execution id. The result says whether this session trace contains that id. A match does not prove that the new observation is the post-state of that action.'),
     },
     handler: async (input: ComputerVerifyInput) => {
       if ((input.check === 'foreground_app' || input.check === 'window_title') && !input.expected)
         return invalidComputerVerifyResponse(`${input.check} requires expected.`)
 
+      const executionLink = executionLinkFor(input.executionId, runtime.session.getRecentTrace(500))
       try {
+        if (input.check === 'screenshot_ready') {
+          const screenshot = await runtime.executor.takeScreenshot({ label: 'computer_verify' })
+          const matched = isUsableScreenshot(screenshot)
+          if (matched) {
+            runtime.session.setLastScreenshot(screenshot)
+            runtime.stateManager.updateLastScreenshot({
+              path: screenshot.path || '',
+              width: screenshot.width,
+              height: screenshot.height,
+              capturedAt: screenshot.capturedAt,
+              placeholder: false,
+              note: screenshot.note,
+              sourceHostName: screenshot.sourceHostName,
+              sourceDisplayId: screenshot.sourceDisplayId,
+              sourceWindowId: screenshot.sourceWindowId,
+              sourceSessionTag: screenshot.sourceSessionTag,
+              executionTargetMode: screenshot.executionTargetMode,
+            })
+          }
+          const observed = {
+            available: matched,
+            placeholder: screenshot.placeholder === true,
+            capturedAt: screenshot.capturedAt,
+            width: screenshot.width,
+            height: screenshot.height,
+          }
+          const built = windowStateResult({
+            check: input.check,
+            observed,
+            matched,
+            executionId: input.executionId,
+            executionLink,
+            evidenceRef: screenshot.path,
+          })
+          return attachBusinessVerificationContract({
+            content: built.content,
+            structuredContent: built.structuredContent,
+          }, built.verification)
+        }
+
         const refreshed = await refreshRuntimeRunState(runtime)
-        const state = runtime.stateManager.getState()
         const observed = input.check === 'foreground_app'
           ? refreshed.context.appName
-          : input.check === 'window_title'
-            ? refreshed.context.windowTitle
-            : undefined
-        const screenshot = state.lastScreenshot
-        const screenshotAvailable = Boolean(screenshot && !screenshot.placeholder)
-        const verified = input.check === 'screenshot_ready'
-          ? screenshotAvailable
-          : matchesExpected(observed, input.expected!)
-        const observedValue = input.check === 'screenshot_ready'
-          ? {
-              available: screenshotAvailable,
-              placeholder: screenshot?.placeholder ?? false,
-              capturedAt: screenshot?.capturedAt,
-              width: screenshot?.width,
-              height: screenshot?.height,
-            }
-          : observed
-
-        const result = {
-          content: [textContent(verified ? 'computer_verify: verified' : 'computer_verify: not verified')],
-          structuredContent: {
-            status: verified ? 'verified' : 'not_verified',
-            check: input.check,
-            expected: input.expected,
-            observed: observedValue,
-          },
-        }
-        return attachBusinessVerificationContract(result, {
-          kind: 'business_verification',
-          executionId: input.executionId,
-          status: verified ? 'verified' : 'not_verified',
+          : refreshed.context.windowTitle
+        const built = windowStateResult({
           check: input.check,
           expected: input.expected,
-          observed: observedValue,
-          evidenceRef: screenshot?.path,
-          reason: verified ? 'The requested application state matched the current observation.' : 'The current application state did not match the requested expectation.',
+          observed,
+          matched: matchesExpected(observed, input.expected!),
+          executionId: input.executionId,
+          executionLink,
         })
+        return attachBusinessVerificationContract({
+          content: built.content,
+          structuredContent: built.structuredContent,
+        }, built.verification)
       }
       catch (error) {
         const message = errorMessageFromValue(error)
         return attachBusinessVerificationContract({
           isError: true,
           content: [textContent(`computer_verify failed: ${message}`)],
-          structuredContent: { status: 'error', check: input.check, error: message },
+          structuredContent: {
+            status: 'error',
+            check: input.check,
+            error: message,
+            evidenceScope: 'window_state',
+            executionLink,
+          },
         }, {
           kind: 'business_verification',
           executionId: input.executionId,
           status: 'unknown',
           check: input.check,
           expected: input.expected,
+          evidenceScope: 'window_state',
+          executionLink,
+          doesNotProve: 'This failure does not prove that an earlier action never ran.',
           reason: message,
         })
       }

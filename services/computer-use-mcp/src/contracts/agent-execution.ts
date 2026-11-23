@@ -34,7 +34,10 @@ export interface ExecutionContract {
   reason?: string
 }
 
-/** Application-level evidence. It is independent from input delivery. */
+/**
+ * Application-level evidence. It is independent from input delivery.
+ * `window_state` checks report a window fact. They do not set `status` to `verified`.
+ */
 export interface BusinessVerificationContract {
   kind: 'business_verification'
   executionId?: string
@@ -44,6 +47,20 @@ export interface BusinessVerificationContract {
   observed?: unknown
   evidenceRef?: string
   reason?: string
+  /** `window_state` is a foreground or screenshot fact, not task success. */
+  evidenceScope?: 'window_state'
+  /** Result of a window-state check. Absent when the tool did not complete that check. */
+  windowState?: 'matched' | 'not_matched'
+  /**
+   * `record_found` means the id exists in this session trace.
+   * It does not mean the new observation is the post-state of that action.
+   * `caller_supplied` means the caller sent an id and this trace has no match.
+   */
+  executionLink?: 'record_found' | 'caller_supplied' | 'absent'
+  /** The fact this check established. */
+  proves?: string
+  /** The task result this check does not establish. */
+  doesNotProve?: string
 }
 
 export interface AgentExecutionContracts {

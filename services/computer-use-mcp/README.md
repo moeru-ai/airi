@@ -98,7 +98,7 @@ The bundled AIRI Agent sees four stable entry points:
 
 - `computer_observe` returns the current screenshot, windows, accessibility data, and grounded targets.
 - `computer_act` performs one grounded or coordinate action through the shared executor.
-- `computer_verify` checks the requested application state after an action.
+- `computer_verify` checks the foreground application, the window title, or a new screenshot. It does not prove that the requested task is complete.
 - `terminal_exec` runs a command through the Host-managed Terminal approval flow.
 
 The Computer Use MCP keeps granular tools for direct MCP clients and focused integrations. AIRI does not expose them as additional bundled Agent entry points. The Host manages approvals, pending-action state, and session traces.
