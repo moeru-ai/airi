@@ -58,7 +58,7 @@ flowchart LR
 
 ```text
 server/apps/api/
-├── drizzle/0035_*.sql, drizzle/meta/   columns and backfill
+├── drizzle/0035_chat_summary.sql, meta/  columns and backfill
 └── src/
     ├── schemas/chats.ts                summary columns
     ├── services/domain/chats.ts        pushMessages writes the summary
