@@ -642,21 +642,21 @@ function moveByKeyboard(delta: WindowDelta) {
             />
           </template>
           <div :class="['relative min-h-0 min-w-0 flex-1']">
-          <!--
+            <!--
             TODO: When Windows and Linux draw native glass behind a transparent window, the floating panel there can
             use the chat window surfaces too. Then `glassBackdrop` only needs to check the danmaku feed.
           -->
-          <InteractiveArea
-            ref="interactive-area"
-            v-model:composer-folded="composerFolded"
-            floating
-            :glass-backdrop="glassBackdrop"
-            :composer-foldable="danmaku"
-            :dock-side="verticalDock && dockOpen ? (characterOnLeft ? 'left' : 'right') : undefined"
-            :right-resize-band="state.resizeEdges.includes('e') ? RESIZE_BAND : undefined"
-            :passive="passiveFeed"
-            :expired-before="expiredBefore"
-          />
+            <InteractiveArea
+              ref="interactive-area"
+              v-model:composer-folded="composerFolded"
+              floating
+              :glass-backdrop="glassBackdrop"
+              :composer-foldable="danmaku"
+              :dock-side="verticalDock && dockOpen ? (characterOnLeft ? 'left' : 'right') : undefined"
+              :right-resize-band="state.resizeEdges.includes('e') ? RESIZE_BAND : undefined"
+              :passive="passiveFeed"
+              :expired-before="expiredBefore"
+            />
           </div>
         </div>
         <!--
