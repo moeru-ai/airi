@@ -559,6 +559,8 @@ describe('chat store contract', () => {
         content: 'Historical reply',
         createdAt: 3,
         id: 'assistant-reply-1',
+        slices: [],
+        tool_results: [],
       },
     ]
 
