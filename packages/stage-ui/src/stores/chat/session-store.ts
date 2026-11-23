@@ -33,6 +33,7 @@ import { useSyncPreferencesStore } from '../sync-preferences'
 import { staysLocal } from './session-locality'
 import { characterMembersOfMeta } from './session-members'
 import { mergeLoadedSessionMessages } from './session-message-merge'
+import { summarizeSessionMessages } from './session-summary'
 
 /**
  * Roles that are eligible to push to the cloud. Wire schema accepts more,
@@ -225,6 +226,43 @@ export const useChatSessionStore = defineStore('chat-session', () => {
         }
       }
     }
+    void backfillSessionSummaries(index.value)
+  }
+
+  /**
+   * Writes the summary of each session that has none, from its stored record.
+   *
+   * Sessions saved before the summary existed have none, and the conversation list shows only their time. The fill
+   * keeps `updatedAt`, so the order of the list and the sync do not change. A session without a stored record keeps
+   * no summary until its messages save.
+   */
+  async function backfillSessionSummaries(target: ChatSessionsIndex | null) {
+    if (!target)
+      return
+    const missing = Object.values(target.characters)
+      .flatMap(character => Object.values(character.sessions))
+      .filter(meta => meta.summary === undefined)
+    if (missing.length === 0)
+      return
+
+    await enqueuePersist(async () => {
+      let changed = false
+      for (const meta of missing) {
+        const stored = await chatSessionsRepo.getSession(meta.sessionId)
+        if (!stored)
+          continue
+        const summary = summarizeSessionMessages(stored.messages)
+        const filled = { ...cloneDeep(toRaw(meta)), summary }
+        target.characters[meta.characterId].sessions[meta.sessionId] = filled
+        const current = sessionMetas.value[meta.sessionId]
+        if (index.value === target && current && current.summary === undefined)
+          sessionMetas.value[meta.sessionId] = { ...current, summary }
+        await chatSessionsRepo.saveSession(meta.sessionId, { meta: filled, messages: stored.messages })
+        changed = true
+      }
+      if (changed)
+        await chatSessionsRepo.saveIndex(cloneDeep(target))
+    })
   }
 
   function getCharacterIndex(characterId: string) {
@@ -252,8 +290,10 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       const messages = snapshotMessages(ensureSessionMessageIds(sessionId))
       const now = Date.now()
       // Nested meta fields, such as the bindings, are reactive proxies. IndexedDB cannot clone them, so the record stores a plain copy.
+      // The summary changes with the messages, so each save of the messages writes it.
       const updatedMeta = {
         ...cloneDeep(meta),
+        summary: summarizeSessionMessages(messages),
         updatedAt: now,
       }
 
@@ -2034,6 +2074,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     await enqueuePersist(() => chatSessionsRepo.saveIndex(cloneDeep(payload.index)))
 
     for (const [sessionId, record] of Object.entries(payload.sessions)) {
+      record.meta.summary = summarizeSessionMessages(record.messages)
       sessionMetas.value[sessionId] = cloneDeep(record.meta)
       sessionMessages.value[sessionId] = cloneDeep(record.messages)
       ensureGeneration(sessionId)

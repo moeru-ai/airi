@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import type { ChatSessionMeta } from '../../../../types/chat-session'
+import type { ChatSessionMeta, ChatSessionSummary } from '../../../../types/chat-session'
 import type { SessionRow } from './session-row-model'
 
 import { errorMessageFrom } from '@moeru/std'
 import { useNow } from '@vueuse/core'
 import { compareDesc, intlFormatDistance, max } from 'date-fns'
 import { storeToRefs } from 'pinia'
-import { computed, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 
@@ -14,10 +14,10 @@ import SessionsDialog from './sessions-dialog.vue'
 
 import { useAnalytics } from '../../../../composables/use-analytics'
 import { useBreakpoints } from '../../../../composables/use-breakpoints'
-import { extractMessageText } from '../../../../libs/chat-sync'
 import { useAuthStore } from '../../../../stores/auth'
 import { useChatStore } from '../../../../stores/chat'
 import { useChatSessionStore } from '../../../../stores/chat/session-store'
+import { summarizeSessionMessages } from '../../../../stores/chat/session-summary'
 import { useChatSessionsViewStore } from '../../../../stores/chat/sessions-view-store'
 import { useAiriCardStore } from '../../../../stores/modules/airi-card'
 import { useConsciousnessStore } from '../../../../stores/modules/consciousness'
@@ -73,69 +73,45 @@ const ownedSessions = computed(() => Object.values(sessionMetas.value)
   .filter(meta => meta.userId === effectiveUserId.value && !meta.hidden && chatSession.characterMembersOf(meta.sessionId).includes(currentCharacterId.value)))
 
 /**
- * Normalizes a session into its one-line drawer preview.
- *
- * @example
- * previewFor({ title: 'Moon notes', ...meta })
- * // => 'Moon notes'
+ * The summary of a conversation for its row. Loaded messages give the newest summary, for example while a reply
+ * streams in. A conversation that is not loaded uses the summary that its metadata stores, so the list needs no
+ * message records.
  */
-function previewFor(meta: ChatSessionMeta): string {
-  if (meta.title)
-    return meta.title
-
-  const messages = sessionMessages.value[meta.sessionId] ?? []
-  for (const message of messages) {
-    if (message.role === 'system')
-      continue
-    const trimmed = extractMessageText(message).replace(/\s+/g, ' ').trim()
-    if (trimmed)
-      return trimmed.length > 80 ? `${trimmed.slice(0, 80)}…` : trimmed
-  }
-
-  return t('stage.chat.sessions.new-chat-fallback')
+function summaryFor(meta: ChatSessionMeta): ChatSessionSummary {
+  const loaded = sessionMessages.value[meta.sessionId]
+  return loaded?.length ? summarizeSessionMessages(loaded) : meta.summary ?? {}
 }
 
 /**
- * The last message of a conversation for the second line of its row. The words of the user carry a prefix, as in a
- * messenger. A conversation whose messages are not loaded yet has none.
+ * The title of a row: the title of the conversation, else its first message.
+ *
+ * @example
+ * previewFor({ title: 'Moon notes', ...meta }, {})
+ * // => 'Moon notes'
  */
-function lastMessageFor(meta: ChatSessionMeta): string | undefined {
-  const messages = sessionMessages.value[meta.sessionId] ?? []
-  for (let index = messages.length - 1; index >= 0; index--) {
-    const message = messages[index]
-    if (message.role !== 'user' && message.role !== 'assistant')
-      continue
-    const text = extractMessageText(message).replace(/\s+/g, ' ').trim()
-    if (!text)
-      continue
-    const short = text.length > 80 ? `${text.slice(0, 80)}…` : text
-    return message.role === 'user' ? t('stage.chat.sessions.last-message-you', { text: short }) : short
-  }
-  return undefined
+function previewFor(meta: ChatSessionMeta, summary: ChatSessionSummary): string {
+  return meta.title || summary.firstText || t('stage.chat.sessions.new-chat-fallback')
 }
 
-function activityAtFor(meta: ChatSessionMeta): number {
-  let lastMessageAt: number | undefined
-  for (const message of sessionMessages.value[meta.sessionId] ?? []) {
-    if (message.role !== 'user' && message.role !== 'assistant')
-      continue
-    const timestamp = message.createdAt
-    if (timestamp == null || !Number.isFinite(new Date(timestamp).getTime()))
-      continue
-    lastMessageAt = lastMessageAt == null ? timestamp : Math.max(lastMessageAt, timestamp)
-  }
-  return lastMessageAt ?? meta.createdAt
+/** The second line of a row. The words of the user carry a prefix, as in a messenger. */
+function lastMessageFor(summary: ChatSessionSummary): string | undefined {
+  if (!summary.lastText)
+    return undefined
+  return summary.lastFromUser ? t('stage.chat.sessions.last-message-you', { text: summary.lastText }) : summary.lastText
 }
 
 const rows = computed<SessionRow[]>(() => {
   const referenceTime = max([now.value, Date.now()])
   return ownedSessions.value
-    .map(meta => ({ meta, activityAt: activityAtFor(meta) }))
+    .map((meta) => {
+      const summary = summaryFor(meta)
+      return { meta, summary, activityAt: summary.lastAt ?? meta.createdAt }
+    })
     .sort((first, second) => compareDesc(first.activityAt, second.activityAt))
-    .map(({ meta, activityAt }) => ({
+    .map(({ meta, summary, activityAt }) => ({
       meta,
-      preview: previewFor(meta),
-      lastMessage: lastMessageFor(meta),
+      preview: previewFor(meta, summary),
+      lastMessage: lastMessageFor(summary),
       isActive: meta.sessionId === activeSessionId.value,
       activityAtLabel: intlFormatDistance(activityAt, referenceTime, { locale: locale.value }),
       characterName: cards.value.get(meta.characterId)?.name ?? t('stage.chat.sessions.unknown-character'),
@@ -220,34 +196,6 @@ async function renameSession(payload: { sessionId: string, title: string }) {
   })
 }
 
-// Per-open generation counter. The batch loadSession loop checks this before
-// each batch so closing the drawer mid-load aborts cleanly instead of
-// continuing to hydrate sessions the user has navigated away from. Without
-// this, a session deleted from outside while the batch was running could be
-// re-added to `loadedSessions` as a phantom entry.
-let openGeneration = 0
-
-// The inline list is always shown, so it loads the messages when it mounts and when its conversations change, for
-// example after the index loads or the character changes. A loaded conversation returns at once.
-const listShown = computed(() => showDialog.value || props.desktopMode === 'inline')
-const ownedSessionKey = computed(() => ownedSessions.value.map(meta => meta.sessionId).join('\n'))
-
-watch([listShown, ownedSessionKey], async ([open]) => {
-  if (!open)
-    return
-  openGeneration += 1
-  const myGeneration = openGeneration
-  const knownSessionIds = ownedSessions.value.map(meta => meta.sessionId)
-  // Bounded concurrency keeps a long history list from spawning a hundred
-  // simultaneous IndexedDB transactions; 4 in flight is plenty for a list
-  // that the user is about to scroll.
-  const batchSize = 4
-  for (let i = 0; i < knownSessionIds.length; i += batchSize) {
-    if (myGeneration !== openGeneration || !listShown.value)
-      return
-    await Promise.all(knownSessionIds.slice(i, i + batchSize).map(id => chatSession.loadSession(id)))
-  }
-}, { immediate: true })
 </script>
 
 <template>
