@@ -1,0 +1,11 @@
+{
+  "KPlugin": {
+    "Id": "ai.moeru.airi.cursor-bridge",
+    "Name": "AIRI Cursor Bridge",
+    "Description": "Shares KWin cursor and AIRI window geometry with AIRI on loopback.",
+    "Version": "1.0",
+    "License": "MIT"
+  },
+  "X-Plasma-API": "declarativescript",
+  "X-Plasma-MainScript": "ui/main.qml"
+}

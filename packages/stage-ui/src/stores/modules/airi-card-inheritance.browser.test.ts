@@ -17,6 +17,7 @@ vi.mock('vue-i18n', () => ({
 
 const runtimes: SyncedPiniaRuntime[] = []
 const piniaInstances: ReturnType<typeof createPinia>[] = []
+const nativeFetch = globalThis.fetch
 
 function createContext(runtime?: SyncedPiniaRuntime) {
   const pinia = createPinia()
@@ -33,7 +34,13 @@ function createContext(runtime?: SyncedPiniaRuntime) {
 describe('persisted and replicated card defaults', () => {
   beforeEach(() => {
     localStorage.clear()
-    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ voices: [], recommended: {}, data: [] }))))
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>((input, init) => {
+      const url = input instanceof Request ? input.url : String(input)
+      if (url.startsWith('data:application/wasm') || url.split('?')[0].endsWith('.wasm'))
+        return nativeFetch(input, init)
+
+      return Promise.resolve(Response.json({ voices: [], recommended: {}, data: [] }))
+    }))
   })
 
   afterEach(() => {
@@ -44,6 +51,12 @@ describe('persisted and replicated card defaults', () => {
     vi.restoreAllMocks()
     vi.unstubAllGlobals()
     localStorage.clear()
+  })
+
+  // ROOT CAUSE: The catalog fixture answered background inline WASM requests with JSON.
+  // The preset Live2D loader needs the browser fetch to preserve the WASM response MIME type.
+  it('passes inline WASM requests through the browser fetch', async () => {
+    await expect(WebAssembly.compileStreaming(fetch(new Request('data:application/wasm;base64,AGFzbQEAAAA=')))).resolves.toBeInstanceOf(WebAssembly.Module)
   })
 
   // https://github.com/moeru-ai/airi/pull/2332
