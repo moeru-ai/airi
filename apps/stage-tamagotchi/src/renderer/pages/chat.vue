@@ -37,7 +37,8 @@ useChatDraftHandover(interactiveArea)
     </WindowTitleBar>
     <!--
       The layout of a messenger: characters, then the conversations of the current character, then the chat. The
-      conversations stay at every window width, like the channel list of Discord.
+      conversations stay at every window width, like the channel list of Discord. Only the two side columns show the
+      window glass, like a sidebar on macOS. The chat paints a solid surface, so it reads as the main content.
     -->
     <div :class="['h-full min-h-0 flex']">
       <CharacterRail
@@ -53,7 +54,7 @@ useChatDraftHandover(interactiveArea)
       />
       <InteractiveArea
         ref="interactive-area"
-        :class="['interaction-area block h-full min-w-0 flex-1 transition-opacity duration-250']"
+        :class="['interaction-area block h-full min-w-0 flex-1 bg-neutral-50 transition-opacity duration-250 dark:bg-neutral-950']"
       />
     </div>
   </ChatPageShell>
