@@ -14,7 +14,7 @@
 
 These rules apply to new routes. `server/docs/ai/adr/2026-10-19-http-response-conventions.md` lists the exceptions and the deployed routes that break them.
 
-- Respond with `ok`, `created`, `noContent`, `list`, or `paginated` from `@proj-airi/http-response-shared`. Do not call `c.json` in a route.
+- Respond with `ok`, `created`, `noContent`, `list`, or `paginated` from `@proj-airi/http-error-shared`. Do not call `c.json` in a route.
 - If another protocol owns a body, or a known deviation keeps it, disable `no-restricted-syntax` on that line and name the reason.
 - Return a success resource directly. Do not wrap it in an envelope.
 - Return `201` and the resource after a create. Return `204` with no body after a delete.
