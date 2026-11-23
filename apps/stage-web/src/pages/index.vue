@@ -101,7 +101,8 @@ const router = useRouter()
     >
       <!-- header -->
       <div :class="['w-full gap-2 px-0 py-1 md:px-3 md:py-3']">
-        <Header :class="['hidden md:flex']" />
+        <!-- The character rail on the left of the stage replaces the character switcher of the header. -->
+        <Header :character-switcher="false" :class="['hidden md:flex']" />
       </div>
       <!-- page -->
       <div :class="['relative flex flex-1 flex-row gap-x-2 gap-y-0 <md:flex-col']">

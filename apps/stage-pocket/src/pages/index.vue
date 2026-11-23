@@ -7,7 +7,6 @@ import { BackgroundProvider } from '@proj-airi/stage-layouts/components/Backgrou
 import { useBackgroundThemeColor } from '@proj-airi/stage-layouts/composables/theme-color'
 import { useBackgroundStore } from '@proj-airi/stage-layouts/stores/background'
 import { IS_DEV } from '@proj-airi/stage-shared'
-import { CharacterRail } from '@proj-airi/stage-ui/components'
 import { ViewControlSlider, WidgetStage } from '@proj-airi/stage-ui/components/scenes'
 import { useVoiceListening } from '@proj-airi/stage-ui/composables/voice-input-mode'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
@@ -94,18 +93,12 @@ const router = useRouter()
           <div
             v-if="!isMobile || stageModelRenderer !== 'live2d'"
             :class="[
-              'absolute z-15 px-3',
-              isMobile ? 'left-0' : 'left-18',
+              'absolute left-0 z-15 px-3',
               stageModelRenderer === 'live2d' ? 'top-0 h-full py-[20vh]' : 'top-1/2 -translate-y-1/2',
             ]"
           >
             <ViewControlSlider />
           </div>
-          <CharacterRail
-            v-if="!isMobile"
-            :class="['absolute left-3 top-1/2 z-16 -translate-y-1/2']"
-            @manage="router.push('/settings/airi-card')"
-          />
           <WidgetStage
             v-model:state="modelRenderState"
             :class="['h-full w-full']"

@@ -10,7 +10,7 @@ On a wide screen, the web header held the character switcher as a popover. The u
 
 ## Decision
 
-`CharacterRail` in `packages/stage-ui` lists the characters on the left of the stage, on a screen of 768 px or wider.
+`CharacterRail` in `packages/stage-ui` lists the characters on the left of the stage-web stage, on a screen of 768 px or wider.
 
 - The rail is a translucent capsule that floats over the stage. It does not change the position of the stage or of the chat panel.
 - The closed rail shows avatars only. It opens to show names while the pointer is over it or the keyboard focus is in it.
@@ -19,12 +19,11 @@ On a wide screen, the web header held the character switcher as a popover. The u
 - The rail shows no badge, no status mark, and no message preview.
 - The rail does not open the character management page. It asks its host, because each app opens settings in its own way.
 
-The header loses its character popover. `ProfileSwitcherPopover` stays in the package, because stage-tamagotchi-kirie uses it.
+The stage-web index page hides the character popover of the header with the `characterSwitcher` prop that the settings pages already use.
 
-The phone layout keeps its character drawer.
+Only stage-web changes. Stage Pocket keeps the header popover on a wide screen, and the phone layout keeps its character drawer.
 
 ## Consequences
 
 - The view slider on the left of the stage moves right by the width of the closed rail.
-- The settings pages no longer need to hide the character switcher of the header.
 - The rail shows no last message line, because the conversation index does not store one.
