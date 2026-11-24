@@ -6,8 +6,8 @@ import { Hono } from 'hono'
 import { safeParse } from 'valibot'
 
 import { authGuard } from '../../middlewares/auth'
+import { CreateAttachmentSchema } from '../../services/domain/attachments'
 import { readJsonBody } from '../../services/domain/field-sync'
-import { CreateAttachmentSchema } from './schema'
 
 export function createAttachmentRoutes(attachmentService: AttachmentService) {
   return new Hono<HonoEnv>()

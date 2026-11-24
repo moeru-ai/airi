@@ -40,7 +40,7 @@ describe('attachment service', () => {
 
   it('creates a private upload and marks it ready after object metadata matches', async () => {
     const service = createAttachmentService(db, objectStore)
-    const input = { id: 'attachment-1', mimeType: 'image/png', sha256: 'a'.repeat(64), size: 4 }
+    const input = { id: 'attachment-1', mimeType: 'image/png', sha256: 'a'.repeat(64), size: 4 } as const
 
     const created = await service.createUpload('owner-1', input)
     expect(created.upload).toEqual({
@@ -89,7 +89,7 @@ describe('attachment service', () => {
       mimeType: 'image/png',
       size: 4,
       sha256: 'a'.repeat(64),
-      state: 'ready',
+      finalizedAt: new Date(),
     })
     await db.insert(schema.chats).values({ id: 'chat-1', type: 'group' })
     await db.insert(schema.chatMembers).values([
@@ -110,6 +110,7 @@ describe('attachment service', () => {
 
     await expect(service.createDownload('owner-1', 'attachment-1')).resolves.toMatchObject({
       url: 'https://objects.test/attachments/attachment-1/original',
+      sha256: 'a'.repeat(64),
     })
     await expect(service.createDownload('member-1', 'attachment-1')).resolves.toMatchObject({
       attachment: { id: 'attachment-1' },

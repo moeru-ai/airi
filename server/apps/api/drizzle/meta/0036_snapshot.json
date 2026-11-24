@@ -1,5 +1,5 @@
 {
-  "id": "094ee22b-8a70-45cf-8f30-3536e89992bb",
+  "id": "73a988a9-e516-4959-a65d-d7ee00f65522",
   "prevId": "ca66efe1-4454-4402-b715-32a9a0f2ff15",
   "version": "7",
   "dialect": "postgresql",
@@ -44,12 +44,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "state": {
-          "name": "state",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp",
@@ -57,12 +51,11 @@
           "notNull": true,
           "default": "now()"
         },
-        "updated_at": {
-          "name": "updated_at",
+        "finalized_at": {
+          "name": "finalized_at",
           "type": "timestamp",
           "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
+          "notNull": false
         }
       },
       "indexes": {

@@ -86,7 +86,7 @@ describe('pushMessages', () => {
       mimeType: 'image/png',
       size: 4,
       sha256: 'a'.repeat(64),
-      state: 'ready',
+      finalizedAt: new Date(),
     })
     const service = createChatService(db)
 
@@ -105,17 +105,20 @@ describe('pushMessages', () => {
     }])
   })
 
-  it('rejects pending or unowned message attachments', async () => {
+  it.each([
+    { ownerId: 'member', finalizedAt: null },
+    { ownerId: 'other-user', finalizedAt: new Date() },
+  ])('rejects attachments with owner $ownerId and finalization $finalizedAt', async ({ ownerId, finalizedAt }) => {
     await db.insert(schema.chats).values({ id: 'group', type: 'group' })
     await db.insert(schema.chatMembers).values({ chatId: 'group', memberType: 'user', userId: 'member' })
     await db.insert(attachments).values({
       id: 'attachment-1',
-      ownerId: 'other-user',
+      ownerId,
       objectKey: 'attachments/attachment-1/original',
       mimeType: 'image/png',
       size: 4,
       sha256: 'a'.repeat(64),
-      state: 'pending',
+      finalizedAt,
     })
     const service = createChatService(db)
 

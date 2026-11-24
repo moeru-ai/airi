@@ -428,7 +428,6 @@ export async function buildApp(deps: AppDeps) {
      */
     .route('/api/v1/chats', createChatRoutes(deps.chatService))
 
-    /** Private attachment upload and download authorization. */
     .route('/api/v1/attachments', createAttachmentRoutes(deps.attachmentService))
 
     /**
@@ -815,13 +814,7 @@ export async function createApp() {
       service.register({ name: 'characters', priority: 30, softDelete: ({ userId }) => dependsOn.characterService.deleteAllForUser(userId) })
       service.register({ name: 'characterCards', priority: 30, softDelete: ({ userId }) => dependsOn.characterCardService.deleteAllForUser(userId) })
       service.register({ name: 'chats', priority: 30, softDelete: ({ userId }) => dependsOn.chatService.deleteAllForUser(userId) })
-      service.register({
-        name: 'attachments',
-        priority: 30,
-        softDelete: async ({ userId }) => {
-          await dependsOn.attachmentService.deleteAllForUser(userId)
-        },
-      })
+      service.register({ name: 'attachments', priority: 30, softDelete: ({ userId }) => dependsOn.attachmentService.deleteAllForUser(userId) })
       service.register(createUserDeletedEventHandler(dependsOn.accountEvents))
       return service
     },

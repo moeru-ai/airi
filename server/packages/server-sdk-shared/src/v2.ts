@@ -19,6 +19,7 @@ export {
   parseSendMessagesRequest,
   PullMessagesRequestSchema,
   SendMessagesRequestSchema,
+  WireAttachmentSchema,
 } from './chat'
 
 export const AuthenticateRequestSchema = v.object({

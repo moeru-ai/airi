@@ -27,11 +27,13 @@ export const PullMessagesRequestSchema = v.object({
   limit: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1))),
 })
 
-export interface WireAttachment {
-  id: string
-  mimeType: string
-  size: number
-}
+export const WireAttachmentSchema = v.object({
+  id: AttachmentIdSchema,
+  mimeType: NonEmptyStringSchema,
+  size: v.pipe(v.number(), v.integer(), v.minValue(1)),
+})
+
+export type WireAttachment = v.InferOutput<typeof WireAttachmentSchema>
 
 export interface WireMessage {
   id: string

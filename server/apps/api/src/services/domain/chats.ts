@@ -5,12 +5,13 @@ import type { EngagementMetrics } from '../../otel'
 
 import { useLogger } from '@guiiai/logg'
 import { createBadRequestError, createConflictError, createForbiddenError, createNotFoundError } from '@proj-airi/http-shared'
-import { and, eq, gt, inArray, isNull, sql } from 'drizzle-orm'
-import { groupBy } from 'es-toolkit'
+import { and, eq, gt, inArray, isNotNull, isNull, sql } from 'drizzle-orm'
+import { groupBy, isEqual } from 'es-toolkit'
 
+import { attachments } from '../../schemas/attachments'
 import { nanoid } from '../../utils/id'
 
-import * as schema from '../../schemas'
+import * as schema from '../../schemas/chats'
 
 const logger = useLogger('chats')
 
@@ -248,12 +249,12 @@ export function createChatService(db: Database, metrics?: EngagementMetrics | nu
         const attachmentIds = [...new Set(messages.flatMap(message => message.mediaIds ?? []))]
         if (attachmentIds.length > 0) {
           const ownedAttachments = await tx
-            .select({ id: schema.attachments.id })
-            .from(schema.attachments)
+            .select({ id: attachments.id })
+            .from(attachments)
             .where(and(
-              inArray(schema.attachments.id, attachmentIds),
-              eq(schema.attachments.ownerId, userId),
-              eq(schema.attachments.state, 'ready'),
+              inArray(attachments.id, attachmentIds),
+              eq(attachments.ownerId, userId),
+              isNotNull(attachments.finalizedAt),
             ))
           if (ownedAttachments.length !== attachmentIds.length)
             throw createBadRequestError('Messages can reference only ready attachments owned by the sender')
@@ -301,7 +302,7 @@ export function createChatService(db: Database, metrics?: EngagementMetrics | nu
             && existingMessage.role === 'assistant'
             && message.role === 'assistant'
             && existingMessage.content === message.content
-            && JSON.stringify(existingMessage.mediaIds) === JSON.stringify(message.mediaIds ?? [])
+            && isEqual(existingMessage.mediaIds, message.mediaIds ?? [])
           ) {
             unchangedLegacyAssistantIds.add(message.id)
             return false
@@ -501,14 +502,14 @@ export function createChatService(db: Database, metrics?: EngagementMetrics | nu
         const attachmentRows = attachmentIds.length > 0
           ? await tx
               .select({
-                id: schema.attachments.id,
-                mimeType: schema.attachments.mimeType,
-                size: schema.attachments.size,
+                id: attachments.id,
+                mimeType: attachments.mimeType,
+                size: attachments.size,
               })
-              .from(schema.attachments)
+              .from(attachments)
               .where(and(
-                inArray(schema.attachments.id, attachmentIds),
-                eq(schema.attachments.state, 'ready'),
+                inArray(attachments.id, attachmentIds),
+                isNotNull(attachments.finalizedAt),
               ))
           : []
         const attachmentsById = new Map(attachmentRows.map(attachment => [attachment.id, attachment]))

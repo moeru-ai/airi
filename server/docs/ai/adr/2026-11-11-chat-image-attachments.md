@@ -4,13 +4,14 @@ Status: proposed
 
 ## Decision
 
-Store image bytes in the existing private S3 bucket. Store attachment ownership and upload state in PostgreSQL.
+Store image bytes in the existing private S3 bucket. Store the owner, object key, creation time, and finalization time in PostgreSQL. A null finalization time means verification is pending.
 Chat messages reference finalized attachments by ID. The API signs a download after it checks ownership or active chat membership.
 
 ## Scope
 
 The client queues up to four images with each message. The API validates each image's declared type, size, and checksum.
 The shared object store signs a write-once PUT with a SHA-256 checksum. Finalization checks the stored checksum, size, and content type.
+The download authorization includes the expected SHA-256. The client checks the size and checksum before it saves the image.
 Attachment descriptors travel with synced messages. An omitted descriptor list means the message has no attachments.
 
 ## Non-goals

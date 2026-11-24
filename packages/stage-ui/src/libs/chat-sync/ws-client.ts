@@ -4,7 +4,7 @@ import type { ComputedRef, Ref } from 'vue'
 import { defineInvoke } from '@moeru/eventa'
 import { createContext as createWsContext, wsErrorEvent } from '@moeru/eventa/adapters/websocket/native'
 import { errorMessageFrom } from '@moeru/std'
-import { authenticate, newMessages, parseAuthenticateResponse, pullMessages, sendMessages } from '@proj-airi/server-sdk-shared/v2'
+import { authenticate, newMessages, parseAuthenticateResponse, pullMessages, sendMessages, WireAttachmentSchema } from '@proj-airi/server-sdk-shared/v2'
 import { useWebSocket } from '@vueuse/core'
 import { computed, ref, shallowRef, watch } from 'vue'
 
@@ -43,11 +43,7 @@ const NewMessagesPayloadSchema = v.object({
     senderId: v.nullable(v.string()),
     role: v.picklist(['system', 'user', 'assistant', 'tool', 'error']),
     content: v.string(),
-    attachments: v.optional(v.array(v.object({
-      id: v.pipe(v.string(), v.minLength(1)),
-      mimeType: v.pipe(v.string(), v.minLength(1)),
-      size: v.number(),
-    }))),
+    attachments: v.optional(v.array(WireAttachmentSchema)),
     replyToMessageId: v.optional(v.nullable(v.string())),
     seq: v.number(),
     createdAt: v.number(),

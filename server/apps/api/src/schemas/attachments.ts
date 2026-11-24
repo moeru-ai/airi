@@ -1,8 +1,6 @@
-import type { InferInsertModel, InferSelectModel } from 'drizzle-orm'
+import type { InferSelectModel } from 'drizzle-orm'
 
 import { index, integer, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core'
-
-export type AttachmentState = 'pending' | 'ready'
 
 export const attachments = pgTable(
   'attachments',
@@ -13,9 +11,8 @@ export const attachments = pgTable(
     mimeType: text('mime_type').notNull(),
     size: integer('size').notNull(),
     sha256: text('sha256').notNull(),
-    state: text('state').notNull().$type<AttachmentState>(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
-    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+    finalizedAt: timestamp('finalized_at'),
   },
   table => [
     uniqueIndex('attachments_object_key_uidx').on(table.objectKey),
@@ -24,4 +21,3 @@ export const attachments = pgTable(
 )
 
 export type Attachment = InferSelectModel<typeof attachments>
-export type NewAttachment = InferInsertModel<typeof attachments>

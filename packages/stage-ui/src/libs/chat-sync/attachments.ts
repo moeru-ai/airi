@@ -2,91 +2,80 @@ import type { WireAttachment, WireMessage } from '@proj-airi/server-sdk-shared/v
 
 import type { ChatHistoryItem } from '../../types/chat'
 
+import { WireAttachmentSchema } from '@proj-airi/server-sdk-shared/v2'
 import { nanoid } from 'nanoid'
 
-import { chatAssetIdFrom, chatEventAttachmentsOf, readChatAsset, storeChatAsset } from '../chat-assets'
+import * as v from 'valibot'
 
-export interface CloudAttachmentClientOptions {
-  fetch: typeof fetch
+import { chatAssetIdFrom, chatEventAttachmentsOf, readChatAsset, storeChatAsset } from '../chat-assets'
+import { TransferRequestError } from '../file-transfer/request-error'
+import { downloadVerified, putToTarget } from '../file-transfer/transfer'
+import { readJsonOrThrow } from './http-response'
+
+interface CloudAttachmentClientOptions {
+  apiFetch: typeof fetch
   serverUrl: string
 }
 
-export interface PendingCloudAttachment {
-  id: string
-  /** Device-local image reference retained by the session until deletion. */
-  ref: string
-}
-
-export function pendingImageAttachments(message: ChatHistoryItem): PendingCloudAttachment[] {
+export function pendingImageAttachments(message: ChatHistoryItem) {
   return chatEventAttachmentsOf(message)
     .filter(attachment => attachment.type === 'image')
     .map(({ ref }) => ({ id: nanoid(), ref }))
 }
 
-interface AttachmentUploadResponse {
-  attachment: WireAttachment
-  upload: null | { headers: Record<string, string>, url: string }
-}
+const UploadResponseSchema = v.object({
+  attachment: WireAttachmentSchema,
+  upload: v.nullable(v.object({
+    headers: v.record(v.string(), v.string()),
+    url: v.pipe(v.string(), v.url()),
+  })),
+})
 
-interface AttachmentDownloadResponse {
-  attachment: WireAttachment
-  url: string
-}
+const DownloadResponseSchema = v.object({
+  attachment: WireAttachmentSchema,
+  url: v.pipe(v.string(), v.url()),
+  sha256: v.pipe(v.string(), v.regex(/^[a-f0-9]{64}$/)),
+})
 
-async function parseJsonResponse<T>(response: Response, operation: string): Promise<T> {
-  if (!response.ok)
-    throw new Error(`${operation} failed with HTTP ${response.status}`)
-  return response.json() as Promise<T>
-}
-
-/** Uploads one attachment and returns its stable cloud id. */
-export async function uploadCloudAttachment(attachment: PendingCloudAttachment, options: CloudAttachmentClientOptions): Promise<string> {
-  const asset = await readChatAsset(attachment.ref)
-  const createResponse = await options.fetch(new URL('/api/v1/attachments', options.serverUrl), {
+export async function uploadCloudAttachment(attachmentId: string, assetRef: string, options: CloudAttachmentClientOptions): Promise<string> {
+  const asset = await readChatAsset(assetRef)
+  const createResponse = await options.apiFetch(new URL('/api/v1/attachments', options.serverUrl), {
     body: JSON.stringify({
-      id: attachment.id,
+      id: attachmentId,
       mimeType: asset.mimeType,
-      sha256: chatAssetIdFrom(attachment.ref),
+      sha256: chatAssetIdFrom(assetRef),
       size: asset.blob.size,
     }),
     headers: { 'content-type': 'application/json' },
     method: 'POST',
   })
-  const created = await parseJsonResponse<AttachmentUploadResponse>(createResponse, 'Attachment upload initialization')
+  const created = await readJsonOrThrow(createResponse, UploadResponseSchema)
+  if (!created.upload)
+    return created.attachment.id
 
-  if (created.upload) {
-    const uploadResponse = await globalThis.fetch(created.upload.url, {
-      body: asset.blob,
-      headers: created.upload.headers,
-      method: 'PUT',
-    })
-    // A previous PUT can succeed even if the client did not receive its response.
-    if (!uploadResponse.ok && uploadResponse.status !== 412)
-      throw new Error(`Attachment object upload failed with HTTP ${uploadResponse.status}`)
-
-    const finalizeResponse = await options.fetch(
-      new URL(`/api/v1/attachments/${encodeURIComponent(attachment.id)}/finalize`, options.serverUrl),
-      { method: 'POST' },
-    )
-    await parseJsonResponse<WireAttachment>(finalizeResponse, 'Attachment upload finalization')
+  try {
+    await putToTarget(asset.blob, { ...created.upload, method: 'PUT' })
+  }
+  catch (error) {
+    if (!(error instanceof TransferRequestError) || error.status !== 412)
+      throw error
   }
 
+  const finalizeResponse = await options.apiFetch(
+    new URL(`/api/v1/attachments/${encodeURIComponent(attachmentId)}/finalize`, options.serverUrl),
+    { method: 'POST' },
+  )
+  await readJsonOrThrow(finalizeResponse, WireAttachmentSchema)
   return created.attachment.id
 }
 
-async function downloadCloudAttachment(attachment: WireAttachment, options: CloudAttachmentClientOptions) {
-  const response = await options.fetch(
+async function downloadAndStoreCloudAttachment(attachment: WireAttachment, sessionId: string, options: CloudAttachmentClientOptions) {
+  const response = await options.apiFetch(
     new URL(`/api/v1/attachments/${encodeURIComponent(attachment.id)}/download`, options.serverUrl),
   )
-  const download = await parseJsonResponse<AttachmentDownloadResponse>(response, 'Attachment download authorization')
-  const objectResponse = await globalThis.fetch(download.url)
-  if (!objectResponse.ok)
-    throw new Error(`Attachment object download failed with HTTP ${objectResponse.status}`)
-
-  const bytes = new Uint8Array(await objectResponse.arrayBuffer())
-  if (bytes.byteLength !== attachment.size)
-    throw new Error('Attachment object size does not match its message descriptor')
-  return bytes
+  const download = await readJsonOrThrow(response, DownloadResponseSchema)
+  const blob = await downloadVerified({ url: download.url, byteSize: attachment.size, sha256: download.sha256 })
+  return storeChatAsset(new Uint8Array(await blob.arrayBuffer()), attachment.mimeType, sessionId)
 }
 
 /** Downloads each image and stores it under the local session before it enters chat history. */
@@ -102,8 +91,7 @@ export async function downloadCloudMessageAttachments(
   }
 
   const resolved = await Promise.all([...attachments.values()].map(async (attachment) => {
-    const bytes = await downloadCloudAttachment(attachment, options)
-    const ref = await storeChatAsset(bytes, attachment.mimeType, sessionId)
+    const ref = await downloadAndStoreCloudAttachment(attachment, sessionId, options)
     return [attachment.id, ref] as const
   }))
   return new Map(resolved)

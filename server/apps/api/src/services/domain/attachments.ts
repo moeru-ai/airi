@@ -1,53 +1,51 @@
+import type { WireAttachment } from '@proj-airi/server-sdk-shared/v2'
+
 import type { Database } from '../../libs/db'
+import type { Attachment } from '../../schemas/attachments'
 import type { ObjectStore } from '../adapters/object-store'
 
-import { Buffer } from 'node:buffer'
-
 import { createConflictError, createNotFoundError } from '@proj-airi/http-shared'
-import { and, eq, inArray, isNull, sql } from 'drizzle-orm'
+import { and, arrayContains, eq, inArray, isNotNull, isNull, sql } from 'drizzle-orm'
 
-import * as schema from '../../schemas'
+import * as v from 'valibot'
 
-export interface CreateAttachmentInput {
-  id: string
-  mimeType: string
-  sha256: string
-  size: number
+import { attachments } from '../../schemas/attachments'
+import { chatMembers, chats, messages } from '../../schemas/chats'
+import { signWriteOnceUpload, uploadedObjectMismatch } from './direct-upload'
+
+export const CreateAttachmentSchema = v.object({
+  id: v.pipe(v.string(), v.regex(/^[\w-]{1,128}$/)),
+  mimeType: v.picklist(['image/png', 'image/jpeg', 'image/webp', 'image/gif']),
+  sha256: v.pipe(v.string(), v.regex(/^[a-f0-9]{64}$/)),
+  size: v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(3 * 1024 * 1024)),
+})
+
+function toWireAttachment({ id, mimeType, size }: Attachment): WireAttachment {
+  return { id, mimeType, size }
 }
 
-export interface AttachmentDescriptor {
-  id: string
-  mimeType: string
-  size: number
-}
-
-/** Owns attachment metadata and its private object-storage lifecycle. */
 export function createAttachmentService(
   db: Database,
   objectStore: Pick<ObjectStore, 'createDownloadUrl' | 'createUploadTarget' | 'deleteObject' | 'inspectObject'>,
 ) {
-  function descriptor(row: typeof schema.attachments.$inferSelect): AttachmentDescriptor {
-    return { id: row.id, mimeType: row.mimeType, size: row.size }
+  async function requireOwnedAttachment(userId: string, attachmentId: string) {
+    const attachment = await db.query.attachments.findFirst({
+      where: and(eq(attachments.id, attachmentId), eq(attachments.ownerId, userId)),
+    })
+    if (!attachment)
+      throw createNotFoundError('Attachment not found')
+    return attachment
   }
 
   return {
-    async createUpload(userId: string, input: CreateAttachmentInput) {
-      const objectKey = `attachments/${input.id}/original`
-      const now = new Date()
-
-      await db.insert(schema.attachments).values({
+    async createUpload(userId: string, input: v.InferOutput<typeof CreateAttachmentSchema>) {
+      await db.insert(attachments).values({
         ...input,
-        objectKey,
+        objectKey: `attachments/${input.id}/original`,
         ownerId: userId,
-        state: 'pending',
-        createdAt: now,
-        updatedAt: now,
       }).onConflictDoNothing()
 
-      const attachment = await db.query.attachments.findFirst({ where: eq(schema.attachments.id, input.id) })
-      if (!attachment || attachment.ownerId !== userId)
-        throw createNotFoundError('Attachment not found')
-
+      const attachment = await requireOwnedAttachment(userId, input.id)
       if (
         attachment.mimeType !== input.mimeType
         || attachment.size !== input.size
@@ -56,64 +54,50 @@ export function createAttachmentService(
         throw createConflictError('Attachment metadata does not match the existing upload')
       }
 
-      if (attachment.state === 'ready')
-        return { attachment: descriptor(attachment), upload: null }
-
-      const upload = await objectStore.createUploadTarget({
-        Key: attachment.objectKey,
-        ContentType: attachment.mimeType,
-        ChecksumSHA256: Buffer.from(attachment.sha256, 'hex').toString('base64'),
-        IfNoneMatch: '*',
-      })
-      return { attachment: descriptor(attachment), upload }
+      const upload = attachment.finalizedAt === null
+        ? await signWriteOnceUpload(objectStore, attachment.objectKey, attachment.mimeType, attachment.sha256)
+        : null
+      return { attachment: toWireAttachment(attachment), upload }
     },
 
     async finalizeUpload(userId: string, attachmentId: string) {
-      const attachment = await db.query.attachments.findFirst({
-        where: and(eq(schema.attachments.id, attachmentId), eq(schema.attachments.ownerId, userId)),
-      })
-      if (!attachment)
-        throw createNotFoundError('Attachment not found')
-      if (attachment.state === 'ready')
-        return descriptor(attachment)
+      const attachment = await requireOwnedAttachment(userId, attachmentId)
+      if (attachment.finalizedAt !== null)
+        return toWireAttachment(attachment)
 
       const object = await objectStore.inspectObject(attachment.objectKey)
-      if (
-        object.ContentLength !== attachment.size
-        || object.ContentType !== attachment.mimeType
-        || object.ChecksumSHA256 !== Buffer.from(attachment.sha256, 'hex').toString('base64')
-      ) {
-        throw createConflictError('Uploaded object metadata does not match the attachment')
-      }
+      const mismatch = uploadedObjectMismatch(object, attachment.size, attachment.sha256, attachment.mimeType)
+      if (mismatch)
+        throw createConflictError(mismatch)
 
-      const [ready] = await db.update(schema.attachments)
-        .set({ state: 'ready', updatedAt: new Date() })
-        .where(and(eq(schema.attachments.id, attachmentId), eq(schema.attachments.ownerId, userId)))
+      const [finalizedAttachment] = await db.update(attachments)
+        .set({ finalizedAt: sql`coalesce(${attachments.finalizedAt}, now())` })
+        .where(and(eq(attachments.id, attachmentId), eq(attachments.ownerId, userId)))
         .returning()
-      if (!ready)
+      if (!finalizedAttachment)
         throw createNotFoundError('Attachment not found')
-      return descriptor(ready)
+      return toWireAttachment(finalizedAttachment)
     },
 
     async createDownload(userId: string, attachmentId: string) {
       const attachment = await db.query.attachments.findFirst({
-        where: and(eq(schema.attachments.id, attachmentId), eq(schema.attachments.state, 'ready')),
+        where: and(eq(attachments.id, attachmentId), isNotNull(attachments.finalizedAt)),
       })
       if (!attachment)
         throw createNotFoundError('Attachment not found')
 
       if (attachment.ownerId !== userId) {
         const [membership] = await db
-          .select({ chatId: schema.chatMembers.chatId })
-          .from(schema.chatMembers)
-          .innerJoin(schema.chats, eq(schema.chats.id, schema.chatMembers.chatId))
-          .innerJoin(schema.messages, eq(schema.messages.chatId, schema.chatMembers.chatId))
+          .select({ chatId: chatMembers.chatId })
+          .from(chatMembers)
+          .innerJoin(chats, eq(chats.id, chatMembers.chatId))
+          .innerJoin(messages, eq(messages.chatId, chatMembers.chatId))
           .where(and(
-            eq(schema.chatMembers.memberType, 'user'),
-            eq(schema.chatMembers.userId, userId),
-            isNull(schema.chats.deletedAt),
-            isNull(schema.messages.deletedAt),
-            sql`${attachmentId} = ANY(${schema.messages.mediaIds})`,
+            eq(chatMembers.memberType, 'user'),
+            eq(chatMembers.userId, userId),
+            isNull(chats.deletedAt),
+            isNull(messages.deletedAt),
+            arrayContains(messages.mediaIds, [attachmentId]),
           ))
           .limit(1)
         if (!membership)
@@ -121,16 +105,19 @@ export function createAttachmentService(
       }
 
       return {
-        attachment: descriptor(attachment),
+        attachment: toWireAttachment(attachment),
+        sha256: attachment.sha256,
         url: await objectStore.createDownloadUrl(attachment.objectKey),
       }
     },
 
     async deleteAllForUser(userId: string) {
-      const owned = await db.select().from(schema.attachments).where(eq(schema.attachments.ownerId, userId))
+      const owned = await db.select({ id: attachments.id, objectKey: attachments.objectKey })
+        .from(attachments)
+        .where(eq(attachments.ownerId, userId))
       await Promise.all(owned.map(attachment => objectStore.deleteObject(attachment.objectKey)))
       if (owned.length > 0)
-        await db.delete(schema.attachments).where(inArray(schema.attachments.id, owned.map(attachment => attachment.id)))
+        await db.delete(attachments).where(inArray(attachments.id, owned.map(attachment => attachment.id)))
     },
   }
 }

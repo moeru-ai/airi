@@ -7,7 +7,6 @@ import { extractMessageText, isCloudSyncableMessage, mergeCloudMessagesIntoLocal
 
 function makeWire(partial: Partial<WireMessage> & Pick<WireMessage, 'id' | 'seq'>): WireMessage {
   return {
-    attachments: [],
     chatId: partial.chatId ?? 'chat-1',
     senderId: partial.senderId ?? null,
     role: partial.role ?? 'assistant',
@@ -116,7 +115,6 @@ describe('wireMessageToLocal', () => {
       senderId: null,
       role: 'assistant',
       content: 'reply',
-      attachments: [],
       seq: 7,
       createdAt: 1730000000000,
       updatedAt: 1730000000000,
@@ -142,7 +140,6 @@ describe('wireMessageToLocal', () => {
       senderId: null,
       role: 'assistant',
       content: '',
-      attachments: [],
       seq: 1,
       createdAt: 0,
       updatedAt: 0,
@@ -163,7 +160,6 @@ describe('wireMessageToLocal', () => {
       senderId: null,
       role: 'tool',
       content: '',
-      attachments: [],
       seq: 1,
       createdAt: 0,
       updatedAt: 0,
