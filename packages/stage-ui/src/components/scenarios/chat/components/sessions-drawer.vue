@@ -4,7 +4,7 @@ import type { SessionRow } from './session-row-model'
 
 import { errorMessageFrom } from '@moeru/std'
 import { useNow } from '@vueuse/core'
-import { compareDesc, intlFormatDistance, max } from 'date-fns'
+import { compareDesc, max } from 'date-fns'
 import { storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -21,6 +21,7 @@ import { summarizeSessionMessages } from '../../../../stores/chat/session-summar
 import { useChatSessionsViewStore } from '../../../../stores/chat/sessions-view-store'
 import { useAiriCardStore } from '../../../../stores/modules/airi-card'
 import { useConsciousnessStore } from '../../../../stores/modules/consciousness'
+import { formatSessionFullTime, formatSessionRowTime } from './session-time'
 
 const props = withDefaults(defineProps<{
   desktopMode?: 'dialog' | 'popover' | 'inline'
@@ -115,7 +116,9 @@ const rows = computed<SessionRow[]>(() => {
       preview: previewFor(meta, summary),
       lastMessage: lastMessageFor(summary),
       isActive: meta.sessionId === activeSessionId.value,
-      activityAtLabel: intlFormatDistance(activityAt, referenceTime, { locale: locale.value }),
+      activityAt,
+      activityAtLabel: formatSessionRowTime(activityAt, referenceTime, locale.value),
+      activityAtTitle: formatSessionFullTime(activityAt, locale.value),
       characterName: cards.value.get(meta.characterId)?.name ?? t('stage.chat.sessions.unknown-character'),
     }))
 })
