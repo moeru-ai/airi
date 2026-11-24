@@ -8,6 +8,13 @@ const serverSdkMocks = vi.hoisted(() => {
 
     readonly listeners = new Map<string, Set<(event: any) => void | Promise<void>>>()
     readonly sent: any[] = []
+    // Mirrors better-ws: `module:authenticated` arrives while `preparing`, and
+    // `send()` refuses with `false` until the transport reaches `ready`.
+    status: 'preparing' | 'ready' | 'closed' = 'preparing'
+
+    get isReady() {
+      return this.status === 'ready'
+    }
 
     constructor(public readonly options: Record<string, any>) {
       MockClient.instances.push(this)
@@ -45,11 +52,15 @@ const serverSdkMocks = vi.hoisted(() => {
     }
 
     send(event: any) {
+      if (!this.isReady)
+        return false
+
       this.sent.push(event)
       return true
     }
 
     close(code?: number, reason?: string) {
+      this.status = 'closed'
       this.options.onClose?.(code, reason)
     }
 
@@ -65,14 +76,17 @@ const serverSdkMocks = vi.hoisted(() => {
     }
 
     simulateTransientDisconnect() {
+      this.status = 'closed'
       this.options.onClose?.(1005, '')
     }
 
     simulateClose(code?: number, reason?: string) {
+      this.status = 'closed'
       this.options.onClose?.(code, reason)
     }
 
-    simulateReconnectReady() {
+    simulateReady() {
+      this.status = 'ready'
       this.options.onReady?.()
     }
 
@@ -134,9 +148,9 @@ describe('channel-server store reconnect', () => {
     const store = useModsServerChannelStore()
 
     store.send({
-      type: 'spark:notify',
-      data: { message: 'before-init' },
-    } as any)
+      type: 'ui:configure',
+      data: { moduleName: 'before-init', config: {} },
+    })
 
     const initializePromise = store.initialize({ token: 'secret' })
     const client = serverSdkMocks.MockClient.instances.at(-1)!
@@ -144,12 +158,19 @@ describe('channel-server store reconnect', () => {
     client.simulateAuthenticated()
     await initializePromise
 
+    // Authenticated lands in the prepare phase: the transport refuses sends, so
+    // the queued event must survive until ready (#2305).
     expect(store.connected).toBe(true)
+    expect(store.pendingSendCount).toBe(1)
+    expect(client.sent).toEqual([])
+
+    client.simulateReady()
+
     expect(store.pendingSendCount).toBe(0)
     expect(client.sent).toEqual(expect.arrayContaining([
       expect.objectContaining({
-        type: 'spark:notify',
-        data: { message: 'before-init' },
+        type: 'ui:configure',
+        data: { moduleName: 'before-init', config: {} },
       }),
     ]))
 
@@ -158,20 +179,20 @@ describe('channel-server store reconnect', () => {
     expect(store.connected).toBe(false)
 
     store.send({
-      type: 'spark:notify',
-      data: { message: 'queued-during-disconnect' },
-    } as any)
+      type: 'ui:configure',
+      data: { moduleName: 'queued-during-disconnect', config: {} },
+    })
 
     expect(store.pendingSendCount).toBe(1)
 
-    client.simulateReconnectReady()
+    client.simulateReady()
 
     expect(store.connected).toBe(true)
     expect(store.pendingSendCount).toBe(0)
     expect(client.sent).toEqual(expect.arrayContaining([
       expect.objectContaining({
-        type: 'spark:notify',
-        data: { message: 'queued-during-disconnect' },
+        type: 'ui:configure',
+        data: { moduleName: 'queued-during-disconnect', config: {} },
       }),
     ]))
   })
@@ -191,61 +212,93 @@ describe('channel-server store reconnect', () => {
     })
   })
 
-  it('notifies onReconnected callbacks when the websocket becomes ready again', async () => {
+  // https://github.com/moeru-ai/airi/issues/2305
+  // ROOT CAUSE:
+  //
+  // `module:authenticated` arrives while the transport is `preparing`.
+  // `Client.send()` returns false until `ready`, so the registration was dropped.
+  //
+  // await ensureConnected()
+  // registerConsumers()
+  //
+  // We fixed this with `onReady(callback)`, and `send()` now queues refused events.
+  it('runs onReady callbacks on each ready but not at authenticated for Issue #2305', async () => {
     const store = useModsServerChannelStore()
-    const onReconnected = vi.fn()
-    store.onReconnected(onReconnected)
+    const onReady = vi.fn()
+    store.onReady(onReady)
 
     const initializePromise = store.initialize({ token: 'secret' })
     const client = serverSdkMocks.MockClient.instances[0]
 
     client.simulateAuthenticated()
     await initializePromise
+    expect(onReady).toHaveBeenCalledTimes(0)
+
+    client.simulateReady()
+    expect(onReady).toHaveBeenCalledTimes(1)
 
     client.simulateTransientDisconnect()
-    client.simulateReconnectReady()
-    client.simulateReconnectReady()
-
-    expect(onReconnected).toHaveBeenCalledTimes(1)
+    client.simulateReady()
+    expect(onReady).toHaveBeenCalledTimes(2)
   })
 
-  it('does not notify onReconnected on first authenticated->ready flow and only on subsequent ready events', async () => {
+  it('runs an onReady callback immediately when subscribed on a ready transport, and stops after unsubscribe', async () => {
     const store = useModsServerChannelStore()
-    const onReconnected = vi.fn()
-    store.onReconnected(onReconnected)
 
     const initializePromise = store.initialize({ token: 'secret' })
     const client = serverSdkMocks.MockClient.instances[0]
-
     client.simulateAuthenticated()
-    client.simulateReconnectReady()
-    expect(onReconnected).toHaveBeenCalledTimes(0)
-
-    client.simulateReconnectReady()
-    expect(onReconnected).toHaveBeenCalledTimes(1)
-
     await initializePromise
+    client.simulateReady()
+
+    const onReady = vi.fn()
+    const stop = store.onReady(onReady)
+    expect(onReady).toHaveBeenCalledTimes(1)
+
+    stop()
+    client.simulateTransientDisconnect()
+    client.simulateReady()
+    expect(onReady).toHaveBeenCalledTimes(1)
   })
 
-  it('continues invoking remaining onReconnected callbacks when one throws', async () => {
+  it('runs onReady callbacks for a connection replaced after the auth token changes', async () => {
+    const store = useModsServerChannelStore()
+    const onReady = vi.fn()
+    store.onReady(onReady)
+
+    const initializePromise = store.initialize({ token: 'secret' })
+    const firstClient = serverSdkMocks.MockClient.instances[0]
+    firstClient.simulateAuthenticated()
+    await initializePromise
+    firstClient.simulateReady()
+    expect(onReady).toHaveBeenCalledTimes(1)
+
+    store.websocketAuthToken = 'rotated'
+    await nextTick()
+
+    const replacementClient = serverSdkMocks.MockClient.instances.at(-1)!
+    expect(replacementClient).not.toBe(firstClient)
+    replacementClient.simulateAuthenticated()
+    replacementClient.simulateReady()
+    expect(onReady).toHaveBeenCalledTimes(2)
+  })
+
+  it('continues invoking remaining onReady callbacks when one throws', async () => {
     const store = useModsServerChannelStore()
     const successfulCallback = vi.fn()
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
-    store.onReconnected(() => {
+    store.onReady(() => {
       throw new Error('boom')
     })
-    store.onReconnected(successfulCallback)
+    store.onReady(successfulCallback)
 
     const initializePromise = store.initialize({ token: 'secret' })
     const client = serverSdkMocks.MockClient.instances[0]
 
     client.simulateAuthenticated()
     await initializePromise
-
-    client.simulateTransientDisconnect()
-    client.simulateReconnectReady()
-    client.simulateReconnectReady()
+    client.simulateReady()
 
     expect(successfulCallback).toHaveBeenCalledTimes(1)
     expect(consoleErrorSpy).toHaveBeenCalledTimes(1)
@@ -349,14 +402,14 @@ describe('channel-server store reconnect', () => {
 
     client.simulateAuthenticated()
     await initializePromise
-    client.simulateReconnectReady()
+    client.simulateReady()
 
     client.simulateTransientDisconnect()
 
     store.send({
-      type: 'spark:notify',
-      data: { message: 'reconnect-authenticated-queued' },
-    } as any)
+      type: 'ui:configure',
+      data: { moduleName: 'reconnect-authenticated-queued', config: {} },
+    })
 
     expect(store.pendingSendCount).toBe(1)
 
@@ -365,16 +418,80 @@ describe('channel-server store reconnect', () => {
     expect(store.connected).toBe(false)
     expect(store.pendingSendCount).toBe(1)
 
-    client.simulateReconnectReady()
+    client.simulateReady()
 
     expect(store.connected).toBe(true)
     expect(store.pendingSendCount).toBe(0)
     expect(client.sent).toEqual(expect.arrayContaining([
       expect.objectContaining({
-        type: 'spark:notify',
-        data: { message: 'reconnect-authenticated-queued' },
+        type: 'ui:configure',
+        data: { moduleName: 'reconnect-authenticated-queued', config: {} },
       }),
     ]))
+  })
+
+  // https://github.com/moeru-ai/airi/issues/2305
+  it('queues a send that the preparing transport refuses and delivers it on ready for Issue #2305', async () => {
+    const store = useModsServerChannelStore()
+
+    const initializePromise = store.initialize({ token: 'secret' })
+    const client = serverSdkMocks.MockClient.instances[0]
+
+    client.simulateAuthenticated()
+    await initializePromise
+
+    store.send({
+      type: 'module:consumer:register',
+      data: { event: 'input:text', mode: 'consumer-group', group: 'chat-ingestion' },
+    })
+
+    expect(client.sent).toEqual([])
+    expect(store.pendingSendCount).toBe(1)
+
+    client.simulateReady()
+
+    expect(store.pendingSendCount).toBe(0)
+    expect(client.sent).toEqual([
+      expect.objectContaining({
+        type: 'module:consumer:register',
+        data: expect.objectContaining({ event: 'input:text' }),
+      }),
+    ])
+  })
+
+  // https://github.com/moeru-ai/airi/issues/2305
+  it('delivers events refused while preparing on the connection that replaces it for Issue #2305', async () => {
+    const store = useModsServerChannelStore()
+
+    const initializePromise = store.initialize({ token: 'secret' })
+    const firstClient = serverSdkMocks.MockClient.instances[0]
+    firstClient.simulateAuthenticated()
+    await initializePromise
+
+    store.send({
+      type: 'module:consumer:register',
+      data: { event: 'input:text', mode: 'consumer-group', group: 'chat-ingestion' },
+    })
+
+    // The token changes before the first transport is ready. `dispose()` flushes
+    // into the transport that is still preparing, and it refuses the event.
+    store.websocketAuthToken = 'rotated'
+    await nextTick()
+
+    expect(firstClient.sent).toEqual([])
+    expect(store.pendingSendCount).toBe(1)
+
+    const replacementClient = serverSdkMocks.MockClient.instances.at(-1)!
+    replacementClient.simulateAuthenticated()
+    replacementClient.simulateReady()
+
+    expect(store.pendingSendCount).toBe(0)
+    expect(replacementClient.sent).toEqual([
+      expect.objectContaining({
+        type: 'module:consumer:register',
+        data: expect.objectContaining({ event: 'input:text' }),
+      }),
+    ])
   })
 
   it('does not reconnect while the url scheme is not valid', async () => {

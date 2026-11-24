@@ -2,6 +2,32 @@
 
 Shared core for stage
 
+## MCP tool exposure
+
+The Desktop Host exposes the four stable Agent entrypoints (`computer_observe`, `computer_act`, `computer_verify`, and `terminal_exec`) as Direct. It keeps extensions behind the existing MCP discovery and call tools.
+Direct calls use the same Main request binding, approval, cancellation, execution slot and settlement path.
+Exposure metadata grants no execution permission. External server metadata cannot opt into the Desktop Host's Direct policy.
+The Host rejects disabled bundled Desktop tools even when a caller invokes them through MCP directly.
+Unadmitted native AUV tools are absent from normal Chat registration. Their Main observation gates remain closed.
+
+The generic `builtIn_mcpListTools` and `builtIn_mcpCallTool` proxies are disabled by default. A Host that needs secondary MCP work registers them with `proxy: 'explicit'` and passes the allowed external names in `proxyServers`.
+This keeps them out of the default Agent catalog and blocks generic routing to the bundled Computer Use server. `proxy: 'active'` is reserved for an intentional model-visible route.
+
+`builtIn_mcpListTools` returns the live catalog. Supply an exact `name` for one current schema, or null for the full catalog.
+Registration descriptions contain server counts instead of every tool name. A discovery timeout leaves live discovery available.
+MCP schemas retain optional arguments. Direct definitions use non-strict provider schemas and retain server validation.
+
+`projectMcpCatalogHistory` keeps fresh discovery results intact for the next decision.
+Later request copies omit old schemas while retaining tool names, descriptions, identities and result links.
+The projection marks historical catalogs as snapshots and points to live schema discovery.
+It updates both portable output and correlated native continuation output. Stored history, generation records and unrelated provider fields remain intact.
+Failed results and other tools never enter this projection. Compact receives the projected copy and retains its existing scheduling modes.
+
+## Account usage
+
+`FluxUsagePanel` loads and displays account summaries and activity. Its details link opens the separate usage page.
+`FluxUsageHistory` displays ledger entries and owns pagination. Both components cancel pending requests when they unmount.
+
 ## Optional modules
 
 Provider lists expose `None` for optional features. Switches control module activation.
@@ -15,6 +41,10 @@ The voice host also stops listening and dictation. Text chat can continue withou
 Disabling Speech stops its producers and playback. Text generation and tool work continue until the chat turn ends.
 
 ## Experimental features
+
+Conversation Compact starts Off. Enable its local experiment and select Synchronous or Background to summarize older observations.
+The soft byte estimate only schedules compaction. Off mode and failed summaries still send the request to the provider, which decides whether it fits.
+Background compaction never pauses a request; Synchronous waits only for a summary started at the soft threshold. Disabling Compact invalidates summaries without cancelling tool execution.
 
 Register flags in `libs/feature-flags.ts`. Read their state through `useFeatureFlagsStore().isEnabled(key)`.
 Set `availability` to `local` or `cloud`. Local flags expose device switches without Cloud access.

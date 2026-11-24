@@ -8,7 +8,7 @@ import type { RateLimitMetrics } from './otel'
 import { createHash } from 'node:crypto'
 
 import { account, isUserBannedNow, user } from '@proj-airi/auth-shared'
-import { createBadRequestError, createForbiddenError, createInternalError } from '@proj-airi/http-error-shared'
+import { createBadRequestError, createForbiddenError, createInternalError, ok } from '@proj-airi/http-shared'
 import { and, eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { boolean, email, jwsCompact, nonEmpty, object, pipe, safeParse, string, transform } from 'valibot'
@@ -247,13 +247,17 @@ function createOIDCTokenAuthRoute(
   return new Hono<HonoEnv>()
     .on(['GET', 'POST'], '/get-session', async (c) => {
       const session = await resolveAuthRequest(deps.auth, deps.db, verifyAccessToken, c.req.raw.headers)
-      if (!session)
+      if (!session) {
+        // eslint-disable-next-line no-restricted-syntax -- The Better Auth client protocol owns this body.
         return c.json(null)
+      }
       const image = session.user.image || buildGravatarUrl(session.user.email)
+      // eslint-disable-next-line no-restricted-syntax -- The Better Auth client protocol owns this body.
       return c.json({ ...session, user: { ...session.user, image } })
     })
     .get('/list-sessions', async (c) => {
       const session = await resolveAuthRequest(deps.auth, deps.db, verifyAccessToken, c.req.raw.headers)
+      // eslint-disable-next-line no-restricted-syntax -- The Better Auth client protocol owns this body.
       return c.json(session ? [session.session] : [])
     })
 }
@@ -335,6 +339,7 @@ export async function createAuthRoutes(deps: AuthRoutesDeps) {
      * well-known path with the issuer path inserted for non-root issuers.
      */
     .on('GET', '/.well-known/oauth-authorization-server/api/auth', async (c) => {
+      // eslint-disable-next-line no-restricted-syntax -- RFC 8414 owns the metadata body.
       return c.json(await deps.auth.api.getOAuthServerConfig(), 200, {
         'Cache-Control': 'public, max-age=15, stale-while-revalidate=15, stale-if-error=86400',
       })
@@ -344,6 +349,7 @@ export async function createAuthRoutes(deps: AuthRoutesDeps) {
      * paths, so `/api/auth` serves its own `/.well-known/openid-configuration`.
      */
     .on('GET', '/api/auth/.well-known/openid-configuration', async (c) => {
+      // eslint-disable-next-line no-restricted-syntax -- OpenID Connect Discovery owns the metadata body.
       return c.json(await deps.auth.api.getOpenIdConfig(), 200, {
         'Cache-Control': 'public, max-age=15, stale-while-revalidate=15, stale-if-error=86400',
       })
@@ -373,7 +379,7 @@ export async function createAuthRoutes(deps: AuthRoutesDeps) {
       const result = safeParse(CheckEmailIdentifierResponseSchema, await checkEmailIdentifier(deps.db, body))
       if (!result.success)
         throw createInternalError()
-      return c.json(result.output)
+      return ok(c, result.output)
     })
     .on(['POST', 'GET'], '/api/auth/*', async (c) => {
       return handleAuthRequest(c.req.raw)

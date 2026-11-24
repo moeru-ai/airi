@@ -186,6 +186,9 @@ const fullStageRuntime = windowContext.stageRuntime === 'full'
 const chatStreamView = !fullStageRuntime && (isChatWindow || isFloatingChatWindow)
   ? useContextBridgeStore()
   : null
+// The conversation list and the character switcher of a minimal chat window show character avatars from the display
+// model list. The full runtime reads that list with the rest of the stage.
+const chatWindowDisplayModels = chatStreamView ? useDisplayModelsStore() : null
 
 const { restore: restoreLocale } = useLanguage(language, getMainLocale, setLocale)
 
@@ -241,6 +244,7 @@ onMounted(async () => {
 
   await chatStore.initialize(syncedPinia)
   await fullStageRuntime?.initialize()
+  await chatWindowDisplayModels?.loadDisplayModelsFromIndexedDB()
   await chatStreamView?.initializeStreamView()
 })
 

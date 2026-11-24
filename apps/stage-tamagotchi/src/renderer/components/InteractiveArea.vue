@@ -5,33 +5,40 @@ import type { ChatToolCallRerunEvent } from '@proj-airi/stage-ui/stores/tool-cal
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 
 import type { ChatDraftHandover } from '../../shared/eventa'
+import type { ApprovalGrantMode } from '../../shared/eventa/terminal-approval'
 
+import { errorMessageFrom } from '@moeru/std'
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { useChatInterruption } from '@proj-airi/stage-layouts/composables/use-chat-interruption'
 import { ChatBackgroundTasks, ChatHistory, JournalPreviewModal } from '@proj-airi/stage-ui/components'
-import { ChatImageAttachmentPreview, ChatProviderSetupCallout, ChatReplyPreview, ChatSendButton, useChatComposer, useChatImages, VoiceInputButton } from '@proj-airi/stage-ui/components/scenarios/chat'
+import { ChatArchivedSessionCallout, ChatImageAttachmentPreview, ChatProviderSetupCallout, ChatReplyPreview, ChatSendButton, useChatComposer, useChatImages, VoiceInputButton } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
+import { useLlmToolsStore } from '@proj-airi/stage-ui/stores/ai/chat-llm/tools'
 import { useBackgroundStore } from '@proj-airi/stage-ui/stores/background'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store'
 import { useJournalPreviewStore } from '@proj-airi/stage-ui/stores/journal-preview'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
-import { BasicTextarea, GhostButton } from '@proj-airi/ui'
-import { until, useLocalStorage } from '@vueuse/core'
+import { BasicTextarea, DropdownMenu, GhostButton } from '@proj-airi/ui'
+import { until, useAsyncState, useElementSize, useLocalStorage } from '@vueuse/core'
 import { nanoid } from 'nanoid/non-secure'
 import { storeToRefs } from 'pinia'
 import { computed, nextTick, onMounted, ref, shallowRef, toRaw, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import ApprovalGrantModePicker from './approval-grant-mode-picker.vue'
 import JournalToolCallBlock from './chat-tool-renderers/journal-tool-call-block.vue'
 import ChatViewportLayout from './chat-viewport-layout.vue'
+import ContextInspector from './context-inspector.vue'
 
 import { electronAuthStartLogin, electronOpenSettings } from '../../shared/eventa'
+import { COMPUTER_USE_READ_IMAGE_TOOL_NAME, COMPUTER_USE_TOOL_NAME } from '../../shared/eventa/computer-use'
+import { sessionApprovalGrant } from '../../shared/eventa/terminal-approval'
 import { useHearingInputChannel } from '../composables/use-hearing-input-channel'
-import { computerUseToolReferences, useToolSelectionStore, widgetToolReferences } from '../stores/tools'
-import { COMPUTER_USE_READ_IMAGE_TOOL_NAME, COMPUTER_USE_TOOL_NAME } from '../stores/tools/builtin/computer-use'
+import { artistryToolReferences, widgetToolReferences } from '../stores/tools'
 import { WEATHER_TOOL_NAME } from '../stores/tools/builtin/weather'
+import { matchesMcpToolId } from '../utils/mcp-tool-id'
 import { computerUseReadImageToolCallWidget } from './chat-tool-renderers/computer-use-read-image-tool-call-widget'
 import { computerUseToolCallWidget } from './chat-tool-renderers/computer-use/widget'
 import { weatherToolCallWidget } from './chat-tool-renderers/weather-tool-call-widget'
@@ -94,6 +101,9 @@ const solidSurfaces = computed(() => props.floating && !props.glassBackdrop)
 /** Whether a foldable composer is folded away. */
 const composerFolded = defineModel<boolean>('composerFolded', { default: false })
 const viewportLayout = useTemplateRef<InstanceType<typeof ChatViewportLayout>>('viewport-layout')
+// A narrow chat has no room for two sides. All messages then start at the left, like a messenger in a narrow window.
+const { width: viewportWidth } = useElementSize(() => viewportLayout.value?.$el as HTMLElement | undefined)
+const narrowHistory = computed(() => viewportWidth.value > 0 && viewportWidth.value < 520)
 
 const messageComposer = useTemplateRef<HTMLDivElement>('message-composer')
 const voiceStatus = useTemplateRef<HTMLDivElement>('voice-status')
@@ -104,9 +114,6 @@ const voicePending = shallowRef(false)
 /** A recording is open. Dictation writes into the text, so the text stays read-only and send waits until it closes. */
 const voiceActive = shallowRef(false)
 const lastEnterTime = ref(0)
-// Each request captures this selection, including retries and tool reruns. Spoken turns read the same store.
-const toolSelection = useToolSelectionStore()
-const { computerUseEnabled, requestTools } = storeToRefs(toolSelection)
 
 const chatStore = useChatStore()
 const chatSession = useChatSessionStore()
@@ -119,9 +126,87 @@ const { activeSessionId, messages } = storeToRefs(chatSession)
 const { streamingMessage } = storeToRefs(chatStream)
 const { activeTurns, backgroundTasks } = storeToRefs(chatStore)
 const { activeCard, activeCardId } = storeToRefs(airiCardStore)
-const { activeChatReady: chatReady } = storeToRefs(chatStore)
+const { activeChatReady: chatReady, activeChatArchived: chatArchived } = storeToRefs(chatStore)
+const { t } = useI18n()
 const openSettings = useElectronEventaInvoke(electronOpenSettings)
 const startLogin = useElectronEventaInvoke(electronAuthStartLogin)
+const setSessionApprovalGrant = useElectronEventaInvoke(sessionApprovalGrant)
+const tools = useLlmToolsStore()
+const desktopAvailable = computed(() => {
+  const toolIds = tools.tools.map(tool => tool.id)
+  return toolIds.some(id => matchesMcpToolId(id, 'computer_observe'))
+    && toolIds.some(id => matchesMcpToolId(id, 'computer_act'))
+})
+function parseGrantMode(value: unknown): ApprovalGrantMode {
+  return value === 'full' || value === 'auto' || value === 'ask' ? value : 'ask'
+}
+
+const { state: commandGrantMode, executeImmediate: refreshCommandGrant, isLoading: loadingCommandGrant } = useAsyncState(
+  async (sessionId: string) => {
+    if (!sessionId)
+      return 'ask' satisfies ApprovalGrantMode
+    return parseGrantMode(await setSessionApprovalGrant({ sessionId, lane: 'terminal' }))
+  },
+  'ask' satisfies ApprovalGrantMode,
+  { immediate: false },
+)
+const { state: computerUseGrantMode, executeImmediate: refreshComputerUseGrant, isLoading: loadingComputerUseGrant } = useAsyncState(
+  async (sessionId: string) => {
+    if (!sessionId)
+      return 'ask' satisfies ApprovalGrantMode
+    return parseGrantMode(await setSessionApprovalGrant({ sessionId, lane: 'computer_use' }))
+  },
+  'ask' satisfies ApprovalGrantMode,
+  { immediate: false },
+)
+const approvalMenuActive = computed(() => commandGrantMode.value !== 'ask' || computerUseGrantMode.value !== 'ask')
+const loadingApproval = computed(() => loadingCommandGrant.value || loadingComputerUseGrant.value)
+const changingApprovalLane = ref<'terminal' | 'computer_use' | null>(null)
+const approvalError = ref('')
+watch(activeSessionId, (sessionId) => {
+  approvalError.value = ''
+  void refreshCommandGrant(sessionId)
+  void refreshComputerUseGrant(sessionId)
+}, { immediate: true })
+
+async function refreshApproval(sessionId: string | undefined) {
+  if (!sessionId)
+    return
+  await Promise.all([
+    refreshCommandGrant(sessionId),
+    refreshComputerUseGrant(sessionId),
+  ])
+}
+
+async function changeApprovalGrant(lane: 'terminal' | 'computer_use', mode: ApprovalGrantMode) {
+  const sessionId = activeSessionId.value
+  if (!sessionId) {
+    approvalError.value = t('tamagotchi.stage.chat-window.computer-tools.approval-session-unavailable')
+    return
+  }
+  if (changingApprovalLane.value || loadingApproval.value)
+    return
+  changingApprovalLane.value = lane
+  approvalError.value = ''
+  try {
+    const result = await setSessionApprovalGrant({ sessionId, lane, mode })
+    if (typeof result === 'object' && result !== null && 'unavailableReason' in result) {
+      const message = result.unavailableReason === 'workspace_unavailable'
+        ? 'approval-command-auto-unavailable'
+        : result.unavailableReason === 'foreground_unavailable'
+          ? 'approval-computer-use-auto-foreground-unavailable'
+          : 'approval-computer-use-auto-foreground-denied'
+      approvalError.value = t(`tamagotchi.stage.chat-window.computer-tools.${message}`)
+    }
+  }
+  catch (error) {
+    approvalError.value = errorMessageFrom(error) ?? t('tamagotchi.stage.chat-window.computer-tools.approval-error')
+  }
+  finally {
+    changingApprovalLane.value = null
+    await refreshApproval(activeSessionId.value)
+  }
+}
 
 const composer = useChatComposer<ChatImageAttachment>({
   activeSessionId,
@@ -134,7 +219,7 @@ const composer = useChatComposer<ChatImageAttachment>({
       data: attachment.data,
       mimeType: attachment.mimeType,
     })),
-    tools: requestTools.value,
+    tools: artistryToolReferences,
   }),
 })
 const {
@@ -148,7 +233,6 @@ const {
 } = composer
 const { addFiles: handleFilePaste, selectFiles: handleFileSelect, error: imageError, pending: pendingImages } = useChatImages(composer, () => activeSessionId.value)
 useHearingInputChannel(messageInput)
-const { t } = useI18n()
 const { openImagePreview } = journalPreviewStore
 const DOUBLE_ENTER_INTERVAL_MS = 300
 const TRAILING_NEWLINES_REGEX = /[\r\n]+$/
@@ -187,8 +271,8 @@ const { showStopAction, stopActiveResponse, submitInterruptingResponse } = useCh
 })
 
 async function handleSend() {
-  // The draft stays in the composer while the setup callout is shown.
-  if (voiceActive.value || pendingImages.value || !chatReady.value)
+  // The draft stays in the composer while the setup callout or the archived callout is shown.
+  if (voiceActive.value || pendingImages.value || !chatReady.value || chatArchived.value)
     return
 
   // A waiting voice message takes the composer text into the same user message.
@@ -259,7 +343,7 @@ const visibleStreamingMessage = streamingMessage
 
 async function handleDeleteMessage(payload: { message: ChatHistoryItem, index: number }) {
   const { index, message } = payload
-  await chatSession.deleteMessage({
+  await chatStore.deleteMessage({
     sessionId: chatSession.activeSessionId,
     index,
   })
@@ -292,7 +376,7 @@ async function handleRetryMessage(index: number) {
   await chatStore.retry({
     sessionId: chatSession.activeSessionId,
     index,
-    tools: computerUseEnabled.value ? [...widgetToolReferences, ...computerUseToolReferences] : widgetToolReferences,
+    tools: widgetToolReferences,
   })
   trackChatMessageRetried({
     source: 'history',
@@ -312,7 +396,6 @@ async function handleToolCallRerun(payload: ChatToolCallRerunEvent) {
     invocationId: payload.invocationId,
     toolName: payload.toolName,
     args: payload.args,
-    tools: computerUseEnabled.value ? computerUseToolReferences : [],
   })
 }
 
@@ -396,35 +479,6 @@ defineExpose({
     :composer-at-edge="props.composerFoldable"
   >
     <template #history="{ tailInset }">
-      <!--
-        The welcome card centers in the space above the composer, which covers
-        the bottom of the history. The container query below drops the icon,
-        then the description, when that space is too short for them.
-        The history scroller fills the layer and comes later, so the container
-        sits above it and passes the pointer through. The floating card paints
-        its own surface, so it takes the pointer, and the hit test of the
-        transparent window finds it.
-      -->
-      <div
-        v-if="!historyMessages.some(message => message.role !== 'system') && !isActiveSessionSending"
-        :class="['chat-empty-state pointer-events-none absolute inset-x-0 top-0 z-1 flex items-center justify-center overflow-hidden px-6']"
-        :style="{ bottom: `calc(${tailInset}px + 1rem)` }"
-      >
-        <div
-          :class="[
-            'flex flex-col items-center gap-3 text-center',
-            solidSurfaces ? 'pointer-events-auto rounded-2xl bg-white px-6 py-6 shadow-md dark:bg-neutral-900' : '',
-          ]"
-        >
-          <div :class="['chat-empty-state-icon size-14 flex items-center justify-center rounded-2xl bg-primary-100/60 text-primary-500 dark:bg-primary-900/30']">
-            <span :class="['i-solar:chat-line-bold-duotone size-7']" />
-          </div>
-          <span :class="['font-cute text-xl text-neutral-700 dark:text-neutral-200']">{{ assistantLabel || 'AIRI' }}</span>
-          <p :class="['chat-empty-state-description text-sm text-neutral-500 dark:text-neutral-400']">
-            {{ t('stage.chat.images.empty') }}
-          </p>
-        </div>
-      </div>
       <ChatHistory
         :messages="historyMessages"
         :assistant-label="assistantLabel"
@@ -436,9 +490,11 @@ defineExpose({
         :surface="solidSurfaces ? 'opaque' : 'translucent'"
         :scrollbar="props.floating ? 'hover' : 'scroll'"
         :passive="props.passive"
+        :align-user-start="narrowHistory"
         :class="['transition-[padding] duration-300 ease-out motion-reduce:transition-none', props.dockSide && { left: 'pl-12', right: 'pr-12' }[props.dockSide]]"
         :style="props.rightResizeBand ? { width: `calc(100% - ${props.rightResizeBand}px)` } : undefined"
         :expired-before="props.expiredBefore"
+        :readonly="chatArchived"
         @delete-message="handleDeleteMessage"
         @reply-message="handleReplyMessage"
         @retry-message="handleRetryMessage($event.index)"
@@ -468,6 +524,7 @@ defineExpose({
         @configure="openSettings({ route: '/settings/providers' })"
         @sign-in="startLogin()"
       />
+      <ChatArchivedSessionCallout v-else-if="chatArchived" :class="['mx-2 mb-1']" />
       <div
         ref="message-composer"
         :class="[
@@ -480,8 +537,9 @@ defineExpose({
           solidSurfaces
             ? 'border border-neutral-200 bg-white p-2 dark:border-neutral-800 dark:bg-neutral-900'
             : [
-              'bg-neutral-100/70 p-2 backdrop-blur-xl dark:bg-neutral-900/65',
-              'transition-colors duration-200 ease-out focus-within:bg-neutral-100 dark:focus-within:bg-neutral-900 motion-reduce:transition-none',
+              // The composer is a step lighter than the chat surface in dark mode, so it stands out on the solid chat.
+              'bg-neutral-100/70 p-2 backdrop-blur-xl dark:bg-neutral-800/70',
+              'transition-colors duration-200 ease-out focus-within:bg-neutral-100 dark:focus-within:bg-neutral-800 motion-reduce:transition-none',
             ],
         ]"
       >
@@ -494,7 +552,7 @@ defineExpose({
           <ChatBackgroundTasks :tasks="backgroundTasks" @stop="task => chatStore.stopBackgroundTask(task.sessionId)" @dismiss="task => chatStore.dismissBackgroundTask(task.sessionId)" />
           <div ref="voice-attachment" :class="['px-2 pt-1 empty:hidden']" />
           <!-- Journal Preview Chips -->
-          <div v-if="latestImageEntries.length > 0" class="flex gap-2 overflow-x-auto px-2 py-1 scrollbar-none">
+          <div v-if="latestImageEntries.length > 0" :class="['flex gap-2 overflow-x-auto px-2 py-1', 'scrollbar-none']">
             <div
               v-for="entry in latestImageEntries"
               :key="entry.id"
@@ -505,9 +563,9 @@ defineExpose({
               ]"
               @click="openImagePreview(entry)"
             >
-              <img :src="entry.url || ''" class="h-full w-full object-cover">
+              <img :src="entry.url || ''" :class="['h-full w-full object-cover']">
               <div :class="['absolute inset-0 flex items-end p-1', 'bg-gradient-to-t from-black/60 to-transparent']">
-                <span class="truncate text-[8px] text-white font-medium">{{ entry.title }}</span>
+                <span :class="['truncate text-[8px] font-medium', 'text-white']">{{ entry.title }}</span>
               </div>
 
               <!-- Save Button (Top Right, Hover Only) -->
@@ -519,7 +577,7 @@ defineExpose({
                 title="Save to computer"
                 @click.stop="journalPreviewStore.downloadImage(entry.url || '', entry.title)"
               >
-                <div class="i-solar:download-minimalistic-bold-duotone text-[10px]" />
+                <div :class="['i-solar:download-minimalistic-bold-duotone text-[10px]']" />
               </button>
             </div>
           </div>
@@ -567,6 +625,7 @@ defineExpose({
           />
         </div>
         <div data-testid="chat-composer-actions" :class="['flex shrink-0 items-center gap-1 pt-1']">
+          <ContextInspector />
           <GhostButton
             size="unset"
             :class="['size-9 transition-colors duration-200 motion-reduce:transition-none']"
@@ -576,19 +635,51 @@ defineExpose({
           >
             <span :class="['i-solar:paperclip-bold-duotone h-5 w-5']" />
           </GhostButton>
-          <GhostButton
-            data-testid="computer-use-toggle"
-            size="unset"
-            :class="['size-9']"
-            :aria-label="t('stage.computer-use.label')"
-            :title="t('stage.computer-use.description')"
-            :active="computerUseEnabled"
-            :aria-pressed="computerUseEnabled"
-            :disabled="isActiveSessionSending"
-            @click="computerUseEnabled = !computerUseEnabled"
-          >
-            <span :class="['i-solar:monitor-bold-duotone h-5 w-5 shrink-0']" />
-          </GhostButton>
+          <DropdownMenu side="top" :content-class="['w-80']" @update:open="$event && refreshApproval(activeSessionId)">
+            <template #trigger>
+              <GhostButton
+                size="unset"
+                data-testid="approval-menu-trigger"
+                :class="['size-9']"
+                :active="approvalMenuActive"
+                :aria-label="approvalMenuActive ? t('tamagotchi.stage.chat-window.computer-tools.approval-active') : t('tamagotchi.stage.chat-window.computer-tools.label')"
+                :title="approvalMenuActive ? t('tamagotchi.stage.chat-window.computer-tools.approval-active') : t('tamagotchi.stage.chat-window.computer-tools.label')"
+              >
+                <span :class="['i-solar:monitor-bold-duotone size-5 shrink-0']" />
+              </GhostButton>
+            </template>
+            <p v-if="!desktopAvailable" :class="['px-2 py-1.5 text-xs text-neutral-500 dark:text-neutral-400']">
+              {{ t('tamagotchi.stage.chat-window.computer-tools.desktop-unavailable') }}
+            </p>
+            <p :class="['px-2 pt-1.5 text-xs text-neutral-500 font-semibold tracking-wide uppercase dark:text-neutral-400']">
+              {{ t('tamagotchi.stage.chat-window.computer-tools.approval-section') }}
+            </p>
+            <div :class="['flex flex-col gap-1.5 px-2 py-1.5']">
+              <p :class="['text-sm text-neutral-800 font-medium dark:text-neutral-100']">
+                {{ t('tamagotchi.stage.chat-window.computer-tools.approval-command') }}
+              </p>
+              <ApprovalGrantModePicker
+                lane="terminal"
+                :model-value="commandGrantMode"
+                :disabled="changingApprovalLane === 'terminal' || loadingApproval"
+                @update:model-value="changeApprovalGrant('terminal', $event)"
+              />
+            </div>
+            <div :class="['flex flex-col gap-1.5 px-2 py-1.5']">
+              <p :class="['text-sm text-neutral-800 font-medium dark:text-neutral-100']">
+                {{ t('tamagotchi.stage.chat-window.computer-tools.approval-computer-use') }}
+              </p>
+              <ApprovalGrantModePicker
+                lane="computer_use"
+                :model-value="computerUseGrantMode"
+                :disabled="changingApprovalLane === 'computer_use' || loadingApproval"
+                @update:model-value="changeApprovalGrant('computer_use', $event)"
+              />
+            </div>
+            <p v-if="approvalError" :class="['px-2 py-1.5 break-words text-xs text-red-600 dark:text-red-400']" role="alert">
+              {{ approvalError }}
+            </p>
+          </DropdownMenu>
 
           <!-- The voice control shows its recording status here, so the composer keeps its height. -->
           <div ref="voice-status" :class="['min-w-0 flex flex-1 items-center px-1']" />
@@ -600,7 +691,7 @@ defineExpose({
               :attachment-element="voiceAttachment"
               :session-id="activeSessionId"
               :reply-to-message-id="replyTarget?.message.id"
-              :tools="requestTools"
+              :tools="artistryToolReferences"
               @recording-change="voiceActive = $event"
               @pending-change="voicePending = $event"
               @sent="composer.clearReply()"
@@ -676,23 +767,6 @@ defineExpose({
 @media (prefers-reduced-motion: reduce) {
   .chat-composer-foldable {
     transition: none;
-  }
-}
-
-.chat-empty-state {
-  container-type: size;
-}
-
-/* The card needs about 11rem with the icon and 5rem with the description. */
-@container (max-height: 12rem) {
-  .chat-empty-state-icon {
-    display: none;
-  }
-}
-
-@container (max-height: 6rem) {
-  .chat-empty-state-description {
-    display: none;
   }
 }
 </style>

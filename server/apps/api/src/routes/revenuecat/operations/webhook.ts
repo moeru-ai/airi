@@ -8,7 +8,7 @@ import { Buffer } from 'node:buffer'
 import { createHmac, timingSafeEqual } from 'node:crypto'
 
 import { useLogger } from '@guiiai/logg'
-import { createBadRequestError, createServiceUnavailableError, createUnauthorizedError } from '@proj-airi/http-error-shared'
+import { createBadRequestError, createServiceUnavailableError, createUnauthorizedError } from '@proj-airi/http-shared'
 import { array, nonEmpty, number, object, optional, picklist, pipe, safeParse, string } from 'valibot'
 
 const logger = useLogger('revenuecat')

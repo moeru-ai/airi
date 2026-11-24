@@ -165,8 +165,8 @@ catalog:
   '@moeru/eslint-config': 0.1.0-beta.19
   '@moeru/eventa': 1.0.3
   '@moeru/std': 0.1.0-beta.17
-  '@moeru/three-mmd': 0.2.0-beta.2
-  '@moeru/three-mmd-physics-ammo': 0.2.0-beta.2
+  '@moeru/three-mmd': 0.2.0-beta.3
+  '@moeru/three-mmd-physics-ammo': 0.2.0-beta.3
   '@napi-rs/image': ^1.14.0
   '@nekopaw/tempora': 0.4.0-alpha.1
   '@node-macos-disclaim/darwin-arm64': ^0.0.1
@@ -345,7 +345,6 @@ catalog:
   eventemitter3: ^5.0.4
   fflate: ^0.8.3
   fft.js: ^4.0.4
-  file-type: ^22.2.0
   floating-vue: ^5.2.2
   fluent-ffmpeg: ^2.1.3
   get-port-please: ^3.2.0
@@ -430,6 +429,8 @@ catalog:
   semver: ^7.8.5
   shiki: ^4.4.3
   simple-git-hooks: ^2.13.1
+  socket.io: ^4.8.4
+  socket.io-client: ^4.8.4
   speech-rule-engine: 5.0.0-rc.4
   splitpanes: ^4.1.2
   sponsorkit: 17.1.0
@@ -539,7 +540,8 @@ allowBuilds:
   less: true
   msw: true
   node-pty: true
-  onnxruntime-node: true
+  # Its postinstall pulls native binaries from a CDN. CI only needs @huggingface/transformers through onnxruntime-web.
+  onnxruntime-node: false
   protobufjs: true
   sharp: true
   simple-git-hooks: false # [workaround] With `shellEmulator: true`, simple-git-hooks install may fail when no .git dir exists.

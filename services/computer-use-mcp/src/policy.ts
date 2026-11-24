@@ -15,7 +15,9 @@ function isMutatingAction(action: ActionInvocation) {
 }
 
 function isUiInteractionAction(action: ActionInvocation) {
-  return ['click', 'desktop_click_target', 'type_text', 'press_keys', 'scroll', 'open_app', 'focus_app'].includes(action.kind)
+  // Browser DOM writes share the same denyApps / denyWindowTitles gate as desktop input.
+  return action.kind.startsWith('browser_dom_')
+    || ['click', 'desktop_click_target', 'type_text', 'press_keys', 'scroll', 'open_app', 'focus_app'].includes(action.kind)
 }
 
 function getCoordinate(action: ActionInvocation) {
@@ -66,6 +68,13 @@ function estimateOperationUnits(action: ActionInvocation) {
       return Math.max(4, Math.ceil(action.input.command.length / 48))
     case 'terminal_reset':
       return 1
+    case 'browser_dom_click':
+    case 'browser_dom_check_checkbox':
+    case 'browser_dom_select_option':
+    case 'browser_dom_trigger_event':
+      return 1
+    case 'browser_dom_set_input_value':
+      return Math.max(2, Math.ceil(action.input.value.length / 48))
   }
 }
 
@@ -157,7 +166,6 @@ export function evaluateActionPolicy(params: {
       reasons.push('linux-x11 executor does not support app open/focus actions in this legacy path')
       allowed = false
     }
-
     const resolvedApp = resolveConfiguredOpenableApp(params.action.input.app, params.config.openableApps)
     if (!resolvedApp) {
       reasons.push(`app is not in COMPUTER_USE_OPENABLE_APPS: ${params.action.input.app}`)
@@ -202,6 +210,10 @@ export function evaluateActionPolicy(params: {
   if (params.action.kind === 'type_text') {
     riskLevel = 'high'
   }
+
+  const isBrowserDomAction = params.action.kind.startsWith('browser_dom_')
+  if (isBrowserDomAction)
+    riskLevel = params.action.kind === 'browser_dom_set_input_value' && params.action.input.value.length > 160 ? 'high' : 'medium'
 
   if (params.config.approvalMode === 'never') {
     // NOTICE: 'never' mode overrides all per-action approval flags.

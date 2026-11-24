@@ -1,3 +1,4 @@
+import type { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import type { createContext } from '@moeru/eventa/adapters/electron/main'
 
 import type {
@@ -13,16 +14,22 @@ import type {
   ElectronMcpTestResult,
   ElectronMcpToolDescriptor,
 } from '../../../../shared/eventa'
+import type { InvocationAttribution } from '../computer-use/attribution'
+import type { GroundingSnapshotLike } from '../computer-use/auto-policy'
+import type { TerminalApprovalOptions } from './terminal-approval'
 
+import { randomBytes } from 'node:crypto'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { env, execPath, platform } from 'node:process'
 
 import { useLogg } from '@guiiai/logg'
-import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
+import { CallToolResultSchema } from '@modelcontextprotocol/sdk/types.js'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { errorMessageFrom } from '@moeru/std'
+import { bundledTerminalServerName, computerUseApprovalExecuteMethod, computerUseApprovalRejectMethod, computerUseControlEnabledEnv, computerUseControlNonceEnv, terminalControlEnabledEnv, terminalControlNonceEnv, terminalOriginMetaKey } from '@proj-airi/stage-shared/terminal-approval'
 import { app, shell } from 'electron'
 
 import {
@@ -37,45 +44,134 @@ import {
 } from '../../../../shared/eventa'
 import { isHttpServerConfig, parseElectronMcpConfigText } from '../../../../shared/mcp-config'
 import { onAppBeforeQuit } from '../../../libs/bootkit/lifecycle'
+import { requireMainFrameSender } from '../../../libs/electron/window-context'
+import { validateAttribution } from '../computer-use/attribution'
+import { decideComputerUseAuto, foregroundMatchesComputerCard, groundingMatchesComputerCard } from '../computer-use/auto-policy'
+import { consultAuto } from '../computer-use/auto-review'
+import { McpClient } from './client'
+import { bindTerminalApproval } from './terminal-approval'
+import { defaultBundledToolExposure } from './tool-exposure'
 
 /** A transport that the MCP client can drive. Both kinds expose `close`. */
 type McpTransport = StdioClientTransport | StreamableHTTPClientTransport
 
+/**
+ * Picks the Computer Use executor that the current host can actually construct.
+ *
+ * NOTICE:
+ * The bundled Terminal carries Computer Use in the same process, and the server
+ * refuses to start when the configured executor does not accept the host
+ * platform. Hardcoding the Windows executor therefore removed Terminal on every
+ * other platform. Unknown hosts fall back to `dry-run`, which reports
+ * `performed: false` instead of pretending the input reached the desktop.
+ */
+function bundledComputerUseExecutor() {
+  switch (platform) {
+    case 'win32':
+      return 'auv'
+    case 'darwin':
+      return 'macos-local'
+    default:
+      return 'dry-run'
+  }
+}
+
 interface McpServerSession {
   client: Client
   transport: McpTransport
+  lifetime: AbortController
   config: ElectronMcpServerConfig
+  terminalNonce?: string
+  computerUseNonce?: string
+  bundledTerminal: boolean
+}
+
+interface ComputerUseApprovalOwner {
+  session: McpServerSession
+  requestId: string
+  attribution: InvocationAttribution
+  toolName: string
+  actionKind: string
 }
 
 export interface McpManager {
   ensureConfigFile: () => Promise<{ path: string }>
   openConfigFile: () => Promise<{ path: string }>
   applyAndRestart: () => Promise<ElectronMcpApplyResult>
-  /** Returns the complete active-server catalog. Any discovery failure rejects with server names and reasons. */
-  listTools: () => Promise<ElectronMcpToolDescriptor[]>
+  /** Returns the current catalog, or a descriptor from only the named server for an exact tool name. */
+  listTools: (name?: string) => Promise<ElectronMcpToolDescriptor[]>
   /** Dispatches the exact tool name once. A failed reply does not prove the absence of effects. */
-  callTool: (payload: ElectronMcpCallToolPayload) => Promise<ElectronMcpCallToolResult>
+  callTool: (payload: ElectronMcpCallToolPayload, senderWebContentsId?: number, signal?: AbortSignal) => Promise<ElectronMcpCallToolResult>
   stopAll: () => Promise<void>
   getRuntimeStatus: () => ElectronMcpRuntimeStatus
   readConfigText: () => Promise<ElectronMcpConfigText>
   writeConfigText: (text: string) => Promise<ElectronMcpConfigText>
   testServer: (payload: ElectronMcpTestPayload) => Promise<ElectronMcpTestResult>
+  /** Reads the bundled Terminal runner directory. Missing service or an unreadable state returns undefined. */
+  readBundledTerminalCwd: () => Promise<string | undefined>
+  /** Reads the bundled Desktop foreground application for Computer Use Auto. */
+  readBundledForeground: () => Promise<{ appName: string, windowTitle?: string } | undefined>
+  /** Reads one grounding target and its snapshot identity for a desktop click target id. */
+  readGroundingCandidate: (candidateId: string) => Promise<{ label: string, snapshotId: string } | undefined>
 }
 
-const defaultMcpConfig: ElectronMcpConfigFile = {
-  mcpServers: {},
-}
 const toolNameSeparator = '::'
 const mcpRequestTimeoutMsec = 10_000
 const mcpRequestMaxTotalTimeoutMsec = 15_000
 const mcpTestStderrMaxChars = 16_000
-
 function stringifyError(error: unknown) {
   if (error instanceof Error) {
     return error.message
   }
 
   return String(error)
+}
+
+function combineSignals(...signals: Array<AbortSignal | undefined>) {
+  const active = signals.filter((signal): signal is AbortSignal => signal !== undefined)
+  if (active.length === 0)
+    return undefined
+  if (active.length === 1)
+    return active[0]
+  return AbortSignal.any(active)
+}
+
+function normalizeCallToolResult(result: { content?: unknown, structuredContent?: unknown, toolResult?: unknown, isError?: unknown }): ElectronMcpCallToolResult {
+  const normalized: ElectronMcpCallToolResult = { dispatchOutcome: 'response_received' }
+  if (Array.isArray(result.content))
+    normalized.content = result.content as Array<Record<string, unknown>>
+  if (result.structuredContent && typeof result.structuredContent === 'object' && !Array.isArray(result.structuredContent))
+    normalized.structuredContent = result.structuredContent as Record<string, unknown>
+  if (typeof result.isError === 'boolean')
+    normalized.isError = result.isError
+  if ('toolResult' in result)
+    normalized.toolResult = result.toolResult
+  return normalized
+}
+
+function parsePreparedGrounding(value: unknown): { snapshotId: string, candidateId: string, candidateLabel: string } | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value))
+    return undefined
+  const record = value as Record<string, unknown>
+  if (typeof record.snapshotId !== 'string' || !record.snapshotId.trim())
+    return undefined
+  if (typeof record.candidateId !== 'string' || !record.candidateId.trim())
+    return undefined
+  if (typeof record.candidateLabel !== 'string' || !record.candidateLabel.trim())
+    return undefined
+  return {
+    snapshotId: record.snapshotId,
+    candidateId: record.candidateId,
+    candidateLabel: record.candidateLabel.trim(),
+  }
+}
+
+function failedBeforeDispatchResult(error: unknown): ElectronMcpCallToolResult {
+  return {
+    dispatchOutcome: 'failed_before_dispatch',
+    isError: true,
+    content: [{ type: 'text', text: errorMessageFrom(error) ?? 'Unknown error.' }],
+  }
 }
 
 function getConfigPath() {
@@ -91,14 +187,6 @@ function parseQualifiedToolName(name: string) {
   return {
     serverName: name.slice(0, separatorIndex),
     toolName: name.slice(separatorIndex + toolNameSeparator.length),
-  }
-}
-
-function failedBeforeDispatchResult(error: unknown): ElectronMcpCallToolResult {
-  return {
-    dispatchOutcome: 'failed_before_dispatch',
-    isError: true,
-    content: [{ type: 'text', text: errorMessageFrom(error) ?? 'Unknown error.' }],
   }
 }
 
@@ -181,9 +269,11 @@ function describeRuntime(
  * `applyAndRestart` replaces the sessions from disk. `stopAll` closes them.
  * Discovery returns a complete catalog or rejects with all server failures.
  */
-export function createMcpManager(): McpManager {
+export function createMcpManager(terminalApproval?: TerminalApprovalOptions): McpManager {
   const log = useLogg('main/mcp').useGlobalConfig()
   const sessions = new Map<string, McpServerSession>()
+  const computerUseApprovals = new Map<string, ComputerUseApprovalOwner>()
+  let toolExposureOverrides: Record<string, NonNullable<ElectronMcpToolDescriptor['exposure']>> = {}
   const runtimeStatuses = new Map<string, ElectronMcpServerRuntimeStatus>()
   let updatedAt = Date.now()
 
@@ -200,6 +290,10 @@ export function createMcpManager(): McpManager {
       await readFile(path, 'utf-8')
     }
     catch {
+      const defaultMcpConfig: ElectronMcpConfigFile = {
+        ...(app.isPackaged && env.AIRI_DISTRIBUTION === 'terminal-beta' ? { terminalEnabled: true } : {}),
+        mcpServers: {},
+      }
       await writeFile(path, `${JSON.stringify(defaultMcpConfig, null, 2)}\n`)
     }
 
@@ -220,18 +314,29 @@ export function createMcpManager(): McpManager {
   const stopAll = async () => {
     const entries = [...sessions.entries()]
     for (const [name, session] of entries) {
+      session.lifetime.abort(new Error('The MCP connection was replaced.'))
+      for (const [actionId, owner] of computerUseApprovals) {
+        if (owner.session === session)
+          computerUseApprovals.delete(actionId)
+      }
       await closeSession(session)
       setRuntimeStatus(describeRuntime(name, session.config, 'stopped'))
       sessions.delete(name)
     }
   }
 
-  const startServer = async (name: string, config: ElectronMcpServerConfig) => {
-    const transport = createTransport(config)
-    const client = new Client({
+  const startServer = async (name: string, config: ElectronMcpServerConfig, bundledTerminal: boolean) => {
+    const terminalNonce = !isHttpServerConfig(config) && config.env?.[terminalControlEnabledEnv] === '1' && terminalApproval ? randomBytes(32).toString('hex') : undefined
+    const computerUseNonce = !isHttpServerConfig(config) && config.env?.[computerUseControlEnabledEnv] === '1' && terminalApproval ? randomBytes(32).toString('hex') : undefined
+    const controlledConfig = !isHttpServerConfig(config) && (terminalNonce || computerUseNonce)
+      ? { ...config, env: { ...config.env, ...(terminalNonce ? { [terminalControlNonceEnv]: terminalNonce } : {}), ...(computerUseNonce ? { [computerUseControlNonceEnv]: computerUseNonce } : {}) } }
+      : config
+    const transport = createTransport(controlledConfig)
+    const client = new McpClient({
       name: `proj-airi:stage-tamagotchi:mcp:${name}`,
       version: app.getVersion(),
     })
+    const lifetime = new AbortController()
 
     try {
       await client.connect(transport)
@@ -243,7 +348,23 @@ export function createMcpManager(): McpManager {
           }
         })
       }
-      sessions.set(name, { client, transport, config })
+      const session: McpServerSession = { client, transport, lifetime, config, terminalNonce, computerUseNonce, bundledTerminal }
+      sessions.set(name, session)
+      client.onclose = () => {
+        if (sessions.get(name) !== session)
+          return
+        lifetime.abort(new Error('The MCP connection closed.'))
+        for (const [actionId, owner] of computerUseApprovals) {
+          if (owner.session === session)
+            computerUseApprovals.delete(actionId)
+        }
+        sessions.delete(name)
+        setRuntimeStatus(describeRuntime(name, config, 'stopped'))
+      }
+      client.onerror = (error) => {
+        if (sessions.get(name) === session)
+          setRuntimeStatus(describeRuntime(name, config, 'error', { lastError: stringifyError(error) }))
+      }
       setRuntimeStatus(describeRuntime(name, config, 'running', {
         pid: transport instanceof StdioClientTransport ? transport.pid : null,
       }))
@@ -257,6 +378,27 @@ export function createMcpManager(): McpManager {
   const applyAndRestart = async (): Promise<ElectronMcpApplyResult> => {
     const { path } = await ensureConfigFile()
     const config = await readConfigFile(path)
+    toolExposureOverrides = { ...config.toolExposure }
+    const servers = { ...config.mcpServers }
+    if (config.terminalEnabled) {
+      if (bundledTerminalServerName in servers)
+        throw new Error(`The server name "${bundledTerminalServerName}" is reserved for the bundled Terminal. Rename the external server or disable the bundled Terminal.`)
+      servers[bundledTerminalServerName] = {
+        command: execPath,
+        args: [join(app.getAppPath(), 'out', 'bundle', 'main', 'terminal.mjs')],
+        cwd: app.getPath('userData'),
+        env: {
+          ELECTRON_RUN_AS_NODE: '1',
+          [terminalControlEnabledEnv]: '1',
+          [computerUseControlEnabledEnv]: '1',
+          COMPUTER_USE_APPROVAL_MODE: 'actions',
+          COMPUTER_USE_EXECUTOR: bundledComputerUseExecutor(),
+          COMPUTER_USE_BROWSER_DOM_BRIDGE_ENABLED: 'false',
+          COMPUTER_USE_DEFAULT_CAPTURE_AFTER: 'true',
+          COMPUTER_USE_SESSION_ROOT: join(app.getPath('userData'), 'terminal-sessions'),
+        },
+      }
+    }
 
     await stopAll()
     runtimeStatuses.clear()
@@ -268,7 +410,7 @@ export function createMcpManager(): McpManager {
       skipped: [],
     }
 
-    for (const [name, server] of Object.entries(config.mcpServers)) {
+    for (const [name, server] of Object.entries(servers)) {
       if (server.enabled === false) {
         result.skipped.push({ name, reason: 'disabled' })
         setRuntimeStatus(describeRuntime(name, server, 'stopped'))
@@ -276,7 +418,7 @@ export function createMcpManager(): McpManager {
       }
 
       try {
-        await startServer(name, server)
+        await startServer(name, server, config.terminalEnabled === true && name === bundledTerminalServerName)
         result.started.push({ name })
       }
       catch (error) {
@@ -291,19 +433,54 @@ export function createMcpManager(): McpManager {
     return result
   }
 
-  const listTools = async (): Promise<ElectronMcpToolDescriptor[]> => {
-    const entries = [...sessions.entries()].sort(([left], [right]) => left.localeCompare(right))
+  /**
+   * The Host policy that applies when the user has not overridden the tool.
+   * Reporting it separately lets the settings page tell a Host-owned `disabled`
+   * (final) from a `disabled` the user chose (reversible).
+   */
+  const defaultExposureOf = (serverName: string, toolName: string): NonNullable<ElectronMcpToolDescriptor['exposure']> =>
+    serverName === bundledTerminalServerName ? defaultBundledToolExposure(toolName) : 'router-only'
+
+  const exposureOf = (serverName: string, session: McpServerSession, toolName: string): ElectronMcpToolDescriptor['exposure'] => {
+    const qualifiedName = `${serverName}${toolNameSeparator}${toolName}`
+    const defaultPolicy = defaultExposureOf(serverName, toolName)
+    const configured = toolExposureOverrides[qualifiedName]
+    const policy = defaultPolicy === 'disabled' ? 'disabled' : (serverName === bundledTerminalServerName ? (configured ?? defaultPolicy) : (configured === 'disabled' ? 'disabled' : 'router-only'))
+    if (policy !== 'direct')
+      return policy
+    if (serverName !== bundledTerminalServerName)
+      return 'direct'
+    if ((toolName === 'terminal_exec' && session.terminalNonce) || session.computerUseNonce)
+      return 'direct'
+    return 'router-only'
+  }
+
+  const listTools = async (name?: string): Promise<ElectronMcpToolDescriptor[]> => {
+    const target = name === undefined ? undefined : parseQualifiedToolName(name)
+    const entries = [...sessions.entries()]
+      .filter(([serverName]) => !target || target.serverName === serverName)
+      .sort(([left], [right]) => left.localeCompare(right))
     const listResult = await Promise.allSettled(entries.map(async ([serverName, session]) => {
       const response = await session.client.listTools(undefined, {
         timeout: mcpRequestTimeoutMsec,
         maxTotalTimeout: mcpRequestMaxTotalTimeoutMsec,
       })
-      return response.tools.map<ElectronMcpToolDescriptor>(item => ({
+      return response.tools.filter(item => !target || item.name === target.toolName).map<ElectronMcpToolDescriptor>(item => ({
         serverName,
         name: `${serverName}${toolNameSeparator}${item.name}`,
         toolName: item.name,
-        description: item.description,
+        description: session.bundledTerminal && item.name === 'terminal_exec'
+          ? [
+              item.description ?? 'Run a command in a local Shell.',
+              'The bundled MCP includes AUV desktop observation and input. Use it for visual work. AIRI asks before each change unless Computer Use full mode is on for this conversation. Terminal permission is separate.',
+              'Use confirmed facts to work toward the user’s goal.',
+              'If evidence is incomplete, choose an observation that can resolve the gap.',
+              'Verify the requested outcome before reporting completion.',
+            ].join(' ')
+          : item.description,
         inputSchema: item.inputSchema,
+        exposure: exposureOf(serverName, session, item.name),
+        defaultExposure: defaultExposureOf(serverName, item.name),
       }))
     }))
     const tools: ElectronMcpToolDescriptor[] = []
@@ -312,12 +489,19 @@ export function createMcpManager(): McpManager {
     // Each result matches the sorted session snapshot. A partial catalog must
     // not report successful discovery while a server's tools remain unknown.
     for (const [index, result] of listResult.entries()) {
+      const [serverName, session] = entries[index]
       if (result.status === 'fulfilled') {
+        if (sessions.get(serverName) === session) {
+          setRuntimeStatus(describeRuntime(serverName, session.config, 'running', {
+            pid: session.transport instanceof StdioClientTransport ? session.transport.pid : null,
+          }))
+        }
         tools.push(...result.value)
         continue
       }
 
-      const [serverName] = entries[index]
+      if (sessions.get(serverName) === session)
+        setRuntimeStatus(describeRuntime(serverName, session.config, 'error', { lastError: stringifyError(result.reason) }))
       log.withFields({ serverName }).withError(result.reason).warn('failed to list tools from mcp server')
       failures.push(new Error(`MCP server "${serverName}": ${errorMessageFrom(result.reason) ?? 'Unknown error.'}`, { cause: result.reason }))
     }
@@ -328,7 +512,7 @@ export function createMcpManager(): McpManager {
     return tools
   }
 
-  const callTool = async (payload: ElectronMcpCallToolPayload): Promise<ElectronMcpCallToolResult> => {
+  const callTool = async (payload: ElectronMcpCallToolPayload, senderWebContentsId?: number, signal?: AbortSignal): Promise<ElectronMcpCallToolResult> => {
     let qualifiedToolName: ReturnType<typeof parseQualifiedToolName>
     try {
       qualifiedToolName = parseQualifiedToolName(payload.name)
@@ -341,29 +525,230 @@ export function createMcpManager(): McpManager {
     const session = sessions.get(serverName)
     if (!session)
       return failedBeforeDispatchResult(new Error(`mcp server is not running: ${serverName}`))
+    if (exposureOf(serverName, session, toolName) === 'disabled')
+      return failedBeforeDispatchResult(new Error(`MCP tool is disabled by the Host: ${payload.name}`))
+    const terminalNonce = toolName === 'terminal_exec' ? session.terminalNonce : undefined
+    const computerUseNonce = session.computerUseNonce
+    const requestId = payload.requestId
+    const hostControlled = terminalNonce || computerUseNonce
+    const attribution = hostControlled && requestId ? validateAttribution(payload.attribution, senderWebContentsId) : undefined
+    const requestSignal = hostControlled && requestId && attribution && terminalApproval
+      ? terminalApproval.actions.requestSignal(requestId, attribution)
+      : undefined
+    const callSignal = combineSignals(signal, requestSignal, session.lifetime.signal)
+    if (hostControlled) {
+      if (!terminalApproval || !requestId || !attribution?.toolCallId)
+        return failedBeforeDispatchResult(new Error('Host-controlled MCP actions require a normal Chat request registered by the Host.'))
+      try {
+        terminalApproval.actions.validateRequest(requestId, attribution)
+      }
+      catch (error) {
+        return failedBeforeDispatchResult(error)
+      }
+    }
 
     const result = await session.client.callTool({
       name: toolName,
       arguments: payload.arguments ?? {},
+      ...(terminalNonce ? { _meta: { [terminalOriginMetaKey]: { nonce: terminalNonce, requestId, toolCallId: attribution?.toolCallId } } } : {}),
     }, undefined, {
       timeout: mcpRequestTimeoutMsec,
       maxTotalTimeout: mcpRequestMaxTotalTimeoutMsec,
+      ...(callSignal ? { signal: callSignal } : {}),
     })
 
-    const normalized: ElectronMcpCallToolResult = { dispatchOutcome: 'response_received' }
-    if ('content' in result && Array.isArray(result.content)) {
-      normalized.content = result.content as Array<Record<string, unknown>>
-    }
-    if ('structuredContent' in result && result.structuredContent && typeof result.structuredContent === 'object' && !Array.isArray(result.structuredContent)) {
-      normalized.structuredContent = result.structuredContent as Record<string, unknown>
-    }
-    if ('isError' in result && typeof result.isError === 'boolean') {
-      normalized.isError = result.isError
-    }
-    if ('toolResult' in result) {
-      normalized.toolResult = result.toolResult
-    }
+    const normalized = normalizeCallToolResult(result)
 
+    if (terminalNonce && attribution && terminalApproval && normalized.structuredContent?.status === 'approval_required') {
+      return bindTerminalApproval({ options: terminalApproval, connection: { client: session.client, serverName, nonce: terminalNonce, pid: session.transport instanceof StdioClientTransport ? session.transport.pid : null, bundledTerminal: session.bundledTerminal, isCurrent: () => sessions.get(serverName) === session }, payload, attribution, result: normalized })
+    }
+    if (computerUseNonce && attribution && terminalApproval && normalized.structuredContent?.status === 'approval_required') {
+      const pendingActionId = normalized.structuredContent.pendingActionId
+      if (typeof pendingActionId !== 'string' || !pendingActionId)
+        throw new Error('The Computer Use server did not return a pending action ID.')
+      const declaredToolName = normalized.structuredContent.toolName
+      if (declaredToolName !== toolName)
+        throw new Error('The Computer Use approval does not match the requested tool.')
+      const declaredAction = normalized.structuredContent.action
+      const actionKind = declaredAction && typeof declaredAction === 'object' && !Array.isArray(declaredAction) && typeof (declaredAction as Record<string, unknown>).kind === 'string'
+        ? (declaredAction as Record<string, unknown>).kind as string
+        : undefined
+      if (!actionKind)
+        throw new Error('The Computer Use server did not return the prepared action kind.')
+      const owner: ComputerUseApprovalOwner = { session, requestId: requestId!, attribution, toolName, actionKind }
+      if (computerUseApprovals.has(pendingActionId))
+        throw new Error('The Computer Use approval is already bound to another Chat request.')
+      computerUseApprovals.set(pendingActionId, owner)
+      const mode = terminalApproval.actions.grantMode('computer_use', attribution.sessionId, senderWebContentsId)
+      const fullSignal = mode === 'full' ? terminalApproval.actions.computerUseTurboSignal(attribution.sessionId, senderWebContentsId) : undefined
+      const autoGrant = mode === 'auto' ? terminalApproval.actions.autoGrant('computer_use', attribution.sessionId, senderWebContentsId) : undefined
+      const authorizationSignal = combineSignals(callSignal, fullSignal, autoGrant?.signal)
+      let privateRequestSent = false
+      // Rejection and execution share `privateRequestSent`, but only execution can
+      // reach the desktop. Any failure after dispatch leaves the outcome open:
+      // abort, timeout, and a lost reply all need `unknown` with `doNotReplay`.
+      let dispatched = false
+      const reject = async () => {
+        if (privateRequestSent)
+          return undefined
+        privateRequestSent = true
+        return await session.client.request({ method: computerUseApprovalRejectMethod, params: { nonce: computerUseNonce, pendingActionId, toolName, actionKind } }, CallToolResultSchema, {
+          timeout: mcpRequestTimeoutMsec,
+          maxTotalTimeout: mcpRequestMaxTotalTimeoutMsec,
+        })
+      }
+      try {
+        if (mode === 'auto') {
+          const contextRecord = normalized.structuredContent.context
+          const context = contextRecord && typeof contextRecord === 'object' && !Array.isArray(contextRecord) ? contextRecord as Record<string, unknown> : undefined
+          const actionRecord = declaredAction && typeof declaredAction === 'object' && !Array.isArray(declaredAction) ? declaredAction as Record<string, unknown> : undefined
+          const actionInput = actionRecord?.input && typeof actionRecord.input === 'object' && !Array.isArray(actionRecord.input)
+            ? actionRecord.input as Record<string, unknown>
+            : undefined
+          const preparedGrounding = parsePreparedGrounding(normalized.structuredContent.preparedGrounding)
+          let targetLabel: string | undefined
+          let groundingSnapshotId: string | undefined
+          if (actionKind === 'desktop_click_target') {
+            const requestedCandidateId = typeof actionInput?.candidateId === 'string' ? actionInput.candidateId : ''
+            if (!preparedGrounding || preparedGrounding.candidateId !== requestedCandidateId) {
+              const rejected = await reject()
+              if (!rejected)
+                throw new Error('The Computer Use approval was already dispatched.')
+              const normalizedRejection = normalizeCallToolResult(rejected)
+              return {
+                ...normalizedRejection,
+                isError: true,
+                content: [{ type: 'text', text: 'Computer Use Auto refused the desktop click because prepared grounding is missing.' }, ...(normalizedRejection.content ?? [])],
+                structuredContent: { ...normalizedRejection.structuredContent, status: 'rejected', approval: 'auto', reason: 'Desktop click approval is missing prepared grounding.' },
+              }
+            }
+            targetLabel = preparedGrounding.candidateLabel
+            groundingSnapshotId = preparedGrounding.snapshotId
+          }
+          const decision = decideComputerUseAuto({
+            frozenAppName: autoGrant?.frozenAppName ?? '',
+            actionKind,
+            appName: typeof context?.appName === 'string' ? context.appName : undefined,
+            windowTitle: typeof context?.windowTitle === 'string' ? context.windowTitle : undefined,
+            contextAvailable: context?.available === true,
+            targetLabel,
+            groundingSnapshotId,
+            action: actionRecord ? { kind: actionKind, input: actionInput } : undefined,
+          })
+          const verdict = await consultAuto({
+            decision,
+            signal: autoGrant?.signal ?? AbortSignal.abort(),
+            sessionId: attribution.sessionId,
+            cacheScope: `${attribution.turnId ?? ''}\0${pendingActionId}`,
+            timeoutMs: terminalApproval.reviewTimeoutMs,
+            cacheGet: key => terminalApproval.actions.cachedReview('computer_use', attribution.sessionId, senderWebContentsId, key),
+            cacheSet: (key, value) => terminalApproval.actions.rememberReview('computer_use', attribution.sessionId, senderWebContentsId, key, value),
+            review: terminalApproval.reviewAuto,
+          })
+          if (verdict.proceed && decision.outcome === 'review') {
+            const foreground = await readBundledForeground()
+            const groundingSnapshot = await readLastGroundingSnapshot()
+            const foregroundOk = Boolean(foreground && foregroundMatchesComputerCard(decision.card, { available: true, appName: foreground.appName, windowTitle: foreground.windowTitle }))
+            const groundingOk = groundingMatchesComputerCard(decision.card, groundingSnapshot)
+            if (!foregroundOk || !groundingOk) {
+              const rejected = await reject()
+              if (!rejected)
+                throw new Error('The Computer Use approval was already dispatched.')
+              const normalizedRejection = normalizeCallToolResult(rejected)
+              const reason = !foregroundOk
+                ? 'The foreground window changed before dispatch.'
+                : 'The grounding snapshot changed before dispatch.'
+              const userText = !foregroundOk
+                ? 'Computer Use Auto refused the action because the foreground window changed.'
+                : 'Computer Use Auto refused the action because the grounding snapshot changed.'
+              return {
+                ...normalizedRejection,
+                isError: true,
+                content: [{ type: 'text', text: userText }, ...(normalizedRejection.content ?? [])],
+                structuredContent: { ...normalizedRejection.structuredContent, status: 'rejected', approval: 'auto', reason },
+              }
+            }
+          }
+          if (!verdict.proceed) {
+            const rejected = await reject()
+            if (!rejected)
+              throw new Error('The Computer Use approval was already dispatched.')
+            const normalizedRejection = normalizeCallToolResult(rejected)
+            return {
+              ...normalizedRejection,
+              isError: true,
+              content: [{ type: 'text', text: verdict.reason }, ...(normalizedRejection.content ?? [])],
+              structuredContent: { ...normalizedRejection.structuredContent, status: 'rejected', approval: 'auto', reason: verdict.reason },
+            }
+          }
+        }
+        else if (mode !== 'full') {
+          const transparency = normalized.structuredContent.transparency
+          const summary = transparency && typeof transparency === 'object' && !Array.isArray(transparency)
+            ? Object.values(transparency as Record<string, unknown>).filter((value): value is string => typeof value === 'string' && value.trim().length > 0).join('\n')
+            : `Computer Use requested a change through ${toolName}.`
+          const approved = await terminalApproval.presentComputerUse({
+            actionId: pendingActionId,
+            requestId: requestId!,
+            attribution,
+            serverName,
+            toolName,
+            summary,
+          }, authorizationSignal)
+          if (!approved) {
+            const rejected = await reject()
+            if (!rejected)
+              throw new Error('The Computer Use approval was already dispatched.')
+            return normalizeCallToolResult(rejected)
+          }
+        }
+        if (computerUseApprovals.get(pendingActionId) !== owner || sessions.get(serverName) !== session)
+          throw new Error('The Computer Use approval connection or Chat request was replaced.')
+        terminalApproval.actions.validateRequest(requestId!, attribution, { allowClosed: true })
+        if (authorizationSignal?.aborted) {
+          await reject()
+          return {
+            dispatchOutcome: 'failed_before_dispatch',
+            isError: true,
+            content: [{ type: 'text', text: 'Computer Use action was cancelled before dispatch.' }],
+            structuredContent: { status: 'cancelled', pendingActionId },
+          }
+        }
+        privateRequestSent = true
+        dispatched = true
+        const executed = await session.client.request({ method: computerUseApprovalExecuteMethod, params: { nonce: computerUseNonce, pendingActionId, toolName, actionKind } }, CallToolResultSchema, {
+          ...(authorizationSignal ? { signal: authorizationSignal } : {}),
+          timeout: mcpRequestMaxTotalTimeoutMsec,
+          maxTotalTimeout: mcpRequestMaxTotalTimeoutMsec,
+        })
+        return normalizeCallToolResult(executed)
+      }
+      catch (error) {
+        if (!privateRequestSent && sessions.get(serverName) === session)
+          await reject().catch(() => {})
+        if (dispatched) {
+          return {
+            dispatchOutcome: 'outcome_unknown',
+            isError: true,
+            content: [{ type: 'text', text: 'The Computer Use action was dispatched before the failure. Its outcome is unknown. Check the current state before repeating it.' }],
+            structuredContent: { status: 'unknown', doNotReplay: true, pendingActionId },
+          }
+        }
+        if (authorizationSignal?.aborted) {
+          return {
+            dispatchOutcome: 'failed_before_dispatch',
+            isError: true,
+            content: [{ type: 'text', text: 'Computer Use action was cancelled before dispatch.' }],
+            structuredContent: { status: 'cancelled', pendingActionId },
+          }
+        }
+        throw error
+      }
+      finally {
+        if (computerUseApprovals.get(pendingActionId) === owner)
+          computerUseApprovals.delete(pendingActionId)
+      }
+    }
     return normalized
   }
 
@@ -408,7 +793,7 @@ export function createMcpManager(): McpManager {
 
     try {
       transport = createTransport(payload.config)
-      client = new Client({
+      client = new McpClient({
         name: `proj-airi:stage-tamagotchi:mcp:test:${payload.name}`,
         version: app.getVersion(),
       })
@@ -458,6 +843,105 @@ export function createMcpManager(): McpManager {
     }
   }
 
+  async function readBundledTerminalCwd(): Promise<string | undefined> {
+    const session = sessions.get(bundledTerminalServerName)
+    if (!session)
+      return undefined
+    try {
+      const result = await session.client.callTool({ name: 'terminal_get_state', arguments: {} }, undefined, {
+        timeout: mcpRequestTimeoutMsec,
+        maxTotalTimeout: mcpRequestTimeoutMsec,
+      })
+      const state = normalizeCallToolResult(result).structuredContent?.terminalState
+      if (!state || typeof state !== 'object' || Array.isArray(state))
+        return undefined
+      const cwd = (state as { effectiveCwd?: unknown }).effectiveCwd
+      return typeof cwd === 'string' && cwd.trim().length > 0 ? cwd : undefined
+    }
+    catch {
+      return undefined
+    }
+  }
+
+  async function readDesktopRunState(): Promise<Record<string, unknown> | undefined> {
+    const session = sessions.get(bundledTerminalServerName)
+    if (!session)
+      return undefined
+    try {
+      const result = await session.client.callTool({ name: 'desktop_get_state', arguments: {} }, undefined, {
+        timeout: mcpRequestTimeoutMsec,
+        maxTotalTimeout: mcpRequestTimeoutMsec,
+      })
+      const runState = normalizeCallToolResult(result).structuredContent?.runState
+      return runState && typeof runState === 'object' && !Array.isArray(runState)
+        ? runState as Record<string, unknown>
+        : undefined
+    }
+    catch {
+      return undefined
+    }
+  }
+
+  async function readBundledForeground(): Promise<{ appName: string, windowTitle?: string } | undefined> {
+    const runState = await readDesktopRunState()
+    const context = runState?.foregroundContext
+    if (!context || typeof context !== 'object' || Array.isArray(context))
+      return undefined
+    const record = context as Record<string, unknown>
+    if (record.available !== true || typeof record.appName !== 'string' || !record.appName.trim())
+      return undefined
+    return {
+      appName: record.appName,
+      windowTitle: typeof record.windowTitle === 'string' ? record.windowTitle : undefined,
+    }
+  }
+
+  async function readLastGroundingSnapshot(): Promise<GroundingSnapshotLike | undefined> {
+    const runState = await readDesktopRunState()
+    const snapshot = runState?.lastGroundingSnapshot
+    if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot))
+      return undefined
+    const snapshotRecord = snapshot as Record<string, unknown>
+    if (typeof snapshotRecord.snapshotId !== 'string' || !snapshotRecord.snapshotId.trim())
+      return undefined
+    const candidates = snapshotRecord.targetCandidates
+    if (!Array.isArray(candidates))
+      return undefined
+    const targetCandidates: GroundingSnapshotLike['targetCandidates'] = []
+    for (const candidate of candidates) {
+      if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate))
+        continue
+      const record = candidate as Record<string, unknown>
+      if (typeof record.id !== 'string' || !record.id)
+        continue
+      targetCandidates.push({
+        id: record.id,
+        label: typeof record.label === 'string' ? record.label : undefined,
+      })
+    }
+    return { snapshotId: snapshotRecord.snapshotId, targetCandidates }
+  }
+
+  async function readGroundingCandidate(candidateId: string): Promise<{ label: string, snapshotId: string } | undefined> {
+    const runState = await readDesktopRunState()
+    const snapshot = runState?.lastGroundingSnapshot
+    if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot))
+      return undefined
+    const snapshotRecord = snapshot as Record<string, unknown>
+    const candidates = snapshotRecord.targetCandidates
+    const snapshotId = typeof snapshotRecord.snapshotId === 'string' ? snapshotRecord.snapshotId : ''
+    if (!snapshotId.trim() || !Array.isArray(candidates))
+      return undefined
+    for (const candidate of candidates) {
+      if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate))
+        continue
+      const record = candidate as Record<string, unknown>
+      if (record.id === candidateId && typeof record.label === 'string' && record.label.trim().length > 0)
+        return { label: record.label, snapshotId }
+    }
+    return undefined
+  }
+
   return {
     ensureConfigFile,
     openConfigFile,
@@ -469,12 +953,15 @@ export function createMcpManager(): McpManager {
     readConfigText,
     writeConfigText,
     testServer,
+    readBundledTerminalCwd,
+    readBundledForeground,
+    readGroundingCandidate,
   }
 }
 
-export async function setupMcpManager() {
+export async function setupMcpManager(terminalApproval?: TerminalApprovalOptions) {
   const log = useLogg('main/mcp').useGlobalConfig()
-  const manager = createMcpManager()
+  const manager = createMcpManager(terminalApproval)
 
   onAppBeforeQuit(async () => {
     await manager.stopAll()
@@ -505,12 +992,12 @@ export function createMcpServersService(params: { context: ReturnType<typeof cre
     return params.manager.getRuntimeStatus()
   })
 
-  defineInvokeHandler(params.context, electronMcpListTools, async () => {
-    return params.manager.listTools()
+  defineInvokeHandler(params.context, electronMcpListTools, async (payload) => {
+    return params.manager.listTools(payload?.name)
   })
 
-  defineInvokeHandler(params.context, electronMcpCallTool, async (payload) => {
-    return params.manager.callTool(payload)
+  defineInvokeHandler(params.context, electronMcpCallTool, async (payload, options) => {
+    return params.manager.callTool(payload, requireMainFrameSender(options).id, options?.abortController?.signal)
   })
 
   defineInvokeHandler(params.context, electronMcpReadConfigText, async () => {

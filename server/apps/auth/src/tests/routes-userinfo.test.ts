@@ -1,6 +1,6 @@
 import type { AuthRoutesDeps, HonoEnv } from '../routes'
 
-import { ApiError } from '@proj-airi/http-error-shared'
+import { ApiError } from '@proj-airi/http-shared'
 import { Hono } from 'hono'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 

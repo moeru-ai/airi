@@ -1,0 +1,19 @@
+{
+  "name": "@proj-airi/http-shared",
+  "type": "module",
+  "version": "0.15.4",
+  "private": true,
+  "description": "Shared HTTP error model and typed JSON responses for AIRI services",
+  "exports": "./src/index.ts",
+  "scripts": {
+    "test:run": "vitest run --config vitest.config.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@guiiai/logg": "catalog:",
+    "hono": "catalog:"
+  },
+  "devDependencies": {
+    "typescript": "catalog:"
+  }
+}

@@ -265,11 +265,11 @@ catalogs:
       specifier: 0.1.0-beta.17
       version: 0.1.0-beta.17
     '@moeru/three-mmd':
-      specifier: 0.2.0-beta.2
-      version: 0.2.0-beta.2
+      specifier: 0.2.0-beta.3
+      version: 0.2.0-beta.3
     '@moeru/three-mmd-physics-ammo':
-      specifier: 0.2.0-beta.2
-      version: 0.2.0-beta.2
+      specifier: 0.2.0-beta.3
+      version: 0.2.0-beta.3
     '@napi-rs/image':
       specifier: ^1.14.0
       version: 1.15.0
@@ -804,9 +804,6 @@ catalogs:
     fft.js:
       specifier: ^4.0.4
       version: 4.0.4
-    file-type:
-      specifier: ^22.2.0
-      version: 22.2.0
     floating-vue:
       specifier: ^5.2.2
       version: 5.2.2
@@ -1059,6 +1056,12 @@ catalogs:
     simple-git-hooks:
       specifier: ^2.13.1
       version: 2.13.1
+    socket.io:
+      specifier: ^4.8.4
+      version: 4.8.4
+    socket.io-client:
+      specifier: ^4.8.4
+      version: 4.8.4
     speech-rule-engine:
       specifier: 5.0.0-rc.4
       version: 5.0.0-rc.4
@@ -1927,9 +1930,6 @@ importers:
       '@ergosphere-it/electron':
         specifier: 'catalog:'
         version: 0.0.16(electron-updater@6.8.9(supports-color@10.2.2))(electron-vite@6.0.0(supports-color@10.2.2)(vite@8.3.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.1)))(electron@43.8.4(supports-color@10.2.2))(typescript@6.0.3)(vite@8.3.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.1))
-      '@napi-rs/image':
-        specifier: 'catalog:'
-        version: 1.15.0
       '@proj-airi/electron-native-backdrop':
         specifier: workspace:^
         version: link:../../packages/electron-native-backdrop
@@ -1948,6 +1948,9 @@ importers:
       node-macos-disclaim:
         specifier: 'catalog:'
         version: 0.0.1
+      node-pty:
+        specifier: 'catalog:'
+        version: '@lydell/node-pty@1.2.0-beta.15'
       uiohook-napi:
         specifier: 'catalog:'
         version: 1.5.5(patch_hash=012c5e5ad881d5ae40fc0af58832e31a0772ab0a74c038c8f4dfe51efaf398dd)
@@ -2072,6 +2075,12 @@ importers:
       '@proj-airi/ccc':
         specifier: workspace:^
         version: link:../../packages/ccc
+      '@proj-airi/computer-use-mcp':
+        specifier: workspace:^
+        version: link:../../services/computer-use-mcp
+      '@proj-airi/core-agent':
+        specifier: workspace:^
+        version: link:../../packages/core-agent
       '@proj-airi/drizzle-duckdb-wasm':
         specifier: 'catalog:'
         version: 0.6.0(drizzle-orm@0.45.2(@electric-sql/pglite@0.5.6)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.23.1)(better-sqlite3@12.11.1)(kysely@0.29.5)(pg@8.23.0)(postgres@3.4.9))(web-worker@1.5.0)
@@ -2324,9 +2333,6 @@ importers:
       es-toolkit:
         specifier: 'catalog:'
         version: 1.51.0
-      file-type:
-        specifier: 'catalog:'
-        version: 22.2.0(supports-color@10.2.2)
       get-port-please:
         specifier: 'catalog:'
         version: 3.2.0
@@ -3822,6 +3828,31 @@ importers:
       '@types/ws':
         specifier: 'catalog:'
         version: 8.18.1
+
+  integrations/photon-bot:
+    dependencies:
+      '@guiiai/logg':
+        specifier: 'catalog:'
+        version: 1.2.12
+      '@moeru/std':
+        specifier: 'catalog:'
+        version: 0.1.0-beta.17
+      '@proj-airi/server-sdk':
+        specifier: workspace:^
+        version: link:../../packages/server-sdk
+      socket.io-client:
+        specifier: 'catalog:'
+        version: 4.8.4(bufferutil@4.1.0)(supports-color@10.2.2)(utf-8-validate@5.0.10)
+      tsx:
+        specifier: 'catalog:'
+        version: 4.23.12
+      valibot:
+        specifier: 'catalog:'
+        version: 1.5.0(typescript@6.0.3)
+    devDependencies:
+      socket.io:
+        specifier: 'catalog:'
+        version: 4.8.4(bufferutil@4.1.0)(supports-color@10.2.2)(utf-8-validate@5.0.10)
 
   integrations/satori-bot:
     dependencies:
@@ -5740,10 +5771,10 @@ importers:
         version: 0.1.0-beta.17
       '@moeru/three-mmd':
         specifier: 'catalog:'
-        version: 0.2.0-beta.2(@types/three@0.185.4)(three@0.185.1)
+        version: 0.2.0-beta.3(@types/three@0.185.4)(three@0.185.1)
       '@moeru/three-mmd-physics-ammo':
         specifier: 'catalog:'
-        version: 0.2.0-beta.2(@moeru/three-mmd@0.2.0-beta.2(@types/three@0.185.4)(three@0.185.1))(@types/three@0.185.4)(three@0.185.1)
+        version: 0.2.0-beta.3(@moeru/three-mmd@0.2.0-beta.3(@types/three@0.185.4)(three@0.185.1))(@types/three@0.185.4)(three@0.185.1)
       '@proj-airi/model-driver-lipsync':
         specifier: workspace:^
         version: link:../model-driver-lipsync
@@ -6502,6 +6533,9 @@ importers:
       '@aws-sdk/s3-request-presigner':
         specifier: 'catalog:'
         version: 3.1139.0
+      '@date-fns/utc':
+        specifier: 'catalog:'
+        version: 2.1.1
       '@dotenvx/dotenvx':
         specifier: 'catalog:'
         version: 2.21.0
@@ -6586,9 +6620,9 @@ importers:
       '@proj-airi/auth-shared':
         specifier: workspace:*
         version: link:../../packages/auth-shared
-      '@proj-airi/http-error-shared':
+      '@proj-airi/http-shared':
         specifier: workspace:*
-        version: link:../../packages/http-error-shared
+        version: link:../../packages/http-shared
       '@proj-airi/server-sdk-shared':
         specifier: workspace:*
         version: link:../../packages/server-sdk-shared
@@ -6598,6 +6632,9 @@ importers:
       '@xsai/shared-stream':
         specifier: 'catalog:'
         version: 0.5.1
+      date-fns:
+        specifier: 'catalog:'
+        version: 4.4.0
       drizzle-orm:
         specifier: 'catalog:'
         version: 0.45.2(@electric-sql/pglite@0.5.6)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.23.1)(better-sqlite3@12.11.1)(kysely@0.29.5)(pg@8.23.0)(postgres@3.4.9)
@@ -6740,9 +6777,9 @@ importers:
       '@proj-airi/auth-shared':
         specifier: workspace:*
         version: link:../../packages/auth-shared
-      '@proj-airi/http-error-shared':
+      '@proj-airi/http-shared':
         specifier: workspace:*
-        version: link:../../packages/http-error-shared
+        version: link:../../packages/http-shared
       better-auth:
         specifier: 'catalog:'
         version: 1.6.25(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(better-sqlite3@12.11.1)(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@electric-sql/pglite@0.5.6)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.23.1)(better-sqlite3@12.11.1)(kysely@0.29.5)(pg@8.23.0)(postgres@3.4.9))(pg@8.23.0)(svelte@5.57.3(@typescript-eslint/types@8.67.0))(vitest@4.1.11)(vue@3.5.41(typescript@6.0.3))
@@ -6812,7 +6849,7 @@ importers:
         specifier: 'catalog:'
         version: 26.2.0
 
-  server/packages/http-error-shared:
+  server/packages/http-shared:
     dependencies:
       '@guiiai/logg':
         specifier: 'catalog:'
@@ -6836,15 +6873,30 @@ importers:
 
   services/computer-use-mcp:
     dependencies:
+      '@auv-js/cli':
+        specifier: 'catalog:'
+        version: 0.0.43
+      '@auv-js/sdk':
+        specifier: 'catalog:'
+        version: 0.0.43
       '@modelcontextprotocol/sdk':
         specifier: 'catalog:'
         version: 1.30.0(supports-color@10.2.2)(zod@4.4.3)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
+      '@proj-airi/stage-shared':
+        specifier: workspace:^
+        version: link:../../packages/stage-shared
+      date-fns:
+        specifier: 'catalog:'
+        version: 4.4.0
       node-pty:
         specifier: 'catalog:'
         version: '@lydell/node-pty@1.2.0-beta.15'
+      valibot:
+        specifier: 'catalog:'
+        version: 1.5.0(typescript@6.0.3)
       ws:
         specifier: 'catalog:'
         version: 8.21.3(bufferutil@4.1.0)(utf-8-validate@5.0.10)
@@ -7935,9 +7987,6 @@ packages:
 
   '@blazediff/core@1.9.1':
     resolution: {integrity: sha512-ehg3jIkYKulZh+8om/O25vkvSsXXwC+skXmyA87FFx6A/45eqOkZsBltMw/TVteb0mloiGT8oGRTcjRAz66zaA==}
-
-  '@borewit/text-codec@0.2.2':
-    resolution: {integrity: sha512-DDaRehssg1aNrH4+2hnj1B7vnUGEjU6OIlyRdkMd0aUdIUvKXrJfXsy8LVtXAy7DRvYVluWbMspsRhz2lcW0mQ==}
 
   '@braidai/lang@1.1.2':
     resolution: {integrity: sha512-qBcknbBufNHlui137Hft8xauQMTZDKdophmLFv05r2eNmdIv/MlPuP4TdUknHG68UdWLgVZwgxVe735HzJNIwA==}
@@ -9709,15 +9758,15 @@ packages:
   '@moeru/std@0.1.0-beta.20':
     resolution: {integrity: sha512-09Nunc5dLT0+oAaLV18nIGHLkQO3LOUGOpGcQ2VIFTqWybJojT9geawhTVtuclYcJtIApgIt+3BLWI1K9dYpFw==}
 
-  '@moeru/three-mmd-physics-ammo@0.2.0-beta.2':
-    resolution: {integrity: sha512-nou6wQX6NlEVkohbcOIebTpKePBPRnKhSydfL2MwTpdJjkzwgKixDOV/yTfW2wFKFkLxh2qaEwEaj2D1AkID7Q==}
+  '@moeru/three-mmd-physics-ammo@0.2.0-beta.3':
+    resolution: {integrity: sha512-jBqSZkaTAJ8fmkONI/CHAJUL1AcoJMo36n4SloFlTZzuy7cbIut8lDO2J9ld9jVfQloM4fMNdwHI6j0D7A2Y1Q==}
     peerDependencies:
-      '@moeru/three-mmd': ^0.2.0-beta.2
+      '@moeru/three-mmd': ^0.2.0-beta.3
       '@types/three': '>=0.184.0'
       three: '>=0.184.0'
 
-  '@moeru/three-mmd@0.2.0-beta.2':
-    resolution: {integrity: sha512-P8gzxEPpf/k8N/282xfYHvGyiGvYqT7kb9CtIh6Tz1LuJF/pA3EigHbNxsa6/ni5H8JcUOVVifMfBodsKFiQ7w==}
+  '@moeru/three-mmd@0.2.0-beta.3':
+    resolution: {integrity: sha512-HdkMY/sv3W435Rtu458FKIIs6gve8OtsqjYVSATau1bnsHmAuXwD1U1zZ1FdzDkRyke81fIn7rS+SY+cWVrOxg==}
     peerDependencies:
       '@types/three': '>=0.184.0'
       three: '>=0.184.0'
@@ -12465,6 +12514,7 @@ packages:
   '@sapphire/shapeshift@4.0.0':
     resolution: {integrity: sha512-d9dUmWVA7MMiKobL3VpLF8P2aeanRTu6ypG2OIaEv/ZHH/SUQ2iHOVyi5wAPjQ+HmnMuL0whK9ez8I/raWbtIg==}
     engines: {node: '>=v16'}
+    deprecated: Shapeshift was created when other validation libraries had significant limitations in performance and error reporting. Those advantages have diminished as libraries such as Zod have become faster and improved their error messages, while also gaining broader environment support, a larger community, and custom error printers.
 
   '@sapphire/snowflake@3.5.5':
     resolution: {integrity: sha512-xzvBr1Q1c4lCe7i6sRnrofxeO1QTP/LKQ6A6qy0iB4x5yfiSfARMEQEghojzTNALDTcv8En04qYNIco9/K9eZQ==}
@@ -12899,10 +12949,6 @@ packages:
     resolution: {integrity: sha512-gKpExv4RbB9luVG+SucTXoqPZv/gzu/Yvz6BNO+8kpNxJ2x+I/ulryzl5W9BRciahZGp5Tls3Dp5XP1ztVGbMw==}
     peerDependencies:
       vue: ^2.7.0 || ^3.0.0
-
-  '@tokenizer/inflate@0.5.1':
-    resolution: {integrity: sha512-56U2O6fDLFtqokwWh597IdeUgtM7j+TT9tb1soybhgA6cy163gAcVmoQr8H4Ud/CkgCkViwcuLyqtn6wYqw59Q==}
-    engines: {node: '>=18'}
 
   '@tokenizer/token@0.3.0':
     resolution: {integrity: sha512-OvjF+z51L3ov0OyAU0duzsYuvO01PH7x4t6DJx+guahgTnBHkhJdG7soQeTSFLWN3efnHyibZ4Z8l2EuWwJN3A==}
@@ -16648,10 +16694,6 @@ packages:
     resolution: {integrity: sha512-/yFHK0aGjFEgDJjEKP0pWCplsPFPhwyfwevf/pVxiN0tmE4L9LmwWxWukdJSHdoCli4VgQLehjJtwQBnqmsKcw==}
     engines: {node: '>=10'}
 
-  file-type@22.2.0:
-    resolution: {integrity: sha512-XmEVJsRpQMVYC+sWFW+FKAVo2P7/lPctDdWH4UQ1r6oxhdrTobnowdM3z+ZJ93a4J8D3yDpxX0bEvRuFev0vUQ==}
-    engines: {node: '>=22'}
-
   file-uri-to-path@1.0.0:
     resolution: {integrity: sha512-0Zt+s3L7Vf1biwWZ29aARiVYLx7iMGnEUl9x33fbB/j3jR81u/O2LbqK+Bm1CDSNDKVtJ/YjwY7TUd5SkeLQLw==}
 
@@ -19862,16 +19904,16 @@ packages:
   socket.io-adapter@2.5.8:
     resolution: {integrity: sha512-6Oy52pbg+kvdCVvjcN+FnY7BvxZ7cIHNScbvztT/It5d0vbwoJoVZmF2gjJmnV0/4WlXRfG15zc45ySk9Ah8bw==}
 
-  socket.io-client@4.8.3:
-    resolution: {integrity: sha512-uP0bpjWrjQmUt5DTHq9RuoCBdFJF10cdX9X+a368j/Ft0wmaVgxlrjvK3kjvgCODOMMOz9lcaRzxmso0bTWZ/g==}
+  socket.io-client@4.8.4:
+    resolution: {integrity: sha512-7wjKAvVXYOJsbmUgkWbnhPD4bFpkqrUR0++XOjpGFmqDqsqV1CI93VTraeExLxpjxEqrWgFoSRZu1ihjLWfkAA==}
     engines: {node: '>=10.0.0'}
 
   socket.io-parser@4.2.7:
     resolution: {integrity: sha512-IH/iSeO9T6gz1KkFleGDWkG9N3dl4jXVYUtMhIqH10Md0ttMer8nUNWiP1DKuNrybD2xBrixLJdCC9J6ECoYkg==}
     engines: {node: '>=10.0.0'}
 
-  socket.io@4.8.3:
-    resolution: {integrity: sha512-2Dd78bqzzjE6KPkD5fHZmDAKRNe3J15q+YHDrIsy9WEkqttc7GY+kT9OBLSMaPbQaEd0x1BjcmtMtXkfpc+T5A==}
+  socket.io@4.8.4:
+    resolution: {integrity: sha512-9ZV9zg8vN8hO3Y25DhR7nUkJ1VDnBhq5O/JrXhFT9s6+F0gqytSASTHVfCFc2mJXaTfARroErplXlzFWwETZqQ==}
     engines: {node: '>=10.2.0'}
 
   socks@2.8.9:
@@ -20070,10 +20112,6 @@ packages:
     peerDependenciesMeta:
       '@types/node':
         optional: true
-
-  strtok3@10.6.2:
-    resolution: {integrity: sha512-BkdixFFUt7r7LsX6aGNPVyYMLjW+M1USLlKPNbZsrZEmLFh5tGqhdfckKo6xgsZIJqdDD0CZGkeCJJwNWQIKQA==}
-    engines: {node: '>=18'}
 
   strtok3@6.3.0:
     resolution: {integrity: sha512-fZtbhtvI9I48xDSywd/somNqgUHl2L2cstmXCCif0itOf96jeW18MBSyrLuNicYQVkvpOxkZtkzujiTJ9LW5Jw==}
@@ -20320,10 +20358,6 @@ packages:
     resolution: {integrity: sha512-6udB24Q737UD/SDsKAHI9FCRP7Bqc9D/MQUV02ORQg5iskjtLJlZJNdN4kKtcdtwCeWIwIHDGaUsTsCCAa8sFQ==}
     engines: {node: '>=10'}
 
-  token-types@6.1.2:
-    resolution: {integrity: sha512-dRXchy+C0IgK8WPC6xvCHFRIWYUbqqdEIKPaKo/AcTUNzwLTK6AH7RjdLWsEZcAN/TBdtfUw3PYEgPr5VPr6ww==}
-    engines: {node: '>=14.16'}
-
   toml-eslint-parser@1.0.3:
     resolution: {integrity: sha512-A5F0cM6+mDleacLIEUkmfpkBbnHJFV1d2rprHU2MXNk7mlxHq2zGojA+SRvQD1RoMo9gqjZPWEaKG4v1BQ48lw==}
     engines: {node: ^20.19.0 || ^22.13.0 || >=24}
@@ -20526,10 +20560,6 @@ packages:
 
   uint4@0.1.2:
     resolution: {integrity: sha512-lhEx78gdTwFWG+mt6cWAZD/R6qrIj0TTBeH5xwyuDJyswLNlGe+KVlUPQ6+mx5Ld332pS0AMUTo9hIly7YsWxQ==}
-
-  uint8array-extras@1.6.0:
-    resolution: {integrity: sha512-8iAasVS4wUx0gPLjH8Xtz2PeDzTSiy8QiLGu2DT3X5GU+egFEQhpnbtkehbAwjvDcxIERmCYcysiODFmE3Ud0Q==}
-    engines: {node: '>=18'}
 
   uiohook-napi@1.5.5:
     resolution: {integrity: sha512-oSlTdnECw2GBfsJPTbBQBeE4v/EXP0EZmX6BJq5nzH/JgFaBE8JpFwEA/kLhiEP7HxQw28FViWiYgdIZzWuuJQ==}
@@ -21754,12 +21784,15 @@ packages:
 
   yuku-ast@0.8.7:
     resolution: {integrity: sha512-h6+4bDfyootiMB9vckk5uKo5r5j0GHrkr17FQTDNfEsFT3DWlN9uu1HJwQwc64pgmLCI945fWM3lbTIqxjT3GQ==}
+    deprecated: 'Yuku is now one package with one core. Use "yuku" instead: https://yuku.fyi/javascript/. Existing installs keep working but get no more fixes.'
 
   yuku-codegen@0.8.7:
     resolution: {integrity: sha512-adwDZSh8oVDzhE6Du9PwVWxcOxeV0e2EVhUuMKWfhSY4wkrDq9eqixlxFF3l/XGUV1E7UFzhpz9393MUumkyNw==}
+    deprecated: 'Yuku is now one package with one core. Use "yuku" instead: https://yuku.fyi/javascript/. Existing installs keep working but get no more fixes.'
 
   yuku-parser@0.8.7:
     resolution: {integrity: sha512-vRD9nwt4L3aYpxNqeSC4WqLv58xrXef0Ong1Mc45CTXTIpvLafx7JO05sczmQZwdLEZvywrLOGdNC5+Rp5N1BQ==}
+    deprecated: 'Yuku is now one package with one core. Use "yuku" instead: https://yuku.fyi/javascript/. Existing installs keep working but get no more fixes.'
 
   zimmerframe@1.1.5:
     resolution: {integrity: sha512-msJxIvYDYcoNL+PJsu+7qmpDWsYmAxTY+2TNYXXF0hzBzBk0BMecOqDOG/EckUoKCuKwObfbugIl8QpqHDXeFA==}
@@ -23318,8 +23351,6 @@ snapshots:
   '@better-fetch/fetch@1.3.1': {}
 
   '@blazediff/core@1.9.1': {}
-
-  '@borewit/text-codec@0.2.2': {}
 
   '@braidai/lang@1.1.2': {}
 
@@ -25198,14 +25229,14 @@ snapshots:
 
   '@moeru/std@0.1.0-beta.20': {}
 
-  '@moeru/three-mmd-physics-ammo@0.2.0-beta.2(@moeru/three-mmd@0.2.0-beta.2(@types/three@0.185.4)(three@0.185.1))(@types/three@0.185.4)(three@0.185.1)':
+  '@moeru/three-mmd-physics-ammo@0.2.0-beta.3(@moeru/three-mmd@0.2.0-beta.3(@types/three@0.185.4)(three@0.185.1))(@types/three@0.185.4)(three@0.185.1)':
     dependencies:
-      '@moeru/three-mmd': 0.2.0-beta.2(@types/three@0.185.4)(three@0.185.1)
+      '@moeru/three-mmd': 0.2.0-beta.3(@types/three@0.185.4)(three@0.185.1)
       '@types/three': 0.185.4
       ammojs-typed: 1.0.6
       three: 0.185.1
 
-  '@moeru/three-mmd@0.2.0-beta.2(@types/three@0.185.4)(three@0.185.1)':
+  '@moeru/three-mmd@0.2.0-beta.3(@types/three@0.185.4)(three@0.185.1)':
     dependencies:
       '@types/three': 0.185.4
       three: 0.185.1
@@ -27851,13 +27882,6 @@ snapshots:
     dependencies:
       '@tanstack/virtual-core': 3.17.8
       vue: 3.5.41(typescript@6.0.3)
-
-  '@tokenizer/inflate@0.5.1(supports-color@10.2.2)':
-    dependencies:
-      debug: 4.4.3(supports-color@10.2.2)
-      token-types: 6.1.2
-    transitivePeerDependencies:
-      - supports-color
 
   '@tokenizer/token@0.3.0': {}
 
@@ -32225,15 +32249,6 @@ snapshots:
       strtok3: 6.3.0
       token-types: 4.2.1
 
-  file-type@22.2.0(supports-color@10.2.2):
-    dependencies:
-      '@tokenizer/inflate': 0.5.1(supports-color@10.2.2)
-      strtok3: 10.6.2
-      token-types: 6.1.2
-      uint8array-extras: 1.6.0
-    transitivePeerDependencies:
-      - supports-color
-
   file-uri-to-path@1.0.0: {}
 
   filelist@1.0.6:
@@ -35542,8 +35557,8 @@ snapshots:
       prismarine-block: 1.23.0(supports-color@10.2.2)
       prismarine-chunk: 1.41.0(supports-color@10.2.2)
       prismarine-world: 3.7.0
-      socket.io: 4.8.3(bufferutil@4.1.0)(supports-color@10.2.2)(utf-8-validate@5.0.10)
-      socket.io-client: 4.8.3(bufferutil@4.1.0)(supports-color@10.2.2)(utf-8-validate@5.0.10)
+      socket.io: 4.8.4(bufferutil@4.1.0)(supports-color@10.2.2)(utf-8-validate@5.0.10)
+      socket.io-client: 4.8.4(bufferutil@4.1.0)(supports-color@10.2.2)(utf-8-validate@5.0.10)
       three: 0.128.0
       three.meshline: 1.4.0
       vec3: 0.1.10
@@ -36378,7 +36393,7 @@ snapshots:
       - supports-color
       - utf-8-validate
 
-  socket.io-client@4.8.3(bufferutil@4.1.0)(supports-color@10.2.2)(utf-8-validate@5.0.10):
+  socket.io-client@4.8.4(bufferutil@4.1.0)(supports-color@10.2.2)(utf-8-validate@5.0.10):
     dependencies:
       '@socket.io/component-emitter': 3.1.2
       debug: 4.4.3(supports-color@10.2.2)
@@ -36396,10 +36411,9 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  socket.io@4.8.3(bufferutil@4.1.0)(supports-color@10.2.2)(utf-8-validate@5.0.10):
+  socket.io@4.8.4(bufferutil@4.1.0)(supports-color@10.2.2)(utf-8-validate@5.0.10):
     dependencies:
       accepts: 1.3.8
-      base64id: 2.0.0
       cors: 2.8.6
       debug: 4.4.3(supports-color@10.2.2)
       engine.io: 6.6.9(bufferutil@4.1.0)(supports-color@10.2.2)(utf-8-validate@5.0.10)
@@ -36580,10 +36594,6 @@ snapshots:
   stripe@22.5.0(@types/node@26.2.0):
     optionalDependencies:
       '@types/node': 26.2.0
-
-  strtok3@10.6.2:
-    dependencies:
-      '@tokenizer/token': 0.3.0
 
   strtok3@6.3.0:
     dependencies:
@@ -36889,12 +36899,6 @@ snapshots:
       '@tokenizer/token': 0.3.0
       ieee754: 1.2.1
 
-  token-types@6.1.2:
-    dependencies:
-      '@borewit/text-codec': 0.2.2
-      '@tokenizer/token': 0.3.0
-      ieee754: 1.2.1
-
   toml-eslint-parser@1.0.3:
     dependencies:
       eslint-visitor-keys: 5.0.1
@@ -37068,8 +37072,6 @@ snapshots:
   uhyphen@0.2.0: {}
 
   uint4@0.1.2: {}
-
-  uint8array-extras@1.6.0: {}
 
   uiohook-napi@1.5.5(patch_hash=012c5e5ad881d5ae40fc0af58832e31a0772ab0a74c038c8f4dfe51efaf398dd):
     dependencies:

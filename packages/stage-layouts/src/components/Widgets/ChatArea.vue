@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ChatComposerController, ChatImageAttachment } from '@proj-airi/stage-ui/components/scenarios/chat'
 
-import { ChatComposerAddMenu, ChatComposerVoiceInput, ChatImageAttachmentPreview, ChatProviderSetupCallout, ChatReplyPreview, ChatSendButton, useChatImages, useStartVoiceCall, VoicePresence } from '@proj-airi/stage-ui/components/scenarios/chat'
+import { ChatArchivedSessionCallout, ChatComposerAddMenu, ChatComposerVoiceInput, ChatImageAttachmentPreview, ChatProviderSetupCallout, ChatReplyPreview, ChatSendButton, useChatImages, useStartVoiceCall, VoicePresence } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
@@ -47,7 +47,7 @@ const sendMode = useLocalStorage<SendMode>('ui/chat/settings/send-mode', 'enter'
 const lastEnterTime = ref(0)
 
 const { themeColorsHueDynamic } = storeToRefs(useSettings())
-const { activeChatReady: chatReady } = storeToRefs(useChatStore())
+const { activeChatReady: chatReady, activeChatArchived: chatArchived } = storeToRefs(useChatStore())
 const authStore = useAuthStore()
 
 const replyTarget = props.composer.replyTarget
@@ -72,8 +72,8 @@ const composerActionButtonClass = [
 ]
 
 async function handleSend() {
-  // The draft stays in the composer while the setup callout is shown.
-  if (voiceRecording.value || pendingImages.value || !chatReady.value)
+  // The draft stays in the composer while the setup callout or the archived callout is shown.
+  if (voiceRecording.value || pendingImages.value || !chatReady.value || chatArchived.value)
     return
 
   // A waiting voice message takes the composer text into the same user message.
@@ -175,6 +175,9 @@ watch(replyTarget, async (target) => {
   >
     <ChatProviderSetupCallout @configure="router.push('/settings/providers')" @sign-in="authStore.requestLogin()" />
   </div>
+  <div v-else-if="chatArchived" :class="['mb-1 px-2', 'w-0 min-w-full']">
+    <ChatArchivedSessionCallout />
+  </div>
   <!--
     The composer keeps a 0.5rem inset from the panel edges, like the chat history above it.
     The corner radius is the `rounded-xl` of ChatContainer minus this inset, so the two corners stay concentric.
@@ -271,7 +274,7 @@ watch(replyTarget, async (target) => {
           :aria-label="t('stage.chat.actions.stop')"
           @click="stopActiveResponse"
         >
-          <div class="i-solar:stop-outline size-5" />
+          <div :class="['i-solar:stop-outline size-5']" />
         </button>
         <!-- Hover or right-click the send button to choose the send key. -->
         <ChatSendButton

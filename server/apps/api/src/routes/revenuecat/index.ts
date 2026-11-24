@@ -5,6 +5,7 @@ import type { RevenuecatSubscriberClient } from '../../services/adapters/revenue
 import type { RevenuecatSubscriptionSync } from '../../services/adapters/revenuecat-subscriptions'
 import type { HonoEnv } from '../../types/hono'
 
+import { ok } from '@proj-airi/http-shared'
 import { Hono } from 'hono'
 
 import { authGuard } from '../../middlewares/auth'
@@ -37,6 +38,7 @@ export function createRevenuecatRoutes(
   return new Hono<HonoEnv>()
     .post('/webhook', async (c) => {
       const rawBody = await c.req.text()
+      // eslint-disable-next-line no-restricted-syntax -- RevenueCat owns the webhook response.
       return c.json(await webhook(rawBody, {
         authorization: c.req.header('authorization') ?? null,
         signature: c.req.header('x-revenuecat-webhook-signature') ?? null,
@@ -45,8 +47,10 @@ export function createRevenuecatRoutes(
     // Each sync reads RevenueCat one time. The limit protects the RevenueCat API quota.
     .post('/sync', authGuard, rateLimiter({ max: 10, windowSec: 60, metrics: rateLimitMetrics, routeLabel: 'revenuecat.sync' }), async (c) => {
       await subscriptionSync.reconcile(c.get('user')!.id)
-      return c.json({ synced: true })
+      return ok(c, { synced: true })
     })
+    // eslint-disable-next-line no-restricted-syntax -- Known deviation in 2026-10-19-http-response-conventions.md: clients read { productIds }.
     .get('/capacitors', authGuard, async c => c.json({ productIds: await subscriptionSync.listProductIds() }))
+    // eslint-disable-next-line no-restricted-syntax -- Known deviation in 2026-10-19-http-response-conventions.md: clients read { capacitors, resetInterval }.
     .get('/catalog', authGuard, async c => c.json(await subscriptionSync.listCapacitors()))
 }

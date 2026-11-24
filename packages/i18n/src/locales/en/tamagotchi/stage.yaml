@@ -77,10 +77,74 @@ docs:
   danmaku: Message feed
   pin: Keep on top
   fold: Hide chat
-  conversations: Conversations
+  conversations: Chats
   composer:
     show: Show the message box
     hide: Hide the message box
+  computer-tools:
+    label: Computer tools
+    desktop-unavailable: Desktop capture and input are unavailable in this build.
+    approval-active: Full or Auto approval is on for this chat
+    approval-section: Approval
+    approval-command: Command
+    approval-computer-use: Computer Use
+    approval-mode-ask: Ask
+    approval-mode-auto: Auto
+    approval-mode-full: Full
+    approval-command-auto-confirm: Allow Command auto approval in this chat?
+    approval-command-auto-scope: AIRI approves Shell commands inside {workspace} for 30 minutes under its closed policy. Commands outside that folder, privilege changes, and secrets are refused. The current Consciousness model in Settings receives the first and recent user messages, plus recent tool names and argument summaries. AIRI redacts known credential fields and sensitive paths before review. The review card and rules cannot widen this scope.
+    approval-command-auto-allow: Allow Command auto approval
+    approval-command-full-confirm: Allow Command full access in this chat?
+    approval-command-full-scope: AIRI can run local Shell commands with your system privileges. Ask mode requires confirmation before each command.
+    approval-command-full-allow: Allow Command full access
+    approval-computer-use-auto-confirm: Allow Computer Use auto approval in this chat?
+    approval-computer-use-auto-scope: AIRI approves changes in {app} for 30 minutes under its closed policy. Other apps, password managers, wallets, the clipboard, and secrets are refused. The current Consciousness model in Settings receives the first and recent user messages, plus recent tool names and argument summaries. AIRI redacts known credential fields and sensitive paths before review. The review card and rules cannot widen this scope.
+    approval-computer-use-auto-allow: Allow Computer Use auto approval
+    approval-computer-use-full-confirm: Allow Computer Use full access in this chat?
+    approval-computer-use-full-scope: AIRI can change the desktop, apps, and input through Computer Use. Ask mode requires confirmation before each change.
+    approval-computer-use-full-allow: Allow Computer Use full access
+    computer-use-confirm: Allow Computer Use to change this device?
+    computer-use-scope: AIRI will perform the requested desktop, app, or input action. Each change is shown here before it runs.
+    computer-use-allow: Allow this change
+    approval-error: Could not change approval.
+    approval-session-unavailable: Select or start a chat before changing approval.
+    approval-command-auto-unavailable: No terminal workspace is available. Start the AIRI terminal and select a workspace, then try again.
+    approval-computer-use-auto-foreground-unavailable: No foreground app is available. Open an allowed app and try again.
+    approval-computer-use-auto-foreground-denied: This app or window cannot use Computer Use Auto. Focus an allowed app and try again.
+    cancel: Cancel
+  context-inspector:
+    open: Show context
+    close: Hide context
+    title: Context usage
+    empty: This chat has not sent a model request yet.
+    bytes: Serialized size
+    bytes-note: The bar shows the size of the data sent to the model.
+    text: Text
+    images: Images
+    framing: JSON structure
+    model: Model
+    provider: Provider
+    window: Context window
+    window-value: '{count} tokens'
+    window-full: '{percent}% full'
+    window-over: '{percent}% of window (over)'
+    window-usage: '{percent}% of the context window, from reported input tokens'
+    tokens: tokens
+    reported-usage: Latest request, reported by the provider
+    input: Input
+    output: Output
+    total: Total
+    usage-unavailable: The provider did not report token usage for this request.
+    budget: Compaction threshold
+    expand: Show content
+    collapse: Hide content
+    kind:
+      system-context: System and context
+      conversation: Messages
+      tool-call: Tool calls
+      tool-result: Tool results
+      tool-schema: Tool schemas
+
   danmaku-feed:
     title: Message timing
     hide-read: Hide read messages

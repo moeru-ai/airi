@@ -1,19 +1,4 @@
 {
-  "apps/stage-pocket/src/pages/devtools/performance-playground.vue": {
-    "ts/no-explicit-any": {
-      "count": 2
-    }
-  },
-  "apps/stage-pocket/src/workers/vad/vad.ts": {
-    "ts/no-explicit-any": {
-      "count": 4
-    }
-  },
-  "apps/stage-pocket/vite.config.ts": {
-    "ts/no-explicit-any": {
-      "count": 1
-    }
-  },
   "apps/stage-tamagotchi-kirie/src-web/src/renderer/stores/tools/builtin/image-journal.ts": {
     "ts/no-explicit-any": {
       "count": 1
@@ -327,21 +312,6 @@
   "integrations/satori-bot/src/adapter/satori/schema.ts": {
     "ts/no-explicit-any": {
       "count": 3
-    }
-  },
-  "integrations/telegram-bot/src/bots/telegram/index.ts": {
-    "ts/no-explicit-any": {
-      "count": 1
-    }
-  },
-  "integrations/telegram-bot/src/index.ts": {
-    "ts/no-explicit-any": {
-      "count": 1
-    }
-  },
-  "integrations/telegram-bot/src/models/chat-completions-history.ts": {
-    "ts/no-explicit-any": {
-      "count": 2
     }
   },
   "integrations/twitter-services/src/adapters/mcp-adapter.ts": {

@@ -3,7 +3,7 @@ import type { ProductEventService } from '../services/domain/product-events'
 import type { UserDeletionExecutor, UserDeletionReason } from '../services/domain/user-deletion'
 import type { HonoEnv } from '../types/hono'
 
-import { createBadRequestError, createSubscriptionActiveError } from '@proj-airi/http-error-shared'
+import { createBadRequestError, createSubscriptionActiveError, ok } from '@proj-airi/http-shared'
 import { Hono } from 'hono'
 import { nonEmpty, object, picklist, pipe, safeParse, string, trim } from 'valibot'
 
@@ -43,7 +43,7 @@ export function createInternalAuthRoutes(input: {
 
       if (await input.revenuecatSubscriber.hasRenewingSubscription(parsed.output.userId))
         throw createSubscriptionActiveError()
-      return c.json({ deletable: true })
+      return ok(c, { deletable: true })
     })
     .post('/user-deletion', async (c) => {
       const parsed = safeParse(UserDeletionRequestSchema, await c.req.json().catch(() => null))
@@ -55,7 +55,7 @@ export function createInternalAuthRoutes(input: {
         userId: request.userId,
         reason: request.reason as UserDeletionReason,
       })
-      return c.json({ success: true })
+      return ok(c, { success: true })
     })
     .post('/events', async (c) => {
       const parsed = safeParse(AuthEventRequestSchema, await c.req.json().catch(() => null))
@@ -69,6 +69,6 @@ export function createInternalAuthRoutes(input: {
         status: 'succeeded',
         source: parsed.output.source,
       })
-      return c.json({ success: true })
+      return ok(c, { success: true })
     })
 }

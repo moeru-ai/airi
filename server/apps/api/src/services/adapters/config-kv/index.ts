@@ -2,7 +2,7 @@ import type { ConfigDefinitions, ConfigKey } from './definitions'
 import type { ConfigKVStore } from './store'
 
 import { errorMessageFrom } from '@moeru/std'
-import { createServiceUnavailableError } from '@proj-airi/http-error-shared'
+import { createServiceUnavailableError } from '@proj-airi/http-shared'
 import { parse } from 'valibot'
 
 import { configEntrySchemas } from './definitions'

@@ -3,7 +3,7 @@ import type { HonoEnv } from '../../types/hono'
 
 import { Buffer } from 'node:buffer'
 
-import { ApiError } from '@proj-airi/http-error-shared'
+import { ApiError } from '@proj-airi/http-shared'
 import { Hono } from 'hono'
 import { beforeAll, describe, expect, it } from 'vitest'
 

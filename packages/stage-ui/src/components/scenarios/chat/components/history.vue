@@ -58,6 +58,8 @@ const props = withDefaults(defineProps<{
    * nobody can scroll it back.
    */
   passive?: boolean
+  /** Starts the messages of the user at the left edge too. A host sets it when the history is too narrow for two sides. */
+  alignUserStart?: boolean
   /**
    * Index of the first message that the history shows. The messages before
    * it fade out and become hidden, but keep their place, so the layout and
@@ -69,6 +71,11 @@ const props = withDefaults(defineProps<{
   toolCallRenderers?: ChatToolCallRendererRegistry
   /** Widgets for tool results. Each assistant message passes them to its tool call groups. */
   toolCallWidgets?: ChatToolCallWidgetRegistry
+  /**
+   * `true` shows the messages without the actions that change the conversation: reply, retry, delete, and the rerun of
+   * a tool call. Copy stays. An archived conversation is read-only until the user restores it.
+   */
+  readonly?: boolean
 }>(), {
   sending: false,
   tailInset: 0,
@@ -79,6 +86,7 @@ const props = withDefaults(defineProps<{
   expiredBefore: 0,
   toolCallRenderers: () => ({}),
   toolCallWidgets: () => ({}),
+  readonly: false,
 })
 
 const emit = defineEmits<{
@@ -116,7 +124,7 @@ function shouldShowPlaceholder(message: ChatHistoryItem) {
   return !!streaming.value.id && message.id === streaming.value.id
 }
 function canReplyToMessage(message: ChatHistoryItem) {
-  if (!message.id)
+  if (props.readonly || !message.id)
     return false
 
   if (message.role !== 'assistant' && message.role !== 'user')
@@ -146,6 +154,9 @@ const renderMessages = computed<ChatHistoryItem[]>(() => {
   return [...props.messages, streaming.value]
 })
 function canRetryMessageAt(index: number) {
+  if (props.readonly)
+    return false
+
   const precedingMessage = renderMessages.value[index - 1]
   if (precedingMessage?.role === 'user')
     return true
@@ -299,6 +310,7 @@ function emitToolCallRerun(
               :label="labels.error"
               :retry-label="labels.retry"
               :can-retry="canRetryMessageAt(index)"
+              :can-delete="!readonly"
               :show-placeholder="sending && index === renderMessages.length - 1"
               :scroll-container="chatHistoryRef"
               :variant="variant"
@@ -320,6 +332,8 @@ function emitToolCallRerun(
               :surface="surface"
               :tool-call-renderers="toolCallRenderers"
               :tool-call-widgets="toolCallWidgets"
+              :can-delete="!readonly"
+              :can-rerun="!readonly"
               @copy="emitCopyMessage(message, index)"
               @delete="emitDeleteMessage(message, index)"
               @reply="emitReplyMessage(message)"
@@ -336,9 +350,11 @@ function emitToolCallRerun(
               :label="labels.user"
               :reply-target="getReplyTarget(message)"
               :can-reply="canReplyToMessage(message)"
+              :can-delete="!readonly"
               :scroll-container="chatHistoryRef"
               :variant="variant"
               :surface="surface"
+              :align-start="alignUserStart"
               @copy="emitCopyMessage(message, index)"
               @delete="emitDeleteMessage(message, index)"
               @reply="emitReplyMessage(message)"

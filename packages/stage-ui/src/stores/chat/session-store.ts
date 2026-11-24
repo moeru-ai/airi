@@ -33,6 +33,7 @@ import { useSyncPreferencesStore } from '../sync-preferences'
 import { staysLocal } from './session-locality'
 import { characterMembersOfMeta } from './session-members'
 import { mergeLoadedSessionMessages } from './session-message-merge'
+import { summarizeSessionMessages } from './session-summary'
 
 /**
  * Roles that are eligible to push to the cloud. Wire schema accepts more,
@@ -225,6 +226,43 @@ export const useChatSessionStore = defineStore('chat-session', () => {
         }
       }
     }
+    void backfillSessionSummaries(index.value)
+  }
+
+  /**
+   * Writes the summary of each session that has none, from its stored record.
+   *
+   * Sessions saved before the summary existed have none, and the conversation list shows only their time. The fill
+   * keeps `updatedAt`, so the order of the list and the sync do not change. A session without a stored record keeps
+   * no summary until its messages save.
+   */
+  async function backfillSessionSummaries(target: ChatSessionsIndex | null) {
+    if (!target)
+      return
+    const missing = Object.values(target.characters)
+      .flatMap(character => Object.values(character.sessions))
+      .filter(meta => meta.summary === undefined)
+    if (missing.length === 0)
+      return
+
+    await enqueuePersist(async () => {
+      let changed = false
+      for (const meta of missing) {
+        const stored = await chatSessionsRepo.getSession(meta.sessionId)
+        if (!stored)
+          continue
+        const summary = summarizeSessionMessages(stored.messages)
+        const filled = { ...cloneDeep(toRaw(meta)), summary }
+        target.characters[meta.characterId].sessions[meta.sessionId] = filled
+        const current = sessionMetas.value[meta.sessionId]
+        if (index.value === target && current && current.summary === undefined)
+          sessionMetas.value[meta.sessionId] = { ...current, summary }
+        await chatSessionsRepo.saveSession(meta.sessionId, { meta: filled, messages: stored.messages })
+        changed = true
+      }
+      if (changed)
+        await chatSessionsRepo.saveIndex(cloneDeep(target))
+    })
   }
 
   function getCharacterIndex(characterId: string) {
@@ -234,10 +272,13 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   }
 
   async function persistIndex() {
-    if (!index.value)
-      return
-    const snapshot = cloneDeep(index.value)
-    await enqueuePersist(() => chatSessionsRepo.saveIndex(snapshot))
+    // An account change replaces the index while the save waits in the queue, so the save keeps the index of the call.
+    // The copy happens when the save runs. Thus it also has the changes of the saves that queued before it.
+    const target = index.value
+    await enqueuePersist(async () => {
+      if (target)
+        await chatSessionsRepo.saveIndex(cloneDeep(target))
+    })
   }
 
   async function persistSession(sessionId: string) {
@@ -249,8 +290,10 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       const messages = snapshotMessages(ensureSessionMessageIds(sessionId))
       const now = Date.now()
       // Nested meta fields, such as the bindings, are reactive proxies. IndexedDB cannot clone them, so the record stores a plain copy.
+      // The summary changes with the messages, so each save of the messages writes it.
       const updatedMeta = {
         ...cloneDeep(meta),
+        summary: summarizeSessionMessages(messages),
         updatedAt: now,
       }
 
@@ -275,30 +318,44 @@ export const useChatSessionStore = defineStore('chat-session', () => {
 
   /** Persists metadata without loading message state into memory. */
   async function persistSessionMeta(sessionId: string) {
+    await persistSessionMetas([sessionId])
+  }
+
+  /**
+   * Persists the metadata of several sessions without loading their messages. Each record saves, then the index saves
+   * once, so a batch action writes the index one time. A session that another window deleted is skipped.
+   *
+   * Like the index save, the save keeps the state of the account that called it, and it reads that state when it runs.
+   */
+  async function persistSessionMetas(sessionIds: string[]) {
+    const metas = sessionMetas.value
+    const target = index.value
     await enqueuePersist(async () => {
-      const meta = sessionMetas.value[sessionId]
-      if (!meta)
-        return
+      const updatedAt = Date.now()
+      let changed = false
+      for (const sessionId of sessionIds) {
+        const meta = metas[sessionId]
+        if (!meta)
+          continue
 
-      const updatedMeta = {
-        ...cloneDeep(meta),
-        updatedAt: Date.now(),
+        const updatedMeta = { ...cloneDeep(meta), updatedAt }
+        metas[sessionId] = updatedMeta
+        const characterIndex = target?.characters[meta.characterId]
+        if (characterIndex)
+          characterIndex.sessions[sessionId] = updatedMeta
+        changed = true
+
+        const stored = await chatSessionsRepo.getSession(sessionId)
+        if (stored) {
+          await chatSessionsRepo.saveSession(sessionId, {
+            meta: updatedMeta,
+            messages: stored.messages,
+          })
+        }
       }
-      sessionMetas.value[sessionId] = updatedMeta
-      const characterIndex = index.value?.characters[meta.characterId]
-      if (characterIndex)
-        characterIndex.sessions[sessionId] = updatedMeta
 
-      const stored = await chatSessionsRepo.getSession(sessionId)
-      if (stored) {
-        await chatSessionsRepo.saveSession(sessionId, {
-          meta: updatedMeta,
-          messages: stored.messages,
-        })
-      }
-
-      if (index.value)
-        await chatSessionsRepo.saveIndex(cloneDeep(index.value))
+      if (changed && target)
+        await chatSessionsRepo.saveIndex(cloneDeep(target))
     })
   }
 
@@ -473,6 +530,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     const loadPromise = (async () => {
       try {
         if (!loadedSessions.has(sessionId) || staleSessions.has(sessionId)) {
+          const metaBeforeRead = sessionMetas.value[sessionId]
           const stored = await chatSessionsRepo.getSession(sessionId)
           // Re-check existence after the IDB read. Deletion or an account
           // change can remove this session while the read is pending.
@@ -484,7 +542,10 @@ export const useChatSessionStore = defineStore('chat-session', () => {
             const currentMessages = sessionMessages.value[sessionId] ?? []
             const mergedMessages = mergeLoadedSessionMessages(stored.messages, currentMessages)
 
-            sessionMetas.value[sessionId] = stored.meta
+            // A change of the metadata during the read is newer than the record, for example a pin while the
+            // conversation list loads. It stays, and its own save writes it.
+            if (sessionMetas.value[sessionId] === metaBeforeRead)
+              sessionMetas.value[sessionId] = stored.meta
             replaceSessionMessages(sessionId, mergedMessages, { persist: false })
             ensureGeneration(sessionId)
 
@@ -648,6 +709,80 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     return true
   }
 
+  /**
+   * Changes the metadata of each known session, then saves it. A session that another window deleted is skipped.
+   * Every change reaches memory before the first wait, so an action that runs during the writes sees all of them.
+   */
+  async function updateSessionMetas(sessionIds: string[], change: (meta: ChatSessionMeta) => ChatSessionMeta) {
+    const changedIds: string[] = []
+    for (const sessionId of sessionIds) {
+      const meta = sessionMetas.value[sessionId]
+      if (!meta)
+        continue
+      sessionMetas.value[sessionId] = change(meta)
+      changedIds.push(sessionId)
+    }
+    await persistSessionMetas(changedIds)
+  }
+
+  /** Pins or unpins a conversation. The conversation list shows pinned conversations first. */
+  async function setSessionPinned(sessionId: string, pinned: boolean) {
+    await updateSessionMetas([sessionId], meta => ({ ...meta, pinnedAt: pinned ? Date.now() : undefined }))
+  }
+
+  /**
+   * Whether a character can open the conversation without a choice of the user, for example after a deletion. A hidden
+   * conversation is the own space of a background task. An archived one is read-only.
+   */
+  function opensByDefault(meta: ChatSessionMeta | undefined) {
+    return !!meta && !meta.hidden && meta.archivedAt === undefined
+  }
+
+  /**
+   * Archives or restores conversations. An archived conversation leaves the conversation list and loses its pin.
+   *
+   * A character does not open an archived conversation on its own. When the conversation that a character opens is
+   * archived, the character opens its first conversation that is not archived, or a new one, as after a deletion.
+   *
+   * @returns The conversation that each character of the conversations opens now. A window that shows an archived
+   * conversation moves to it.
+   */
+  async function setSessionsArchived(sessionIds: string[], archived: boolean): Promise<Record<string, string>> {
+    const archivedAt = Date.now()
+    await updateSessionMetas(sessionIds, meta => archived
+      ? { ...meta, archivedAt, pinnedAt: undefined }
+      : { ...meta, archivedAt: undefined })
+
+    const opened: Record<string, string> = {}
+    const characterIds = new Set(sessionIds
+      .map(sessionId => sessionMetas.value[sessionId]?.characterId)
+      .filter(characterId => characterId !== undefined))
+    for (const characterId of characterIds) {
+      const characterIndex = index.value?.characters[characterId]
+      if (!characterIndex)
+        continue
+      if (archived && sessionMetas.value[characterIndex.activeSessionId]?.archivedAt !== undefined) {
+        const fallbackId = Object.keys(characterIndex.sessions).find(sessionId => opensByDefault(sessionMetas.value[sessionId]))
+        if (fallbackId) {
+          characterIndex.activeSessionId = fallbackId
+          await persistIndex()
+        }
+        else {
+          const replacementSessionId = await createSession(characterId, { setActive: false })
+          const replacementCharacterIndex = index.value?.characters[characterId]
+          if (replacementCharacterIndex) {
+            replacementCharacterIndex.activeSessionId = replacementSessionId
+            await persistIndex()
+          }
+        }
+      }
+      const openedSessionId = index.value?.characters[characterId]?.activeSessionId
+      if (openedSessionId)
+        opened[characterId] = openedSessionId
+    }
+    return opened
+  }
+
   async function syncPendingSessionTitle(sessionId: string): Promise<boolean> {
     const meta = sessionMetas.value[sessionId]
     const title = meta?.cloudTitlePending
@@ -779,9 +914,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
 
     for (const [characterId, wasActive] of affectedCharacters) {
       const characterIndex = index.value?.characters[characterId]
-      // A hidden session, such as a background task's own space, never becomes the selected conversation.
       const fallbackId = characterIndex
-        ? Object.keys(characterIndex.sessions).find(id => sessionMetas.value[id] && !sessionMetas.value[id].hidden)
+        ? Object.keys(characterIndex.sessions).find(id => opensByDefault(sessionMetas.value[id]))
         : undefined
 
       // Persisted character fallback is shared, but live selection is local to
@@ -1013,8 +1147,10 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       // locally persisted title waiting for delivery.
       const remoteById = new Map(remoteChats.map(chat => [chat.id, chat]))
       const titleSyncSessions: string[] = []
-      for (const meta of Object.values(sessionMetas.value)) {
-        if (meta.userId !== currentUserId || staysLocal(meta))
+      for (const sessionId of Object.keys(sessionMetas.value)) {
+        // Each title save waits. An archive, a pin, or a move during the wait replaces the metadata, so read the latest.
+        const meta = sessionMetas.value[sessionId]
+        if (!meta || meta.userId !== currentUserId || staysLocal(meta))
           continue
         const remote = remoteById.get(meta.cloudChatId ?? meta.sessionId)
         if (!remote)
@@ -1938,6 +2074,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     await enqueuePersist(() => chatSessionsRepo.saveIndex(cloneDeep(payload.index)))
 
     for (const [sessionId, record] of Object.entries(payload.sessions)) {
+      record.meta.summary = summarizeSessionMessages(record.messages)
       sessionMetas.value[sessionId] = cloneDeep(record.meta)
       sessionMessages.value[sessionId] = cloneDeep(record.messages)
       ensureGeneration(sessionId)
@@ -1975,7 +2112,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       ? lastActiveSessionMeta.characterId
       : getCurrentCharacterId()
     const fallbackSessionId = metas
-      .find(candidate => candidate.characterId === characterId && candidate.userId === getCurrentUserId())
+      .find(candidate => candidate.characterId === characterId && candidate.userId === getCurrentUserId() && opensByDefault(candidate))
       ?.sessionId
 
     if (fallbackSessionId) {
@@ -2073,6 +2210,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     loadSession,
     refreshSession,
     renameSession,
+    setSessionPinned,
+    setSessionsArchived,
     deleteSession,
     deleteSessions,
     activateCurrentUser,
@@ -2109,6 +2248,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       'pushMessageToCloud',
       'refreshSession',
       'renameSession',
+      'setSessionPinned',
+      'setSessionsArchived',
       'resetAllSessions',
       'setSessionTask',
       'deleteHiddenSession',

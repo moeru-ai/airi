@@ -4,7 +4,7 @@ Status: accepted
 
 ## Decision
 
-The API service and the Auth service use one error model from `@proj-airi/http-error-shared`.
+The API service and the Auth service use one error model from `@proj-airi/http-shared`.
 Each error response has the JSON body `{ error, message, details? }` and the HTTP status of the error.
 Routes, middleware, and services throw an `ApiError`. Only the `onError` handler of the service writes the body.
 A success response has no envelope. A route returns its resource directly.
@@ -33,7 +33,7 @@ Non-goals:
 
 ```mermaid
 graph LR
-  API[server/apps/api] --> Shared[http-error-shared]
+  API[server/apps/api] --> Shared[http-shared]
   Auth[server/apps/auth] --> Shared
   Shared --> Hono[hono]
   Shared --> Logg[guiiai/logg types]
@@ -42,7 +42,7 @@ graph LR
 ## Affected files
 
 ```text
-server/packages/http-error-shared/
+server/packages/http-shared/
   src/error.ts        moved from server/apps/api/src/utils/error.ts
   src/handler.ts
   src/handler.test.ts

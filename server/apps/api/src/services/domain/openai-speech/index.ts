@@ -7,7 +7,7 @@ import type { VoicePackService } from '../voice-packs'
 
 import { useLogger } from '@guiiai/logg'
 import { context, SpanStatusCode, trace } from '@opentelemetry/api'
-import { ApiError, createBadRequestError, createPaymentRequiredError } from '@proj-airi/http-error-shared'
+import { ApiError, createBadRequestError, createPaymentRequiredError } from '@proj-airi/http-shared'
 import {
   ATTR_GEN_AI_PROVIDER_NAME,
   ATTR_GEN_AI_REQUEST_MODEL,
