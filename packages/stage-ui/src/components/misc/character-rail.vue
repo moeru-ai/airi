@@ -93,9 +93,10 @@ async function selectCharacter(id: string) {
 }
 
 // The row is the highlight, with the avatar inside it at an even 4px inset. The avatar stays at the same place when the
-// rail opens, so only the names fade in.
+// rail opens, so only the names fade in. The row is a pill: its round ends share their center with the corners of the
+// floating rail, as the buttons of a `Dock` share it with the dock.
 const rowClasses = [
-  'h-10 w-full shrink-0 rounded-xl p-1 outline-none justify-start! gap-2.5',
+  'h-10 w-full shrink-0 rounded-full p-1 outline-none justify-start! gap-2.5',
   '[&_.basic-button-content]:w-full [&_.basic-button-content]:min-w-0 [&_.basic-button-content]:justify-start',
   'focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-1',
 ]
@@ -115,7 +116,9 @@ const labelClasses = computed(() => [
     :class="docked
       ? ['h-full w-16 flex shrink-0 flex-col items-center gap-2 overflow-x-hidden overflow-y-auto px-3 py-3 [scrollbar-width:none]']
       : [
-        'max-h-[70dvh] flex flex-col gap-1 overflow-x-hidden overflow-y-auto rounded-2xl p-2 [scrollbar-width:none]',
+        // The corner radius is half the closed width, so the closed rail is a pill like a `Dock`. The open rail keeps the
+        // same corners. With the 8px padding, they are concentric with the 40px rows.
+        'max-h-[70dvh] flex flex-col gap-1 overflow-x-hidden overflow-y-auto rounded-[28px] p-2 [scrollbar-width:none]',
         'border border-white/40 backdrop-blur-xl backdrop-saturate-150 dark:border-white/10',
         'transition-[width,background-color,box-shadow] duration-300 ease-in-out motion-reduce:transition-none',
         open ? 'w-48 bg-white/70 shadow-lg dark:bg-neutral-900/70' : 'w-14 bg-white/45 shadow-sm dark:bg-neutral-900/45',
