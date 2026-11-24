@@ -7,11 +7,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const sentryMock = vi.hoisted(() => ({
   init: vi.fn(),
-  IPCMode: {
-    Classic: 1,
-    Protocol: 2,
-    Both: 3,
-  },
 }))
 
 vi.mock('@sentry/electron/main', () => sentryMock)
@@ -35,7 +30,7 @@ describe('errorReporting', async () => {
     }
   }
 
-  it('starts Sentry using IPCMode.Classic to protect custom scheme privileges', () => {
+  it('initializes Sentry error reporting with desktop DSN', () => {
     const config = createMockConfig({ errorReportingEnabled: true })
     const errorReporting = new ErrorReporting(config)
 
@@ -44,7 +39,7 @@ describe('errorReporting', async () => {
     expect(sentryMock.init).toHaveBeenCalledTimes(1)
     expect(sentryMock.init).toHaveBeenCalledWith(
       expect.objectContaining({
-        ipcMode: sentryMock.IPCMode.Classic,
+        dsn: expect.any(String),
       }),
     )
   })

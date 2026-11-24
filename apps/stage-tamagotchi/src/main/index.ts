@@ -94,17 +94,6 @@ import { setupWorkspaceWindowManager } from './windows/workspace'
 ipcMain.setMaxListeners(100)
 
 setElectronMainDirname(dirname(fileURLToPath(import.meta.url)))
-// NOTICE:
-// Register custom schemes with standard, secure, fetch, CORS and streaming privileges before Electron is ready.
-// Sentry error reporting uses IPCMode.Classic so sentry-ipc:// never overwrites these privileges.
-// Source: https://github.com/moeru-ai/airi/issues/3574
-protocol.registerSchemesAsPrivileged([{
-  scheme: 'airi-model',
-  privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true },
-}, {
-  scheme: 'airi-sherpaw',
-  privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true },
-}])
 setGlobalFormat(Format.Pretty)
 setGlobalLogLevel(LogLevel.Log)
 setupDebugger()
@@ -123,6 +112,20 @@ const globalAppConfig = createGlobalAppConfig()
 const errorReporting = new ErrorReporting(globalAppConfig)
 if (isEnvTruthy(import.meta.env.VITE_ENABLE_ANALYTICS))
   errorReporting.start()
+
+// NOTICE:
+// Register model schemes after error reporting starts. Each call to registerSchemesAsPrivileged
+// replaces secure, CORS and fetch privileges; Sentry's wrapper intercepts subsequent calls and
+// merges sentry-ipc so both custom schemes and error reports work.
+// Source: https://github.com/moeru-ai/airi/issues/3574
+// Removal condition: upstream Electron preserves privileged scheme registrations across multiple calls.
+protocol.registerSchemesAsPrivileged([{
+  scheme: 'airi-model',
+  privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true },
+}, {
+  scheme: 'airi-sherpaw',
+  privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true },
+}])
 
 // Thanks to [@blurymind](https://github.com/blurymind),
 //
