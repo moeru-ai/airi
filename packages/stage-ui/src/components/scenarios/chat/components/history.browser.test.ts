@@ -384,16 +384,20 @@ describe('chat history', () => {
       expect(screen.container.querySelector('.chat-message-item-visible')).not.toBeNull()
     })
 
-    const history = screen.container.querySelector<HTMLElement>('.chat-history-list')
-    const messages = screen.container.querySelectorAll<HTMLElement>('.chat-message-item')
-    expect(history).not.toBeNull()
-    expect(messages).toHaveLength(2)
-    if (!history || messages.length !== 2)
-      throw new Error('Expected a sent message and its streaming placeholder.')
-
-    const historyBottom = history.getBoundingClientRect().bottom
-    expect(historyBottom - messages[1].getBoundingClientRect().bottom).toBeLessThanOrEqual(16)
-    expect(historyBottom - messages[0].getBoundingClientRect().bottom).toBeLessThanOrEqual(64)
+    // ROOT CAUSE:
+    //
+    // A short list moves to the bottom when a resize observer has measured its messages
+    // (`use-virtualizer-scroll.ts`). A busy machine measured the messages before that
+    // callback and saw them 154 pixels above the end. Wait until the list has moved.
+    await vi.waitFor(() => {
+      const history = screen.container.querySelector<HTMLElement>('.chat-history-list')
+      const messages = screen.container.querySelectorAll<HTMLElement>('.chat-message-item')
+      expect(history).not.toBeNull()
+      expect(messages).toHaveLength(2)
+      const historyBottom = history!.getBoundingClientRect().bottom
+      expect(historyBottom - messages[1].getBoundingClientRect().bottom).toBeLessThanOrEqual(16)
+      expect(historyBottom - messages[0].getBoundingClientRect().bottom).toBeLessThanOrEqual(64)
+    })
   })
 
   // ROOT CAUSE:
