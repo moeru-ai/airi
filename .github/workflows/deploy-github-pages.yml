@@ -1,0 +1,60 @@
+name: GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+
+  workflow_dispatch:
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build - stage-web
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/setup@v2
+        with:
+          runtime: node@^26.12.1
+          cache: true
+          install: false
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build:packages
+      - name: Build stage-web
+        run: pnpm -F @proj-airi/stage-web run build
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+      # NOTICE:
+      # GitHub Pages cannot rewrite unknown paths to index.html.
+      # stage-web uses history routing, so a direct visit to a page such as /settings returns 404.
+      # Pages serves 404.html for unknown paths, so a copy of index.html loads the app on those paths.
+      # Source: https://docs.github.com/en/pages/getting-started-with-github-pages/creating-a-custom-404-page-for-your-github-pages-site
+      # Remove when stage-web builds with hash routing for this target.
+      - run: cp ./apps/stage-web/dist/index.html ./apps/stage-web/dist/404.html
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: ./apps/stage-web/dist
+
+  deploy:
+    name: Deploy - GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
