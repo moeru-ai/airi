@@ -1,7 +1,6 @@
 import process from 'node:process'
 
-import { mkdirSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { mkdirSync } from 'node:fs'
 
 import config from 'virtual:ergosphere-it/config'
 
@@ -40,22 +39,14 @@ function becomeOwnResponsibleProcess() {
  * `src/main/services/electron/auto-updater.ts`.
  */
 function isUpdatedByPackageManager() {
-  return !!process.env.FLATPAK_ID || ['nix', 'terminal-beta'].includes(process.env.AIRI_DISTRIBUTION || '')
+  return !!process.env.FLATPAK_ID || process.env.AIRI_DISTRIBUTION === 'nix'
 }
 
 // Re-exec before the launcher loads a bundle, so that no update work runs twice.
 becomeOwnResponsibleProcess()
 
 // The launcher claims the instance lock before loading main. Select its profile before that claim.
-if (app.isPackaged) {
-  const metadata = JSON.parse(readFileSync(join(app.getAppPath(), 'package.json'), 'utf8')) as { airiDistribution?: string }
-  if (metadata.airiDistribution === 'terminal-beta') {
-    process.env.AIRI_DISTRIBUTION = 'terminal-beta'
-    process.env.SERVER_CHANNEL_PORT ||= '6131'
-  }
-}
 const appUserDataPath = process.env.APP_USER_DATA_PATH?.trim()
-  || (process.env.AIRI_DISTRIBUTION === 'terminal-beta' ? join(app.getPath('appData'), 'AIRI Terminal Beta') : undefined)
 if (appUserDataPath) {
   mkdirSync(appUserDataPath, { recursive: true })
   app.setPath('userData', appUserDataPath)
