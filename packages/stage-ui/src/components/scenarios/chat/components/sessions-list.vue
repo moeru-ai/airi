@@ -3,10 +3,11 @@ import type { ChatSessionsPlace } from '../../../../types/chat-session'
 import type { SessionRow } from './session-row-model'
 
 import { AnimatedHeight, BasicButton, Button, GhostButton, ScrollableArea } from '@proj-airi/ui'
-import { useEventListener, useResizeObserver } from '@vueuse/core'
-import { computed, shallowRef, useTemplateRef, watch } from 'vue'
+import { useEventListener, useResizeObserver, watchDebounced } from '@vueuse/core'
+import { computed, ref, shallowRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import SettingsSearchField from '../../settings/settings-search-field.vue'
 import SessionRowItem from './session-row.vue'
 import SessionsListHeader from './sessions-list-header.vue'
 
@@ -24,10 +25,13 @@ const props = withDefaults(defineProps<{
   character?: { name: string }
   /** Compact rows for a touch screen, with swipe actions and a long-press menu. See `SessionRowItem`. */
   touch?: boolean
+  /** The owner still reads stored messages for the search, so more rows can match. */
+  searching?: boolean
 }>(), {
   compact: false,
   fill: false,
   touch: false,
+  searching: false,
 })
 
 const emit = defineEmits<{
@@ -49,6 +53,22 @@ const { t } = useI18n()
  * The place that the user chose. The owner can keep it after the list closes, so the list opens where the user left it.
  */
 const chosenPlace = defineModel<ChatSessionsPlace>('place', { default: () => ({ kind: 'all' }) })
+/**
+ * The search of the list. While it has text, the owner passes only the conversations of the character that match it,
+ * archived ones included, and the list shows them all, whatever the place.
+ */
+const query = defineModel<string>('query', { default: '' })
+const searchActive = computed(() => query.value.trim() !== '')
+// The field edits a draft. The search gets it when the typing pauses, so a long history is not scanned on each key.
+const draftQuery = ref(query.value)
+watchDebounced(draftQuery, (value) => {
+  query.value = value
+}, { debounce: 150 })
+// The owner can clear the search, for example when the list closes.
+watch(query, (value) => {
+  if (value !== draftQuery.value)
+    draftQuery.value = value
+})
 // The swipe area that is open belongs to this open list, never to persisted session state.
 const expandedSessionId = shallowRef<string>()
 // Selection mode belongs to the open list owner, so closing the list can end it.
@@ -65,6 +85,9 @@ const archivedCount = computed(() => props.rows.length - liveRows.value.length)
 
 /** The rows that the list shows. Pinned conversations come first, and the rows already arrive in the order of their last message. */
 const visibleRows = computed(() => {
+  // Search results keep the order of their last message, so the newest match comes first.
+  if (searchActive.value)
+    return props.rows
   const rows = place.value.kind === 'archive' ? props.rows.filter(row => row.meta.archivedAt !== undefined) : liveRows.value
   return [...rows].sort((first, second) => Number(!!second.meta.pinnedAt) - Number(!!first.meta.pinnedAt))
 })
@@ -132,6 +155,10 @@ const actionButtons = computed(() => {
 })
 
 const emptyState = computed(() => {
+  if (searchActive.value && props.searching)
+    return { icon: 'i-solar:magnifer-linear', text: t('stage.chat.sessions.searching') }
+  if (searchActive.value)
+    return { icon: 'i-solar:magnifer-linear', text: t('stage.chat.sessions.search-empty', { query: query.value.trim() }) }
   if (place.value.kind === 'archive')
     return { icon: 'i-mingcute:archive-line', text: t('stage.chat.sessions.empty-archive') }
   return { icon: 'i-mingcute:chat-1-line', text: t('stage.chat.sessions.empty') }
@@ -233,6 +260,13 @@ useEventListener(document, 'focusin', (event) => {
 })
 
 function handleEscape(event: KeyboardEvent) {
+  // The search field has the first Escape, which clears its text and keeps the list open.
+  if (draftQuery.value && event.target instanceof HTMLInputElement && event.target.type === 'search') {
+    draftQuery.value = ''
+    query.value = ''
+    event.stopPropagation()
+    return
+  }
   if (dropConfirmations(null)) {
     event.stopPropagation()
     return
@@ -307,6 +341,13 @@ const { holdLeavingItem } = useListReorderMotion({
       :character="props.character"
       @select-place="setPlace"
       @open-character="emit('openCharacter')"
+    />
+
+    <SettingsSearchField
+      v-model="draftQuery"
+      size="md"
+      :placeholder="t('stage.chat.sessions.search')"
+      :class="['shrink-0', props.compact ? 'mb-1' : 'mb-2', props.fill ? 'mr-2' : '']"
     />
 
     <div :class="['flex shrink-0 items-center', props.fill ? 'pr-2' : '']">

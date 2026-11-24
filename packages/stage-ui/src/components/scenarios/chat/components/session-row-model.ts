@@ -1,3 +1,4 @@
+import type { SessionSearchMatch } from '../../../../stores/chat/session-search'
 import type { ChatSessionMeta } from '../../../../types/chat-session'
 
 /** A conversation preview that the session owner prepares for the conversation list. */
@@ -15,4 +16,6 @@ export interface SessionRow {
   activityAtTitle: string
   /** The name of the character of the conversation. */
   characterName: string
+  /** Why the conversation matches the search of the list. Set only while the list searches. */
+  match?: SessionSearchMatch
 }
