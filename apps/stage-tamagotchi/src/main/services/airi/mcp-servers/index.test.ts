@@ -824,11 +824,22 @@ describe('createMcpManager', () => {
     expect(clientMocks.privateRequest.mock.calls.every(([payload]) => payload.method !== 'airi/computer-use/execute-prepared')).toBe(true)
   })
 
-  it('starts the bundled Terminal in a new packaged Beta profile without external Node or a persisted install path', async () => {
+  it('keeps the bundled Terminal off in a new packaged profile', async () => {
     appMock.isPackaged = true
-    vi.stubEnv('AIRI_DISTRIBUTION', 'terminal-beta')
     const manager = createMcpManager()
     managers.push(manager)
+
+    const result = await manager.applyAndRestart()
+
+    expect(result.started).toEqual([])
+    expect(JSON.parse((await manager.readConfigText()).text)).toEqual({ mcpServers: {} })
+  })
+
+  it('starts the bundled Terminal in a packaged app when Terminal is enabled, without external Node or a persisted install path', async () => {
+    appMock.isPackaged = true
+    const manager = createMcpManager()
+    managers.push(manager)
+    await manager.writeConfigText(JSON.stringify({ terminalEnabled: true, mcpServers: {} }))
 
     const result = await manager.applyAndRestart()
 
