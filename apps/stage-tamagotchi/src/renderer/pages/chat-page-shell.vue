@@ -20,11 +20,12 @@ useBackdropSurface(useTemplateRef<HTMLElement>('surface'), { enabled: () => prop
 </script>
 
 <template>
+  <!-- The page leaves room for the 44px title bar, so a column can run up behind the macOS traffic lights. -->
   <div
     ref="surface"
     data-testid="desktop-chat-page-shell"
     :class="[
-      'h-full w-full overflow-hidden pt-11',
+      'h-full w-full overflow-hidden',
       !transparentWindow ? 'bg-neutral-50 dark:bg-neutral-950' : props.glass ? 'bg-neutral-50/80 dark:bg-neutral-950/80' : 'bg-transparent',
     ]"
     :style="{
