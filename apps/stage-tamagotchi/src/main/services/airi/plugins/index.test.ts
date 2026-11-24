@@ -285,6 +285,15 @@ function createEmptyExtensionEntrypoint(id: string) {
   ].join('\n')
 }
 
+function createEntrypointWithModule(extensionId: string, moduleId: string) {
+  return `export default {
+  id: ${JSON.stringify(extensionId)},
+  async setup(ctx) {
+    await ctx.modules.register({ id: ${JSON.stringify(moduleId)} })
+  },
+}`
+}
+
 function createHostedProviderEntrypoint(extensionId: string, kitId: string) {
   const pluginSdkUrl = pathToFileURL(resolve(repoRoot, 'packages/plugin-sdk/src/index.ts')).href
   return [
@@ -2073,21 +2082,14 @@ describe('setupExtensionHost', () => {
   // The Host put cache queries in manifest paths. URL conversion then treated queries as filename characters.
   // We fixed this by passing a fresh cache key as a load option and keeping the original manifest.
   it('auto-reload executes changed code and preserves manifest paths (Issue #3359)', async () => {
-    const extensionId = 'test-auto-reload-reload'
+    const extensionId = 'test-auto-reload-entrypoint'
+    const initialModuleId = 'revision-a'
     const pluginDir = join(pluginsDir, extensionId)
     await mkdir(pluginDir, { recursive: true })
-    const source = (revision: string) => [
-      'export default {',
-      `  id: '${extensionId}',`,
-      '  async setup(ctx) {',
-      `    await ctx.modules.register({ id: '${revision}' })`,
-      '  },',
-      '}',
-    ].join('\n')
     const entrypointPath = await writeEntrypoint({
       dir: pluginDir,
       name: 'entry.mjs',
-      contents: source('revision-a'),
+      contents: createEntrypointWithModule(extensionId, initialModuleId),
     })
     const manifestPath = await writeManifest({ dir: pluginDir, name: extensionId, entrypoint: './entry.mjs' })
     const originalManifest: unknown = JSON.parse(await readFile(manifestPath, 'utf-8'))
@@ -2105,18 +2107,18 @@ describe('setupExtensionHost', () => {
     await invokeSetEnabled({ extensionId, enabled: true })
     await invokeLoadEnabled()
     await invokeSetAutoReload({ extensionId, enabled: true })
-    expect(service.host.listModules().map(module => module.id)).toEqual(['revision-a'])
+    expect(service.host.listModules().map(module => module.id)).toEqual([initialModuleId])
     const beforeSessionId = service.host.listSessions()[0]?.id
 
-    for (const revision of ['revision-b', 'revision-c']) {
-      await writeFile(entrypointPath, source(revision))
+    for (const moduleId of ['revision-b', 'revision-c']) {
+      await writeFile(entrypointPath, createEntrypointWithModule(extensionId, moduleId))
       await vi.waitFor(async () => {
         // Inspect shares the activation mutex and waits for each complete reload transition.
         const snapshot = await invokeInspect()
         expect(snapshot.sessions).toEqual([
           expect.objectContaining({ extensionId, phase: 'ready' }),
         ])
-        expect(service.host.listModules().map(module => module.id)).toEqual([revision])
+        expect(service.host.listModules().map(module => module.id)).toEqual([moduleId])
       }, { timeout: 5000, interval: 100 })
     }
 
