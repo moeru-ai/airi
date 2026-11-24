@@ -138,6 +138,17 @@ const probes = {
   'missing-entrypoint': startWithMissingEntrypoint,
 }
 
+/**
+ * Runs the selected scenario in the temporary directory from the CLI arguments.
+ * Writes JSON to stdout. On failure, the caller reports the error to stderr and sets exit code 1.
+ *
+ * Call stack:
+ *
+ * runNativeEntrypointProbe (Vitest)
+ *   -> main (native Node)
+ *     -> {@link probes} (selected scenario)
+ *       -> FileSystemLoader or ExtensionHost
+ */
 async function main() {
   const [, , scenario, root] = argv
   if (!root || !Object.hasOwn(probes, scenario)) {
