@@ -96,7 +96,7 @@ const chatMessages = computed(() => {
       const text = typeof msg.content === 'string'
         ? msg.content
         : Array.isArray(msg.content)
-          ? msg.content.map((part: any) => typeof part === 'string' ? part : part.text ?? '').join('')
+          ? msg.content.map(part => typeof part === 'string' ? part : 'text' in part ? part.text : '').join('')
           : JSON.stringify(msg.content ?? '')
       return { role: msg.role as 'user' | 'assistant', text }
     })
@@ -151,7 +151,7 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
       return null
     }
 
-    const provider = await providersStore.getProviderInstance(activeSpeechProvider.value) as SpeechProviderWithExtraOptions<string, any>
+    const provider = await providersStore.getProviderInstance(activeSpeechProvider.value) as SpeechProviderWithExtraOptions<string, Record<string, unknown>>
     if (!provider) {
       console.error('Failed to initialize speech provider')
       return null
