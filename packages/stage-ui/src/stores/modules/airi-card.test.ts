@@ -974,7 +974,7 @@ describe('airi-card store', () => {
 
     expect(cardStore.cards.has(cardId)).toBe(false)
     expect(cardStore.activeCardId).toBe('default')
-    expect(cardStore.activeCard?.name).toBe('Iru')
+    expect(cardStore.activeCard?.name).toBe('Stella')
   })
 
   it('keeps the built-in fallback card when deletion is requested directly', async () => {
@@ -1008,7 +1008,7 @@ describe('airi-card store', () => {
     await cardStore.initialize()
 
     expect(cardStore.activeCardId).toBe('default')
-    expect(cardStore.activeCard?.name).toBe('Iru')
+    expect(cardStore.activeCard?.name).toBe('Stella')
   })
 
   // The built-in character was ReLU, and its description said "Your name is AIRI".
@@ -1063,7 +1063,7 @@ describe('airi-card store', () => {
 
       await cardStore.initialize()
 
-      expect(cardStore.cards.get('default')).toMatchObject({ name: 'Iru', description: cardStore.builtInCard.description })
+      expect(cardStore.cards.get('default')).toMatchObject({ name: 'Stella', description: cardStore.builtInCard.description })
       expect(splitCard(cardStore.cards.get('default')!, [cardStore.builtInCard])).toEqual({})
     })
 
@@ -1073,7 +1073,7 @@ describe('airi-card store', () => {
 
       await cardStore.initialize()
 
-      expect(cardStore.cards.get('default')).toMatchObject({ name: 'Iru', description: 'My own story' })
+      expect(cardStore.cards.get('default')).toMatchObject({ name: 'Stella', description: 'My own story' })
     })
 
     it('keeps the name that the user edited', async () => {
@@ -1214,7 +1214,7 @@ describe('airi-card store', () => {
         const { rejected } = cardStore.applySynchronizedCards({ ...noChanges, upserts: { default: { '/systemPrompt': 'Be kind' } } })
 
         expect(rejected).toEqual([])
-        expect(cardStore.cards.get('default')).toMatchObject({ name: 'Iru', description: builtInDescription, systemPrompt: 'Be kind' })
+        expect(cardStore.cards.get('default')).toMatchObject({ name: 'Stella', description: builtInDescription, systemPrompt: 'Be kind' })
       })
 
       // Every device ships the preset Avatar Model. Its reference is built-in content, not an edit.

@@ -273,7 +273,7 @@ describe('card synchronization across windows', () => {
     signIn(leader.auth, accountId())
     await leader.cards.synchronizeCards()
 
-    expect(leader.cards.cards.get('default')).toMatchObject({ name: 'Iru', description: 'My own story' })
+    expect(leader.cards.cards.get('default')).toMatchObject({ name: 'Stella', description: 'My own story' })
     expect(server.documents.get('default')?.fields.has('/name')).not.toBe(true)
     expect(server.documents.get('default')?.fields.get('/description')?.value).toBe('My own story')
   })
