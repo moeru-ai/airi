@@ -14,9 +14,11 @@ import MagicMotionSettings from '../../../../features/motions/live2d/components/
 import Live2DExpressionList from './live2d-expression-list.vue'
 import Live2DInputMappingSettings from './live2d-input-mapping-settings.vue'
 
+import { useSettings } from '../../../../stores/settings'
 import { PropertyPoint } from '../../../data-pane'
 import { Section } from '../../../layouts'
 import { ColorPalette } from '../../../widgets'
+import { resolveModelSettingsLive2DInputMapping } from './runtime'
 import { useLive2DModelSettings } from './use-live2d-model-settings'
 
 const props = withDefaults(defineProps<{
@@ -34,6 +36,9 @@ defineEmits<{
 const { t } = useI18n()
 
 const settings = useSettingsLive2d()
+const { stageModelSelected } = storeToRefs(useSettings())
+const inputMapping = computed(() => props.live2dContext?.inputMapping.value
+  ?? resolveModelSettingsLive2DInputMapping(props.runtimeSnapshot, stageModelSelected.value))
 const {
   live2dMotionDriver,
   live2dInputMappingMode,
@@ -267,7 +272,7 @@ const blinkModeOptions = computed(() => [
   >
     <Live2DInputMappingSettings
       v-model="live2dInputMappingMode"
-      :mapping="props.live2dContext?.inputMapping.value"
+      :mapping="inputMapping"
       :loading="props.runtimeSnapshot.phase === 'pending' || props.runtimeSnapshot.phase === 'loading' || props.runtimeSnapshot.phase === 'binding'"
       :disabled="props.runtimeSnapshot.controlsLocked"
     />

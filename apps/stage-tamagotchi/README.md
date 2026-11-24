@@ -23,6 +23,11 @@ Keep download caches and generated assets separate from frozen experiment eviden
 
 ## Local model files
 
+For a Live2D model with custom control inputs, open **Settings > Models > Animation**.
+Under **Control mapping**, select **Model configuration**.
+This reads supported bindings from the matching `.vtube.json` and keeps Cubism physics enabled.
+The choice is stored per model.
+
 Sherpaw downloads remote model files into the app user data directory. The main
 process serves installed files to the renderer through `airi-model`. The desktop
 release bundles X-ASR through `airi-sherpaw`. Sherpaw settings control

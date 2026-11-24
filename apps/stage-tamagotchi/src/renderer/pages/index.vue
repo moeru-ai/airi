@@ -229,6 +229,7 @@ const modelSettingsRuntimeSnapshot = computed<ModelSettingsRuntimeSnapshot>(() =
       controlsLocked: hasModel ? phase !== 'mounted' : false,
       previewAvailable: hasModel,
       canCapturePreview: false,
+      live2dInputMapping: phase === 'mounted' ? widgetStageRef.value?.live2dInputMapping : undefined,
       updatedAt: Date.now(),
     })
   }

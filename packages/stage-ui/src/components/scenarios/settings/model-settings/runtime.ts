@@ -1,4 +1,5 @@
 import type { StageAvatarBoundsPayload, StageViewState } from '@proj-airi/stage-shared/godot-stage'
+import type { Live2DInputMapping } from '@proj-airi/stage-ui-live2d'
 
 import type { StageModelRenderer } from '../../../../stores/settings/stage-model'
 
@@ -18,8 +19,22 @@ export interface ModelSettingsRuntimeSnapshot {
   controlsLocked: boolean
   previewAvailable: boolean
   canCapturePreview: boolean
+  /** Loaded-model metadata for settings windows that do not own a Live2D context. */
+  live2dInputMapping?: { modelId: string, mapping: Live2DInputMapping }
   lastError?: string
   updatedAt: number
+}
+
+/** Rejects snapshots for a previous model while the selected model loads in another window. */
+export function resolveModelSettingsLive2DInputMapping(
+  snapshot: ModelSettingsRuntimeSnapshot,
+  selectedModelId: string | undefined,
+): Live2DInputMapping | undefined {
+  if (snapshot.renderer !== 'live2d' || snapshot.phase !== 'mounted' || !selectedModelId)
+    return undefined
+
+  const metadata = snapshot.live2dInputMapping
+  return metadata?.modelId === selectedModelId ? metadata.mapping : undefined
 }
 
 export function createEmptyModelSettingsRuntimeSnapshot(

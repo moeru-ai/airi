@@ -19,9 +19,11 @@ export interface Live2DContext {
   motions: Live2DMotionsContext
   /** Input bindings of the loaded model, cleared before each model load. */
   inputMapping: Readonly<ShallowRef<Live2DInputMapping>>
+  /** Display-model identity captured when this model started loading. */
+  loadedModelId: Readonly<ShallowRef<string | undefined>>
   /** Clears the controls of the previous model. */
   beginModelLoad: () => void
-  setModel: (internalModel: PixiLive2DInternalModel, mapping: Live2DInputMapping) => void
+  setModel: (internalModel: PixiLive2DInternalModel, mapping: Live2DInputMapping, modelId: string | undefined) => void
   dispose: () => void
 }
 
@@ -36,6 +38,7 @@ const live2DContextKey: InjectionKey<Live2DContext> = Symbol('live2d-context')
 export function createLive2D(options: CreateLive2DOptions = {}): Live2DContext {
   let internalModel: PixiLive2DInternalModel | undefined
   const inputMapping = shallowRef<Live2DInputMapping>(emptyLive2DInputMapping)
+  const loadedModelId = shallowRef<string>()
   const defaultControlPolicy = createLive2DControlPolicy()
 
   function controlPolicy() {
@@ -73,17 +76,20 @@ export function createLive2D(options: CreateLive2DOptions = {}): Live2DContext {
     motions.clear()
     internalModel = undefined
     inputMapping.value = emptyLive2DInputMapping
+    loadedModelId.value = undefined
   }
 
-  function setModel(nextInternalModel: PixiLive2DInternalModel, mapping: Live2DInputMapping) {
+  function setModel(nextInternalModel: PixiLive2DInternalModel, mapping: Live2DInputMapping, modelId: string | undefined) {
     internalModel = nextInternalModel
     inputMapping.value = mapping
+    loadedModelId.value = modelId
   }
 
   return {
     expressions,
     motions,
     inputMapping,
+    loadedModelId,
     beginModelLoad,
     setModel,
     dispose: beginModelLoad,

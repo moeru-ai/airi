@@ -295,7 +295,7 @@ live2d:
     title: 动画
     input-mapping:
       title: 控制映射方式
-      description: 如果 AIRI 无法正常控制此模型，请尝试使用模型配置的输入映射。两种方式均保留模型原有的物理计算。
+      description: 如果 AIRI 无法正常控制此模型，请尝试使用模型配置的输入映射，将 AIRI 的控制信号发送到作者指定的输入参数。
       options:
         default: AIRI 默认映射
         model: 模型配置映射

@@ -519,11 +519,6 @@
       "count": 1
     }
   },
-  "packages/stage-ui-live2d/src/composables/live2d/motion-manager.ts": {
-    "ts/no-explicit-any": {
-      "count": 2
-    }
-  },
   "packages/stage-ui-live2d/src/utils/live2d-structure-report.ts": {
     "ts/no-explicit-any": {
       "count": 2

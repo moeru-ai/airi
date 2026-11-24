@@ -314,7 +314,7 @@ live2d:
     title: Animation
     input-mapping:
       title: Control mapping
-      description: If AIRI cannot control this model correctly, use its input mapping. Both options keep the model's physics.
+      description: If AIRI cannot control this model correctly, try the model's input mapping. It sends AIRI's control signals to the author's input parameters.
       options:
         default: AIRI default
         model: Model configuration

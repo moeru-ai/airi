@@ -613,7 +613,7 @@ async function performModelLoad() {
       }
     }
 
-    live2d.setModel(internalModel, inputMapper.mapping)
+    live2d.setModel(internalModel, inputMapper.mapping, modelId)
     emits('modelLoaded')
   }
   catch (error) {
