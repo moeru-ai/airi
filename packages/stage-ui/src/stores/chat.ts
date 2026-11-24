@@ -257,6 +257,11 @@ const STORED_TOOL_IMAGE = 'A tool image was left out of the history.'
 /** Stands in for an earlier image whose read failed with the current vision selection. */
 const UNREADABLE_EARLIER_IMAGE = 'The user attached an image here earlier. The vision model failed to read it.'
 
+/** The turn that the user sends now. Earlier turns must not block it. */
+function lastUserTurnIdOf(conversation: Conversation) {
+  return conversation.turns.findLast(turn => turn.type === 'user')?.id
+}
+
 // REVIEW:
 // Executor order: the leader, the caller, then any speech player. With several Stage tabs, a call from elsewhere
 // speaks in an arbitrary one, and a cancel can miss its turn. The chat runtime can elect its own owner among speech
@@ -756,7 +761,7 @@ export const useChatStore = defineStore('chat', () => {
     if (hasImages) {
       if (chatVision.readsAttachedImages(visionSelection)) {
         const { runVisionInference } = useVisionInference()
-        const currentTurnId = context.turns.findLast(turn => turn.type === 'user')?.id
+        const currentTurnId = lastUserTurnIdOf(context)
         providerContext = await describeChatImages(providerContext, async (imageDataUrl, question, turnId, imageIndex) => {
           const sessionId = options?.requestCorrelation?.conversationId
           const cachedDescription = sessionId
@@ -817,8 +822,32 @@ export const useChatStore = defineStore('chat', () => {
       // Project a request copy. Stored messages retain recordings and reusable ASR results.
       const projected = structuredClone(source)
       const sessionId = options?.requestCorrelation?.conversationId
-      const currentTurnId = projected.turns.findLast(turn => turn.type === 'user')?.id
+      const currentTurnId = lastUserTurnIdOf(projected)
       let transcriber: ReturnType<typeof hearing.createTranscriber> | undefined
+
+      // Throws when the provider is not configured, fails, or returns no text.
+      const transcribeRecording = async (recording: { data: string, format?: string }) => {
+        // The recording belongs to this turn. A voice input of another turn can run at the same time.
+        if (!hearing.configured)
+          throw new Error('Configure a transcription provider to send audio to this model')
+        transcriber ??= hearing.createTranscriber(undefined, { ids: turnIds })
+
+        const blob = new Blob([new Uint8Array(decodeBase64(recording.data))], { type: recording.format === 'mp3' ? 'audio/mpeg' : 'audio/wav' })
+        let text = ''
+        let completed = false
+        // A stored recording is a source like the microphone, so every configured provider can transcribe it.
+        for await (const event of transcriber.transcribe({ audio: fileSource(blob).open(signal), signal })) {
+          signal.throwIfAborted()
+          if (event.type === 'update')
+            text = event.segments.map(segment => segment.text).join('')
+          else
+            completed = true
+        }
+
+        if (!completed || !text.trim())
+          throw new Error('The recording has no completed transcription')
+        return text
+      }
 
       for (const turn of projected.turns) {
         if (turn.type !== 'user')
@@ -851,26 +880,10 @@ export const useChatStore = defineStore('chat', () => {
             // An earlier recording must not block the message that the user sends now.
             const isCurrentTurn = turn.id === currentTurnId
             try {
-              // The recording belongs to this turn. A voice input of another turn can run at the same time.
-              if (!hearing.configured)
-                throw new Error('Configure a transcription provider to send audio to this model')
-              transcriber ??= hearing.createTranscriber(undefined, { ids: turnIds })
-
-              const blob = new Blob([new Uint8Array(decodeBase64(part.data))], { type: part.format === 'mp3' ? 'audio/mpeg' : 'audio/wav' })
-              let completed = false
-              // A stored recording is a source like the microphone, so every configured provider can transcribe it.
-              for await (const event of transcriber.transcribe({ audio: fileSource(blob).open(signal), signal })) {
-                signal.throwIfAborted()
-                if (event.type === 'update')
-                  text = event.segments.map(segment => segment.text).join('')
-                else
-                  completed = true
-              }
-
-              if (!completed || !text?.trim())
-                throw new Error('The recording has no completed transcription')
+              text = await transcribeRecording(part)
             }
             catch (error) {
+              // An abort must not become a placeholder.
               signal.throwIfAborted()
               if (isCurrentTurn)
                 throw error
