@@ -213,7 +213,6 @@ export function setupChatWindowManager(params: {
       minHeight: 480,
       show: false,
       icon,
-      ...(isMacOS ? { transparent: true, backgroundColor: '#00000000' } : {}),
       ...customTitleBarWindowConfig(),
       webPreferences: {
         preload: getPreloadPath(),
