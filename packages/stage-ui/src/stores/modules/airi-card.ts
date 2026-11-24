@@ -35,7 +35,7 @@ import { captureAnalyticsEvent } from '../../libs/product-signals'
 import { SERVER_URL } from '../../libs/server'
 import { SyncRunner, watchSyncTriggers } from '../../libs/sync-runner'
 import { wakeWordSchema } from '../../libs/voice/wake-words'
-import { clearModuleSelections, resolveModuleSelection } from '../../services/airi-card-modules'
+import { clearModuleSelections, normalizeCardSpeech, resolveModuleSelection } from '../../services/airi-card-modules'
 import { createAvatarModelReference } from '../../services/avatar-model'
 import { normalizeContextWindow } from '../../types/airiCard'
 import { useAuthStore } from '../auth'
@@ -692,7 +692,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
           provider: existingExtension.modules?.vision?.provider ?? defaultModules.vision.provider,
           model: existingExtension.modules?.vision?.model ?? defaultModules.vision.model,
         },
-        speech: {
+        speech: normalizeCardSpeech({
           ...existingExtension.modules?.speech,
           provider: existingExtension.modules?.speech?.provider ?? defaultModules.speech.provider,
           model: existingExtension.modules?.speech?.model ?? defaultModules.speech.model,
@@ -701,7 +701,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
           rate: existingExtension.modules?.speech?.rate,
           ssml: existingExtension.modules?.speech?.ssml,
           language: existingExtension.modules?.speech?.language,
-        },
+        }),
         vrm: existingExtension.modules?.vrm,
         live2d: existingExtension.modules?.live2d,
         activeBackgroundId: existingExtension.modules?.activeBackgroundId,
@@ -1182,8 +1182,6 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     if (!cards.value.has('default'))
       cards.value.set('default', structuredClone(toRaw(builtInCard.value)))
 
-    // Stored speech-noop can mean an intentional mute. Only the editor may
-    // replace it with inheritance; the old placeholder has no provenance marker.
     // The active id and card map are persisted separately. Older versions
     // could delete the selected card without repairing its stored id.
     if (!cards.value.has(activeCardId.value))

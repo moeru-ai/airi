@@ -589,7 +589,7 @@ pages:
     activate: Activate
     active: Active
     active_badge: Currently Active
-    activation_notice: Switched to {name}. The current conversation now uses this character.
+    activation_notice: Switched to {name}. The current chat now uses this character.
     cancel: Cancel action
     save: Save changes
     save_and_activate: Save and activate
@@ -614,6 +614,7 @@ pages:
     drop_here: Drop to upload
     create_card: Create a new character
     edit_card: Edit character
+    edit_model: Edit model
     saved: Character saved
     unsaved:
       badge: Unsaved
@@ -810,6 +811,14 @@ pages:
       desktop_window_centered: Desktop window moved to screen center.
       desktop_reset: Desktop data reset.
   models:
+    library:
+      loading: Loading the models…
+      title: Model library
+      description: Import, rename, and delete the models of your characters.
+      hint: A character selects its model in the character settings. This page only stores the models.
+      used-by: 'Used by {names}'
+      unused: No character uses this model
+      edit: Adjust on stage
     editor:
       model:
         all-models: All models
@@ -1728,7 +1737,7 @@ pages:
       title: MCP servers
       terminal:
         title: Bundled Terminal
-        description: Connect the bundled Terminal tools. Commands need approval by default. Enable Turbo for a conversation from the chat composer. Save and restart to apply.
+        description: Connect the bundled Terminal tools. Commands need approval by default. Enable Turbo for a chat from the chat composer. Save and restart to apply.
         restore: Show Terminal requests
         approval: Terminal approval
         approve: Approve once
@@ -2674,7 +2683,7 @@ pages:
       features:
         conversation_compact:
           title: Conversation compaction
-          description: Off by default. When a conversation gets long, AIRI summarizes its older replies and images.
+          description: Off by default. When a chat gets long, AIRI summarizes its older replies and images.
           mode:
             title: When to summarize
             description: Turning this off drops the summaries that are not ready yet.

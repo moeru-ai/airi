@@ -43,7 +43,9 @@ else {
 }
 
 export default {
-  appId: terminalBeta ? 'ai.moeru.airi.terminal-beta' : 'ai.moeru.airi',
+  // `build.appId` in `package.json` sets the app ID, and it overrides this file. The ergosphere-it CLI reads its product
+  // ID only from there, and the release store channels belong to `ai.moeru.airi`. `scripts/build-terminal-beta.ts`
+  // sets its own app ID with `-c.appId`.
   productName: terminalBeta ? 'AIRI Terminal Beta' : 'AIRI',
   directories: {
     output: 'dist',

@@ -4,10 +4,10 @@ import type { ChatSessionMeta } from '../../../../types/chat-session'
 export interface SessionRow {
   meta: ChatSessionMeta
   preview: string
+  /** The last message, for the second line of the row. Missing until the messages of the conversation load. */
+  lastMessage?: string
   isActive: boolean
   activityAtLabel: string
   /** The name of the character of the conversation. */
   characterName: string
-  /** The preview image of the default model of the character. Without it, the avatar shows its fallback. */
-  characterPreview?: string
 }

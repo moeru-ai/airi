@@ -472,6 +472,27 @@
       context: Artistry Provider Configuration
 
 # ---------------------------------------------------------------------------------------
+# Chat
+# ---------------------------------------------------------------------------------------
+
+- id: chat
+  subject: application
+  translatable: true
+  definition: One thread of messages between the user and a character, with its own history.
+  note: >
+    Use Chat for a thread in the list and for the area where the user talks, for example New chat
+    and the chat window. In Chinese, a thread is 对话.
+  terms:
+    - text: Chat
+      part-of-speech: noun
+      status: preferred
+      context: New chat
+    - text: Conversation
+      part-of-speech: noun
+      status: deprecated
+      context: New conversation
+
+# ---------------------------------------------------------------------------------------
 # Memory
 # ---------------------------------------------------------------------------------------
 

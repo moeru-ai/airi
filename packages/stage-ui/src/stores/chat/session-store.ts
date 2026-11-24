@@ -4,10 +4,10 @@ import type {} from 'pinia-plugin-synced'
 import type { ChatSendOutboxEntry } from '../../database/repos/chat-sessions.repo'
 import type { ChatWsClient, CloudChatMapper } from '../../libs/chat-sync'
 import type { ChatHistoryItem } from '../../types/chat'
-import type { ChatSessionFolder, ChatSessionMeta, ChatSessionRecord, ChatSessionsExport, ChatSessionsIndex, ChatSessionTask, StoredVoiceInterruption } from '../../types/chat-session'
+import type { ChatSessionMeta, ChatSessionRecord, ChatSessionsExport, ChatSessionsIndex, ChatSessionTask, StoredVoiceInterruption } from '../../types/chat-session'
 
 import { errorMessageFrom } from '@moeru/std'
-import { cloneDeep, omit } from 'es-toolkit'
+import { cloneDeep } from 'es-toolkit'
 import { nanoid } from 'nanoid'
 import { defineStore, getActivePinia, storeToRefs } from 'pinia'
 import { computed, ref, toRaw, watch } from 'vue'
@@ -33,6 +33,7 @@ import { useSyncPreferencesStore } from '../sync-preferences'
 import { staysLocal } from './session-locality'
 import { characterMembersOfMeta } from './session-members'
 import { mergeLoadedSessionMessages } from './session-message-merge'
+import { summarizeSessionMessages } from './session-summary'
 
 /**
  * Roles that are eligible to push to the cloud. Wire schema accepts more,
@@ -225,6 +226,43 @@ export const useChatSessionStore = defineStore('chat-session', () => {
         }
       }
     }
+    void backfillSessionSummaries(index.value)
+  }
+
+  /**
+   * Writes the summary of each session that has none, from its stored record.
+   *
+   * Sessions saved before the summary existed have none, and the conversation list shows only their time. The fill
+   * keeps `updatedAt`, so the order of the list and the sync do not change. A session without a stored record keeps
+   * no summary until its messages save.
+   */
+  async function backfillSessionSummaries(target: ChatSessionsIndex | null) {
+    if (!target)
+      return
+    const missing = Object.values(target.characters)
+      .flatMap(character => Object.values(character.sessions))
+      .filter(meta => meta.summary === undefined)
+    if (missing.length === 0)
+      return
+
+    await enqueuePersist(async () => {
+      let changed = false
+      for (const meta of missing) {
+        const stored = await chatSessionsRepo.getSession(meta.sessionId)
+        if (!stored)
+          continue
+        const summary = summarizeSessionMessages(stored.messages)
+        const filled = { ...cloneDeep(toRaw(meta)), summary }
+        target.characters[meta.characterId].sessions[meta.sessionId] = filled
+        const current = sessionMetas.value[meta.sessionId]
+        if (index.value === target && current && current.summary === undefined)
+          sessionMetas.value[meta.sessionId] = { ...current, summary }
+        await chatSessionsRepo.saveSession(meta.sessionId, { meta: filled, messages: stored.messages })
+        changed = true
+      }
+      if (changed)
+        await chatSessionsRepo.saveIndex(cloneDeep(target))
+    })
   }
 
   function getCharacterIndex(characterId: string) {
@@ -252,8 +290,10 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       const messages = snapshotMessages(ensureSessionMessageIds(sessionId))
       const now = Date.now()
       // Nested meta fields, such as the bindings, are reactive proxies. IndexedDB cannot clone them, so the record stores a plain copy.
+      // The summary changes with the messages, so each save of the messages writes it.
       const updatedMeta = {
         ...cloneDeep(meta),
+        summary: summarizeSessionMessages(messages),
         updatedAt: now,
       }
 
@@ -741,56 +781,6 @@ export const useChatSessionStore = defineStore('chat-session', () => {
         opened[characterId] = openedSessionId
     }
     return opened
-  }
-
-  /** Moves conversations into a folder, or out of their folder with `undefined`. An unknown folder moves nothing. */
-  async function moveSessionsToFolder(sessionIds: string[], folderId: string | undefined) {
-    if (folderId !== undefined && !index.value?.folders?.[folderId])
-      return
-    await updateSessionMetas(sessionIds, meta => ({ ...meta, folderId }))
-  }
-
-  /** Creates a folder of the conversation list and returns its ID. A blank name creates nothing. */
-  async function createFolder(name: string): Promise<string | undefined> {
-    const normalizedName = name.trim()
-    if (!normalizedName)
-      return undefined
-    // A folder goes into the loaded index of the current account. While an account change loads it, a new index here
-    // has no conversations, and its save replaces the stored index.
-    if (!index.value || index.value.userId !== getCurrentUserId())
-      throw new Error('Chat sessions are not ready')
-
-    const folder: ChatSessionFolder = { id: nanoid(), name: normalizedName, createdAt: Date.now() }
-    index.value.folders = { ...index.value.folders, [folder.id]: folder }
-    await persistIndex()
-    return folder.id
-  }
-
-  async function renameFolder(folderId: string, name: string): Promise<boolean> {
-    const folder = index.value?.folders?.[folderId]
-    const normalizedName = name.trim()
-    if (!index.value || !folder || !normalizedName)
-      return false
-
-    index.value.folders = { ...index.value.folders, [folderId]: { ...folder, name: normalizedName } }
-    await persistIndex()
-    return true
-  }
-
-  /**
-   * Deletes a folder. Its conversations stay and return to the conversation list.
-   *
-   * A conversation is in a folder only while the index has the folder, so one save of the index deletes it. The
-   * conversations then drop the folder from their records. A record that still names it is in no folder.
-   */
-  async function deleteFolder(folderId: string) {
-    if (!index.value?.folders?.[folderId])
-      return
-
-    index.value.folders = omit(index.value.folders, [folderId])
-    await persistIndex()
-    const members = Object.values(sessionMetas.value).filter(meta => meta.folderId === folderId).map(meta => meta.sessionId)
-    await updateSessionMetas(members, meta => ({ ...meta, folderId: undefined }))
   }
 
   async function syncPendingSessionTitle(sessionId: string): Promise<boolean> {
@@ -2084,6 +2074,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     await enqueuePersist(() => chatSessionsRepo.saveIndex(cloneDeep(payload.index)))
 
     for (const [sessionId, record] of Object.entries(payload.sessions)) {
+      record.meta.summary = summarizeSessionMessages(record.messages)
       sessionMetas.value[sessionId] = cloneDeep(record.meta)
       sessionMessages.value[sessionId] = cloneDeep(record.messages)
       ensureGeneration(sessionId)
@@ -2221,10 +2212,6 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     renameSession,
     setSessionPinned,
     setSessionsArchived,
-    moveSessionsToFolder,
-    createFolder,
-    renameFolder,
-    deleteFolder,
     deleteSession,
     deleteSessions,
     activateCurrentUser,
@@ -2263,10 +2250,6 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       'renameSession',
       'setSessionPinned',
       'setSessionsArchived',
-      'moveSessionsToFolder',
-      'createFolder',
-      'renameFolder',
-      'deleteFolder',
       'resetAllSessions',
       'setSessionTask',
       'deleteHiddenSession',

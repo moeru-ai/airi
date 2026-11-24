@@ -37,7 +37,7 @@ function session(sessionId: string, characterId: string, updatedAt: number, hidd
   return { sessionId, characterId, userId: 'local', createdAt: updatedAt, updatedAt, hidden }
 }
 
-async function renderRail() {
+async function renderRail(props: { docked?: boolean } = {}) {
   const pinia = createPinia()
   const i18n = createI18n({
     legacy: false,
@@ -46,7 +46,7 @@ async function renderRail() {
     fallbackWarn: false,
     messages: { en: { stage: { 'character-switcher': { title: 'Switch character', manage: 'Manage characters', failed: 'Failed' } } } },
   })
-  const screen = await render(CharacterRail, { global: { plugins: [pinia, PiniaColada, i18n] } })
+  const screen = await render(CharacterRail, { props, global: { plugins: [pinia, PiniaColada, i18n] } })
   const cardStore = useAiriCardStore(pinia)
   cardStore.cards = new Map([['first', card('First')], ['second', card('Second')], ['third', card('Third')]])
   cardStore.activeCardId = 'first'
@@ -81,5 +81,16 @@ describe('character rail', () => {
 
     await screen.getByRole('button', { name: 'Manage characters' }).click()
     expect(screen.emitted('manage')).toHaveLength(1)
+  })
+
+  it('stays a column of avatars without names when docked in a window', async () => {
+    const { screen } = await renderRail({ docked: true })
+    const rail = screen.getByTestId('character-rail')
+
+    await rail.hover()
+    await expect.poll(() => rail.element().getAttribute('data-open')).toBe('false')
+    await expect.element(screen.getByRole('button', { name: 'Second' })).toBeVisible()
+    // The avatars keep their initials. The names are not rendered.
+    expect(Array.from(rail.element().querySelectorAll('span'), span => span.textContent?.trim())).not.toContain('Second')
   })
 })
