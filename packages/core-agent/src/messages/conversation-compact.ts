@@ -1,5 +1,6 @@
 import type { ContextCompactionContract } from './compaction-contract'
 import type { ContextBudget, ContextBudgetLimits } from './context-budget'
+import type { ContextTokenUsage } from './context-token-usage'
 import type { Conversation, GenerationRound, Turn } from './types'
 
 import { createEmptyContextCompaction } from './compaction-contract'
@@ -38,6 +39,18 @@ export interface CompactRequest {
   supportsVisionInput?: boolean
   /** Limits derived from the model and output cap of this exact provider request. */
   contextBudgetLimits?: Pick<ContextBudgetLimits, 'softLimitBytes'>
+  /**
+   * Soft input-token threshold for this resolved model.
+   * When it is set, Compact schedules from tokens instead of serialized bytes.
+   */
+  tokenSoftLimit?: number
+  /** Local token estimate used to compare a summary with the previous projection. */
+  estimateContextTokens?: (value: Conversation) => ContextTokenUsage
+  /**
+   * Token measurement for this resolved request.
+   * It may call a provider counter. A missing or unavailable result keeps byte scheduling.
+   */
+  measureContextTokens?: (value: Conversation) => ContextTokenUsage | Promise<ContextTokenUsage>
   summarize: (snapshot: Conversation, signal: AbortSignal) => Promise<string>
 }
 
@@ -105,6 +118,25 @@ export class ConversationCompact {
     this.failure = undefined
     this.scope = undefined
     this.compaction = createEmptyContextCompaction()
+  }
+
+  /**
+   * Projects the smallest conversation Compact is allowed to send.
+   * User messages and exact tool receipts stay. This does not change stored history.
+   */
+  retainedFloor(conversation: Conversation): Conversation {
+    const source = units(structuredClone(conversation))
+    const roundUnits = source.filter(turn => turn.type === 'assistant')
+    const older = roundUnits.slice(0, -this.options.retainRounds)
+    const selected = older.filter(turn => turn.type === 'assistant' && canCompact(turn.rounds[0]))
+    if (selected.length === 0)
+      return { turns: source }
+    const rounds = new Set<string>()
+    for (const turn of selected) {
+      if (turn.type === 'assistant')
+        rounds.add(turn.rounds[0].id)
+    }
+    return this.project(source, { prefix: [], rounds, text: '' })
   }
 
   /** Read compression state without exposing the summary scheduler or execution state. */
@@ -235,6 +267,24 @@ export class ConversationCompact {
     return target.contextBudgetLimits ?? this.options
   }
 
+  private async overSoftLimit(conversation: Conversation, target: CompactRequest) {
+    if (target.tokenSoftLimit !== undefined && target.measureContextTokens) {
+      const usage = await target.measureContextTokens(conversation)
+      if (usage.source !== 'unavailable')
+        return usage.inputTokens >= target.tokenSoftLimit
+    }
+    return this.pressureBytes(conversation, target) >= this.limits(target).softLimitBytes
+  }
+
+  private measuredSize(conversation: Conversation, target: CompactRequest) {
+    if (target.tokenSoftLimit !== undefined && target.estimateContextTokens) {
+      const usage = target.estimateContextTokens(conversation)
+      if (usage.source !== 'unavailable')
+        return usage.inputTokens
+    }
+    return target.measureContextBytes(conversation)
+  }
+
   private apply(source: Turn[], target: CompactRequest) {
     const job = this.job
     if (!job || !job.ready)
@@ -242,7 +292,7 @@ export class ConversationCompact {
     const previous = this.project(source)
     const next = this.project(source, job.checkpoint)
     const bytes = target.measureContextBytes(next)
-    if (bytes >= target.measureContextBytes(previous)) {
+    if (this.measuredSize(next, target) >= this.measuredSize(previous, target)) {
       this.failure = { prefix: job.checkpoint.prefix, error: new Error('Conversation summary does not reduce request size') }
       this.compaction = {
         ...this.compaction,
@@ -283,12 +333,10 @@ export class ConversationCompact {
   /** The soft threshold schedules best-effort compaction; only Synchronous waits for its summary. */
   async prepare(conversation: Conversation, target: CompactRequest, signal?: AbortSignal): Promise<Conversation> {
     signal?.throwIfAborted()
-    const { softLimitBytes } = this.limits(target)
     if (this.mode === 'off')
       return conversation
     const source = units(structuredClone(conversation))
     const measure = target.measureContextBytes
-    const pressure = (value: Conversation) => this.pressureBytes(value, target)
     if (this.scope !== target.scope || (this.committed && !matches(this.committed.prefix, source))) {
       this.reset()
       this.scope = target.scope
@@ -305,7 +353,7 @@ export class ConversationCompact {
       this.job = undefined
     }
     let projected = this.project(source)
-    if (pressure(projected) >= softLimitBytes && !this.job)
+    if (await this.overSoftLimit(projected, target) && !this.job)
       this.start(source, target, signal)
     if (this.mode !== 'synchronous' || !this.job)
       return projected

@@ -40,6 +40,10 @@ The Agent must reason about capability and risk from available tools and observe
 
 Core Agent limits model decision rounds with `StreamOptions.maxSteps`. The default is 30. One decision round can contain any number of tool calls. The runtime settles the complete final batch before it emits `step-limit`. It stores the result in `AssistantTurn.stopReason`. This checkpoint adds `goalState: 'not-verified'` to later context. It does not verify the task or authorize replay. A later request continues from exact receipts. No tool-count limit implements this policy.
 
+Context token measurement runs at each resolved model request. It measures the projected request. That request includes the system prompt, tool schemas, and tool results. The source names a provider count, a local tokenizer count, an estimate, or unavailable. Compact uses that count to schedule a summary. Compact edits only the provider projection.
+
+Stored history and exact tool receipts stay in place. A provider count or a local tokenizer count refuses the request when the retained floor exceeds the window minus the output reserve. An estimate refuses the request only when it exceeds the full window. An unavailable count leaves admission to the provider. The provider still accepts or refuses every request that AIRI sends.
+
 ## Contract boundaries
 
 The execution trace keeps five contracts as separate records:

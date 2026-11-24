@@ -12,7 +12,7 @@ export type {
   ContextProjectionSectionKind,
   SerializedProjectionBreakdown,
 } from './context-projection'
-export { groupProjectionSections, reportedWindowUsage } from './context-projection'
+export { contextWindowFill, describeContextTokenReadings, groupProjectionSections, reportedWindowUsage } from './context-projection'
 export type {
   PromptProjectionRequest,
   PromptProjectionSnapshot,

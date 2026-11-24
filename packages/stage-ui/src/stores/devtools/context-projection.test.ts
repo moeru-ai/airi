@@ -3,7 +3,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import { useContextObservabilityStore } from './context-observability'
-import { classifySerializedProjection, groupProjectionSections, reportedWindowUsage } from './context-projection'
+import { classifySerializedProjection, contextWindowFill, describeContextTokenReadings, groupProjectionSections, reportedWindowUsage } from './context-projection'
 
 const imageUrl = `data:image/png;base64,${'A'.repeat(64)}`
 
@@ -34,6 +34,47 @@ describe('reportedWindowUsage', () => {
     expect(reportedWindowUsage(100_000, 25_000)).toEqual({ label: '25.0', bar: 25, over: false })
     expect(reportedWindowUsage(100_000, 0)).toEqual({ label: '0.0', bar: 0, over: false })
     expect(reportedWindowUsage(100_000, 250_000)).toEqual({ label: '250.0', bar: 100, over: true })
+  })
+})
+
+describe('describeContextTokenReadings', () => {
+  it('keeps measured, reported, and estimated totals separate', () => {
+    expect(describeContextTokenReadings({
+      measuredInputTokens: 80,
+      measuredSource: 'provider-counted',
+      estimateTokens: 70,
+      reportedInputTokens: 100,
+    })).toEqual({
+      readings: [
+        { kind: 'measured', tokens: 80, source: 'provider-counted' },
+        { kind: 'reported', tokens: 100 },
+        { kind: 'estimated', tokens: 70 },
+      ],
+      deltaTokens: 20,
+    })
+  })
+
+  it('leaves the reported total unknown until the provider sends it', () => {
+    expect(describeContextTokenReadings({
+      measuredInputTokens: 80,
+      measuredSource: 'estimated',
+      estimateTokens: 80,
+    })).toMatchObject({
+      readings: [
+        { kind: 'measured', source: 'estimated' },
+        { kind: 'reported' },
+        { kind: 'estimated', tokens: 80 },
+      ],
+      deltaTokens: undefined,
+    })
+  })
+})
+
+describe('contextWindowFill', () => {
+  it('uses reported input tokens before the measured input', () => {
+    expect(contextWindowFill(100, 25, 80)).toMatchObject({ label: '25.0', basis: 'reported' })
+    expect(contextWindowFill(100, undefined, 80)).toMatchObject({ label: '80.0', basis: 'measured' })
+    expect(contextWindowFill(undefined, undefined, 80)).toBeUndefined()
   })
 })
 

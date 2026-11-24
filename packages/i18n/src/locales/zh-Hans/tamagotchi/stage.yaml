@@ -134,6 +134,17 @@ docs:
     output: 输出
     total: 合计
     usage-unavailable: 提供方没有返回这次的 token 用量。
+    reading-unknown: 暂无
+    reading-delta: '回报减已计量：{count} tokens'
+    reading:
+      measured: 已计量
+      reported: 已回报
+      estimated: 估算
+    source:
+      provider-counted: 提供方计数
+      local-tokenizer: 本地分词
+      estimated: 估算
+      unavailable: 不可用
     budget: 压缩阈值
     expand: 展开内容
     collapse: 收起内容

@@ -2,7 +2,7 @@
 import type { ContextProjectionGroupKind } from '@proj-airi/stage-ui/stores/devtools/context-observability'
 
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
-import { groupProjectionSections, reportedWindowUsage, useContextPromptProjectionStore } from '@proj-airi/stage-ui/stores/devtools/context-observability'
+import { contextWindowFill, describeContextTokenReadings, groupProjectionSections, useContextPromptProjectionStore } from '@proj-airi/stage-ui/stores/devtools/context-observability'
 import { DropdownMenu, GhostButton } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, shallowRef } from 'vue'
@@ -34,10 +34,18 @@ const breakdown = computed(() => projection.value?.breakdown)
 
 const groups = computed(() => breakdown.value ? groupProjectionSections(breakdown.value) : [])
 
-const windowUsage = computed(() => reportedWindowUsage(
+const windowUsage = computed(() => contextWindowFill(
   projection.value?.request?.contextWindowTokens,
   projection.value?.reportedUsage?.inputTokens,
+  projection.value?.measuredUsage?.source === 'unavailable' ? undefined : projection.value?.measuredUsage?.inputTokens,
 ))
+
+const tokenReadings = computed(() => describeContextTokenReadings({
+  measuredInputTokens: projection.value?.measuredUsage?.inputTokens,
+  measuredSource: projection.value?.measuredUsage?.source,
+  estimateTokens: projection.value?.measuredUsage?.estimateTokens,
+  reportedInputTokens: projection.value?.reportedUsage?.inputTokens,
+}))
 
 /** Width of the filled composition track. Uses reported window fill when it exists. */
 const compositionFill = computed(() => windowUsage.value?.bar ?? 100)
@@ -170,11 +178,11 @@ function toggleSection(id: string) {
               {{ t('tamagotchi.stage.chat-window.context-inspector.usage-unavailable') }}
             </p>
             <p
-              v-if="projection.request?.contextWindowTokens && projection.reportedUsage?.inputTokens != null"
+              v-if="projection.request?.contextWindowTokens && (projection.reportedUsage?.inputTokens != null || projection.measuredUsage?.inputTokens != null)"
               data-testid="context-window"
               :class="['text-xs tabular-nums text-neutral-500 dark:text-neutral-400']"
             >
-              <span data-testid="context-reported-input">{{ tokenFormat.format(projection.reportedUsage.inputTokens) }}</span>
+              <span data-testid="context-reported-input">{{ tokenFormat.format(projection.reportedUsage?.inputTokens ?? projection.measuredUsage?.inputTokens ?? 0) }}</span>
               /
               {{ tokenFormat.format(projection.request.contextWindowTokens) }}
               {{ t('tamagotchi.stage.chat-window.context-inspector.tokens') }}
@@ -206,6 +214,41 @@ function toggleSection(id: string) {
               />
             </div>
           </div>
+
+          <ul
+            v-if="tokenReadings.readings.length > 0"
+            data-testid="context-token-readings"
+            :class="['m-0 flex list-none flex-col gap-1 p-0 text-xs']"
+          >
+            <li
+              v-for="reading in tokenReadings.readings"
+              :key="reading.kind"
+              :data-testid="`context-token-${reading.kind}`"
+              :class="['flex items-baseline justify-between gap-2']"
+            >
+              <span :class="['text-neutral-500 dark:text-neutral-400']">
+                {{ t(`tamagotchi.stage.chat-window.context-inspector.reading.${reading.kind}`) }}
+              </span>
+              <span :class="['tabular-nums']">
+                <template v-if="reading.tokens == null">
+                  {{ t('tamagotchi.stage.chat-window.context-inspector.reading-unknown') }}
+                </template>
+                <template v-else>
+                  {{ tokenFormat.format(reading.tokens) }}
+                  <span v-if="reading.source">
+                    {{ t(`tamagotchi.stage.chat-window.context-inspector.source.${reading.source}`) }}
+                  </span>
+                </template>
+              </span>
+            </li>
+          </ul>
+          <p
+            v-if="tokenReadings.deltaTokens != null"
+            data-testid="context-token-delta"
+            :class="['text-xs tabular-nums text-neutral-500 dark:text-neutral-400']"
+          >
+            {{ t('tamagotchi.stage.chat-window.context-inspector.reading-delta', { count: tokenReadings.deltaTokens }) }}
+          </p>
 
           <p data-testid="context-bytes-note" :class="['text-xs text-neutral-500 dark:text-neutral-400']">
             {{ t('tamagotchi.stage.chat-window.context-inspector.bytes-note') }}
