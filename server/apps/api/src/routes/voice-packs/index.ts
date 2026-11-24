@@ -12,7 +12,6 @@ function publicVoicePack(pack: Awaited<ReturnType<VoicePackService['listEnabled'
     description: pack.description,
     voiceId: pack.voiceId,
     params: pack.params,
-    costMultiplier: pack.costMultiplier,
     enabled: pack.enabled,
     createdAt: pack.createdAt,
     updatedAt: pack.updatedAt,

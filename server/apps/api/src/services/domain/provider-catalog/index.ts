@@ -60,6 +60,8 @@ export interface CapabilityAliasRouteUpdateInput {
 
 export interface ProviderCatalogTtsModelUpdateInput {
   displayName?: string
+  description?: string | null
+  costMultiplier?: number
   enabled?: boolean
   displayOrder?: number
 }
