@@ -257,6 +257,11 @@ const STORED_TOOL_IMAGE = 'A tool image was left out of the history.'
 /** Stands in for an earlier image whose read failed with the current vision selection. */
 const UNREADABLE_EARLIER_IMAGE = 'The user attached an image here earlier. The vision model failed to read it.'
 
+/** The turn that the user sends now. Earlier turns must not block it. */
+function lastUserTurnIdOf(conversation: Conversation) {
+  return conversation.turns.findLast(turn => turn.type === 'user')?.id
+}
+
 // REVIEW:
 // Executor order: the leader, the caller, then any speech player. With several Stage tabs, a call from elsewhere
 // speaks in an arbitrary one, and a cancel can miss its turn. The chat runtime can elect its own owner among speech
@@ -410,6 +415,12 @@ export const useChatStore = defineStore('chat', () => {
   const failedImageReads = new Map<string, Set<string>>()
 
   /**
+   * Failed reads of earlier recordings of this leader, grouped by session. Each key holds the
+   * transcription provider, model, turn, and recording index. Clearing or deleting a session removes its group.
+   */
+  const failedAudioReads = new Map<string, Set<string>>()
+
+  /**
    * Voice messages whose transcript is still coming, keyed by session and message. Each lives in the leader, which runs
    * both the submit and the provider projection that waits for it.
    */
@@ -428,13 +439,13 @@ export const useChatStore = defineStore('chat', () => {
     return model?.inputModalities?.includes('audio') === true
   }
 
-  function failedImageReadsOf(sessionId: string) {
-    let reads = failedImageReads.get(sessionId)
-    if (!reads) {
-      reads = new Set()
-      failedImageReads.set(sessionId, reads)
+  function failedReadsOf(reads: Map<string, Set<string>>, sessionId: string) {
+    let group = reads.get(sessionId)
+    if (!group) {
+      group = new Set()
+      reads.set(sessionId, group)
     }
-    return reads
+    return group
   }
 
   /** Whether a session is the owner's own conversation: it has no scene binding. */
@@ -589,6 +600,7 @@ export const useChatStore = defineStore('chat', () => {
   /** Deletes a finished task's hidden session. It never moves the selected conversation. */
   async function deleteTaskSession(sessionId: string) {
     failedImageReads.delete(sessionId)
+    failedAudioReads.delete(sessionId)
     // Release the runtime's history cut before its owning session disappears.
     await cancelPendingSends(sessionId)
     await chatSession.deleteHiddenSession(sessionId)
@@ -756,7 +768,7 @@ export const useChatStore = defineStore('chat', () => {
     if (hasImages) {
       if (chatVision.readsAttachedImages(visionSelection)) {
         const { runVisionInference } = useVisionInference()
-        const currentTurnId = context.turns.findLast(turn => turn.type === 'user')?.id
+        const currentTurnId = lastUserTurnIdOf(context)
         providerContext = await describeChatImages(providerContext, async (imageDataUrl, question, turnId, imageIndex) => {
           const sessionId = options?.requestCorrelation?.conversationId
           const cachedDescription = sessionId
@@ -770,7 +782,7 @@ export const useChatStore = defineStore('chat', () => {
           const isCurrentTurn = turnId === currentTurnId
           // A stored message without an id gets a turn id from its position, so
           // each session keeps its own failed reads.
-          const sessionFailedReads = failedImageReadsOf(sessionId ?? '')
+          const sessionFailedReads = failedReadsOf(failedImageReads, sessionId ?? '')
           const readKey = JSON.stringify([visionSelection.vision.provider, visionSelection.vision.model, turnId, imageIndex])
           if (!isCurrentTurn && sessionFailedReads.has(readKey))
             return UNREADABLE_EARLIER_IMAGE
@@ -817,7 +829,32 @@ export const useChatStore = defineStore('chat', () => {
       // Project a request copy. Stored messages retain recordings and reusable ASR results.
       const projected = structuredClone(source)
       const sessionId = options?.requestCorrelation?.conversationId
+      const currentTurnId = lastUserTurnIdOf(projected)
       let transcriber: ReturnType<typeof hearing.createTranscriber> | undefined
+
+      // Throws when the provider is not configured, fails, or returns no text.
+      const transcribeRecording = async (recording: { data: string, format?: string }) => {
+        if (!hearing.configured)
+          throw new Error('Configure a transcription provider to send audio to this model')
+        // The recording belongs to this turn. A voice input of another turn can run at the same time.
+        transcriber ??= hearing.createTranscriber(undefined, { ids: turnIds })
+
+        const blob = new Blob([new Uint8Array(decodeBase64(recording.data))], { type: recording.format === 'mp3' ? 'audio/mpeg' : 'audio/wav' })
+        let text = ''
+        let completed = false
+        // A stored recording is a source like the microphone, so every configured provider can transcribe it.
+        for await (const event of transcriber.transcribe({ audio: fileSource(blob).open(signal), signal })) {
+          signal.throwIfAborted()
+          if (event.type === 'update')
+            text = event.segments.map(segment => segment.text).join('')
+          else
+            completed = true
+        }
+
+        if (!completed || !text.trim())
+          throw new Error('The recording has no completed transcription')
+        return text
+      }
 
       for (const turn of projected.turns) {
         if (turn.type !== 'user')
@@ -847,24 +884,30 @@ export const useChatStore = defineStore('chat', () => {
               turn.content[index] = { type: 'text', text: t('stage.chat.audio.hearing-disabled') }
               continue
             }
-            // The recording belongs to this turn. A voice input of another turn can run at the same time.
-            if (!hearing.configured)
-              throw new Error('Configure a transcription provider to send audio to this model')
-            transcriber ??= hearing.createTranscriber(undefined, { ids: turnIds })
-
-            const blob = new Blob([new Uint8Array(decodeBase64(part.data))], { type: part.format === 'mp3' ? 'audio/mpeg' : 'audio/wav' })
-            let completed = false
-            // A stored recording is a source like the microphone, so every configured provider can transcribe it.
-            for await (const event of transcriber.transcribe({ audio: fileSource(blob).open(signal), signal })) {
-              signal.throwIfAborted()
-              if (event.type === 'update')
-                text = event.segments.map(segment => segment.text).join('')
-              else
-                completed = true
+            // An earlier recording must not block the message that the user sends now.
+            const isCurrentTurn = turn.id === currentTurnId
+            // An earlier turn keeps its failed read for this provider and model, so each later
+            // send does not request it again. The current turn reports it.
+            const sessionFailedReads = failedReadsOf(failedAudioReads, sessionId ?? '')
+            const readKey = JSON.stringify([hearing.activeTranscriptionProvider, hearing.activeTranscriptionModel, turn.id, sourceIndex])
+            if (!isCurrentTurn && sessionFailedReads.has(readKey)) {
+              turn.content[index] = { type: 'text', text: t('stage.chat.audio.transcription-unavailable') }
+              continue
             }
 
-            if (!completed || !text?.trim())
-              throw new Error('The recording has no completed transcription')
+            try {
+              text = await transcribeRecording(part)
+            }
+            catch (error) {
+              // An abort must not become a placeholder.
+              signal.throwIfAborted()
+              sessionFailedReads.add(readKey)
+              if (isCurrentTurn)
+                throw error
+              console.warn('[Chat] An earlier recording could not be transcribed. The request uses a placeholder.', error)
+              turn.content[index] = { type: 'text', text: t('stage.chat.audio.transcription-unavailable') }
+              continue
+            }
 
             if (sessionId && stored?.id)
               await writeAudioTranscript(sessionId, stored.id, sourceIndex, text)
@@ -1721,6 +1764,7 @@ export const useChatStore = defineStore('chat', () => {
   /** Clears one session and stops runtime work that still belongs to it. */
   async function cleanup(sessionId: string) {
     failedImageReads.delete(sessionId)
+    failedAudioReads.delete(sessionId)
     conversationCompacts.get(sessionId)?.reset()
     conversationCompacts.delete(sessionId)
     await chatSession.clearSessionMessages(sessionId)
@@ -1738,6 +1782,7 @@ export const useChatStore = defineStore('chat', () => {
   async function deleteSessions(sessionIds: string[]): Promise<void> {
     for (const sessionId of sessionIds) {
       failedImageReads.delete(sessionId)
+      failedAudioReads.delete(sessionId)
       conversationCompacts.get(sessionId)?.reset()
       conversationCompacts.delete(sessionId)
       await cancelPendingSends(sessionId)
