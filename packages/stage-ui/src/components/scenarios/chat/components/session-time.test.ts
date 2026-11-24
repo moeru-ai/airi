@@ -7,8 +7,8 @@ const now = new Date(2026, 10, 24, 18, 0)
 
 describe('formatSessionRowTime', () => {
   it('shows the clock time for a message of today', () => {
-    expect(formatSessionRowTime(new Date(2026, 10, 24, 9, 5), now, 'en')).toBe('09:05 AM')
-    expect(formatSessionRowTime(new Date(2026, 10, 24, 9, 5), now, 'zh-Hans')).toBe('09:05')
+    expect(formatSessionRowTime(new Date(2026, 10, 24, 9, 5), now, 'en')).toBe('9:05 AM')
+    expect(formatSessionRowTime(new Date(2026, 10, 24, 9, 5), now, 'zh-Hans')).toBe('9:05')
   })
 
   it('names yesterday instead of giving a time', () => {
@@ -28,7 +28,7 @@ describe('formatSessionRowTime', () => {
 
   // A message from another device can carry a clock that runs ahead. It still reads as today.
   it('shows the clock time for a time after now', () => {
-    expect(formatSessionRowTime(new Date(2026, 10, 24, 18, 30), now, 'en')).toBe('06:30 PM')
+    expect(formatSessionRowTime(new Date(2026, 10, 24, 18, 30), now, 'en')).toBe('6:30 PM')
   })
 })
 

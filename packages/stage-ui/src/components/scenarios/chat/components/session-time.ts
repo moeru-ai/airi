@@ -6,14 +6,14 @@ import { differenceInCalendarDays, intlFormat, intlFormatDistance, isSameYear } 
  *
  * @example
  * formatSessionRowTime(new Date('2026-11-24T09:05'), new Date('2026-11-24T18:00'), 'en')
- * // => '09:05 AM'
+ * // => '9:05 AM'
  * formatSessionRowTime(new Date('2026-11-23T09:05'), new Date('2026-11-24T18:00'), 'en')
  * // => 'yesterday'
  */
 export function formatSessionRowTime(at: Date | number, now: Date | number, locale: string): string {
   const daysAgo = differenceInCalendarDays(now, at)
   if (daysAgo <= 0)
-    return intlFormat(at, { hour: '2-digit', minute: '2-digit' }, { locale })
+    return intlFormat(at, { hour: 'numeric', minute: '2-digit' }, { locale })
   if (daysAgo === 1)
     return intlFormatDistance(at, now, { locale, unit: 'day', numeric: 'auto' })
   if (daysAgo < 7)

@@ -120,7 +120,7 @@ describe('sessions drawer orchestration', () => {
     vi.spyOn(chatSession, 'loadSession').mockResolvedValue(true)
     await screen.rerender({ modelValue: true })
     await expect.element(screen.getByRole('button', { name: /^Chat A/ })).toHaveTextContent('10:00 AM')
-    await expect.element(screen.getByRole('button', { name: /^Chat B/ })).toHaveTextContent('08:00 AM')
+    await expect.element(screen.getByRole('button', { name: /^Chat B/ })).toHaveTextContent('8:00 AM')
     expect(Array.from(document.querySelectorAll('.session-select')).map(button => button.textContent?.trim())).toEqual([
       expect.stringContaining('Chat A'),
       expect.stringContaining('Chat B'),
@@ -128,7 +128,7 @@ describe('sessions drawer orchestration', () => {
     ])
     await chatSession.persistSessionMessages('session-b')
     expect(chatSession.sessionMetas['session-b'].updatedAt).toBeGreaterThanOrEqual(now)
-    await expect.element(screen.getByRole('button', { name: /^Chat B/ })).toHaveTextContent('08:00 AM')
+    await expect.element(screen.getByRole('button', { name: /^Chat B/ })).toHaveTextContent('8:00 AM')
     expect(document.querySelector('.session-select')?.textContent).toContain('Chat A')
     chatSession.sessionMessages['session-b'].push({
       id: 'reply',
