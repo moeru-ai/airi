@@ -62,7 +62,8 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
 <template>
   <div
     :class="[
-      'w-fit max-w-[min(28rem,calc(100vw-2rem))] flex items-end gap-1',
+      // The width of the history, not of the window, limits the card. A narrow chat column is much narrower than the window.
+      'w-fit max-w-[min(28rem,calc(100%-3rem))] min-w-0 flex items-end gap-1',
       'mr-12',
       'font-cute',
     ]"
@@ -98,10 +99,10 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
             <MarkdownRenderer
               v-else-if="!hasDetails"
               :content="message.content"
-              :class="['break-words', 'text-violet-500 dark:text-violet-300']"
+              :class="['[overflow-wrap:anywhere]', 'text-violet-500 dark:text-violet-300']"
             />
             <template v-else>
-              <p :class="['mt-1 mb-0 break-words text-sm text-neutral-800 font-medium leading-relaxed dark:text-neutral-100']">
+              <p :class="['mt-1 mb-0 [overflow-wrap:anywhere] text-sm text-neutral-800 font-medium leading-relaxed dark:text-neutral-100']">
                 {{ summary }}
               </p>
               <pre

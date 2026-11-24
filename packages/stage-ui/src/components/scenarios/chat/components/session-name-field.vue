@@ -5,7 +5,7 @@ import { useTemplateRef } from 'vue'
 import { iconButtonClasses, quietIconClasses } from './icon-button-classes'
 
 /**
- * A name field with Save and Cancel, for a conversation or a folder of the conversation list.
+ * A name field with Save and Cancel, for a conversation of the conversation list.
  *
  * Enter and Save save, and Escape and Cancel cancel. These hand focus back to the owner with `returnFocus`, so a
  * keyboard user continues from the item that the field names. Focus that leaves the field and its buttons saves a name,

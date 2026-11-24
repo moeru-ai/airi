@@ -2,7 +2,7 @@ import type { RevenueMetrics } from '../../../otel'
 import type { ConfigKVService } from '../../adapters/config-kv'
 import type { BillingService } from './billing-service'
 
-import { createPaymentRequiredError } from '@proj-airi/http-error-shared'
+import { createPaymentRequiredError } from '@proj-airi/http-shared'
 import { parse } from 'valibot'
 
 import { priceSpeechUsage, speechPricingSchema } from './billing'

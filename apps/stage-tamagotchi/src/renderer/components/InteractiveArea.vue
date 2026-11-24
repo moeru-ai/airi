@@ -21,7 +21,7 @@ import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store
 import { useJournalPreviewStore } from '@proj-airi/stage-ui/stores/journal-preview'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { BasicTextarea, DropdownMenu, GhostButton } from '@proj-airi/ui'
-import { until, useAsyncState, useLocalStorage } from '@vueuse/core'
+import { until, useAsyncState, useElementSize, useLocalStorage } from '@vueuse/core'
 import { nanoid } from 'nanoid/non-secure'
 import { storeToRefs } from 'pinia'
 import { computed, nextTick, onMounted, ref, shallowRef, toRaw, useTemplateRef, watch } from 'vue'
@@ -101,6 +101,9 @@ const solidSurfaces = computed(() => props.floating && !props.glassBackdrop)
 /** Whether a foldable composer is folded away. */
 const composerFolded = defineModel<boolean>('composerFolded', { default: false })
 const viewportLayout = useTemplateRef<InstanceType<typeof ChatViewportLayout>>('viewport-layout')
+// A narrow chat has no room for two sides. All messages then start at the left, like a messenger in a narrow window.
+const { width: viewportWidth } = useElementSize(() => viewportLayout.value?.$el as HTMLElement | undefined)
+const narrowHistory = computed(() => viewportWidth.value > 0 && viewportWidth.value < 520)
 
 const messageComposer = useTemplateRef<HTMLDivElement>('message-composer')
 const voiceStatus = useTemplateRef<HTMLDivElement>('voice-status')
@@ -476,35 +479,6 @@ defineExpose({
     :composer-at-edge="props.composerFoldable"
   >
     <template #history="{ tailInset }">
-      <!--
-        The welcome card centers in the space above the composer, which covers
-        the bottom of the history. The container query below drops the icon,
-        then the description, when that space is too short for them.
-        The history scroller fills the layer and comes later, so the container
-        sits above it and passes the pointer through. The floating card paints
-        its own surface, so it takes the pointer, and the hit test of the
-        transparent window finds it.
-      -->
-      <div
-        v-if="!historyMessages.some(message => message.role !== 'system') && !isActiveSessionSending"
-        :class="['chat-empty-state pointer-events-none absolute inset-x-0 top-0 z-1 flex items-center justify-center overflow-hidden px-6']"
-        :style="{ bottom: `calc(${tailInset}px + 1rem)` }"
-      >
-        <div
-          :class="[
-            'flex flex-col items-center gap-3 text-center',
-            solidSurfaces ? 'pointer-events-auto rounded-2xl bg-white px-6 py-6 shadow-md dark:bg-neutral-900' : '',
-          ]"
-        >
-          <div :class="['chat-empty-state-icon size-14 flex items-center justify-center rounded-2xl bg-primary-100/60 text-primary-500 dark:bg-primary-900/30']">
-            <span :class="['i-solar:chat-line-bold-duotone size-7']" />
-          </div>
-          <span :class="['font-cute text-xl text-neutral-700 dark:text-neutral-200']">{{ assistantLabel || 'AIRI' }}</span>
-          <p :class="['chat-empty-state-description text-sm text-neutral-500 dark:text-neutral-400']">
-            {{ t('stage.chat.images.empty') }}
-          </p>
-        </div>
-      </div>
       <ChatHistory
         :messages="historyMessages"
         :assistant-label="assistantLabel"
@@ -516,6 +490,7 @@ defineExpose({
         :surface="solidSurfaces ? 'opaque' : 'translucent'"
         :scrollbar="props.floating ? 'hover' : 'scroll'"
         :passive="props.passive"
+        :align-user-start="narrowHistory"
         :class="['transition-[padding] duration-300 ease-out motion-reduce:transition-none', props.dockSide && { left: 'pl-12', right: 'pr-12' }[props.dockSide]]"
         :style="props.rightResizeBand ? { width: `calc(100% - ${props.rightResizeBand}px)` } : undefined"
         :expired-before="props.expiredBefore"
@@ -562,8 +537,9 @@ defineExpose({
           solidSurfaces
             ? 'border border-neutral-200 bg-white p-2 dark:border-neutral-800 dark:bg-neutral-900'
             : [
-              'bg-neutral-100/70 p-2 backdrop-blur-xl dark:bg-neutral-900/65',
-              'transition-colors duration-200 ease-out focus-within:bg-neutral-100 dark:focus-within:bg-neutral-900 motion-reduce:transition-none',
+              // The composer is a step lighter than the chat surface in dark mode, so it stands out on the solid chat.
+              'bg-neutral-100/70 p-2 backdrop-blur-xl dark:bg-neutral-800/70',
+              'transition-colors duration-200 ease-out focus-within:bg-neutral-100 dark:focus-within:bg-neutral-800 motion-reduce:transition-none',
             ],
         ]"
       >
@@ -791,23 +767,6 @@ defineExpose({
 @media (prefers-reduced-motion: reduce) {
   .chat-composer-foldable {
     transition: none;
-  }
-}
-
-.chat-empty-state {
-  container-type: size;
-}
-
-/* The card needs about 11rem with the icon and 5rem with the description. */
-@container (max-height: 12rem) {
-  .chat-empty-state-icon {
-    display: none;
-  }
-}
-
-@container (max-height: 6rem) {
-  .chat-empty-state-description {
-    display: none;
   }
 }
 </style>

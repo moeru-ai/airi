@@ -34,7 +34,7 @@ import Stripe from 'stripe'
 import { initLogger, LoggerFormat, LoggerLevel, setGlobalHookPostLog, useLogger } from '@guiiai/logg'
 import { createNodeWebSocket } from '@hono/node-ws'
 import { httpInstrumentationMiddleware } from '@hono/otel'
-import { createErrorHandler, createPayloadTooLargeError } from '@proj-airi/http-error-shared'
+import { createErrorHandler, createPayloadTooLargeError, ok } from '@proj-airi/http-shared'
 import { Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import { cors } from 'hono/cors'
@@ -344,6 +344,7 @@ export async function buildApp(deps: AppDeps) {
      * dependency: a single upstream blip should NOT cause Railway to
      * recycle the pod (R13/R14).
      */
+    // eslint-disable-next-line no-restricted-syntax -- The health probe contract owns this body.
     .on('GET', '/livez', c => c.json({ status: 'live' }))
     /**
      * Readiness probe (K8s convention). Verifies the instance can serve
@@ -363,6 +364,7 @@ export async function buildApp(deps: AppDeps) {
       const redisReady = redisResult.status === 'fulfilled'
       const ready = dbReady && redisReady
 
+      // eslint-disable-next-line no-restricted-syntax -- The health probe contract owns this body and its 503.
       return c.json(
         {
           status: ready ? 'ready' : 'not_ready',
@@ -378,7 +380,7 @@ export async function buildApp(deps: AppDeps) {
       if (accept && parseAccept(accept).some(media => media.type.toLowerCase() === 'text/html' && media.q > 0))
         return context.redirect(webAppUrl, 302)
 
-      return context.json({
+      return ok(context, {
         service: 'airi-api',
         message: `This is the Project AIRI API server. Visit ${webAppUrl} to use the product, or see the docs at ${docsUrl}.`,
         docs: docsUrl,
@@ -479,6 +481,7 @@ export async function buildApp(deps: AppDeps) {
      * Found" so unmatched routes (typos, stale email links, scanners) get a
      * structured response and a hint at where to go for the real product UI.
      */
+    // eslint-disable-next-line no-restricted-syntax -- Known deviation in 2026-10-19-http-response-conventions.md: the API 404 adds `ui`.
     .notFound(c => c.json({
       error: 'NOT_FOUND',
       message: `No route matched ${c.req.method} ${new URL(c.req.url).pathname}. This is the airi-api server; the product UI lives at ${webAppUrl}.`,

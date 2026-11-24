@@ -41,6 +41,7 @@ mobile-tools:
 chat:
   audio:
     hearing-disabled: '[Audio recording: transcription is disabled.]'
+    transcription-unavailable: '[Audio recording: transcription is unavailable.]'
   provider-configuration:
     title: Chat provider isn't configured
     description: Choose and validate a provider in Settings before sending a message.
@@ -50,9 +51,9 @@ chat:
     sign-in-description-official-only: Sign in to use the official AIRI provider.
     sign-in-action: Sign in
   archived-session:
-    description: This conversation is archived. Restore it to continue.
+    description: This chat is archived. Restore it to continue.
     restore: Restore
-    restore-failed: The conversation could not be restored
+    restore-failed: The chat could not be restored
   voice-message:
     recording: Recording
     starting: Starting microphone
@@ -255,64 +256,44 @@ chat:
     archive: Archive
     pin: Pin
     actions: Show actions
-    row: 'Conversation {n}'
+    row: 'Chat {n}'
   sessions:
     delete-short: Delete
     confirm-delete-short: Confirm delete
-    title: Conversations
-    new: New conversation
+    title: Chats
+    new: New chat
     current: Current
-    confirm-delete: Delete this conversation and its messages?
+    confirm-delete: Delete this chat and its messages?
     cancel: Cancel
-    empty: No conversations yet. Use New conversation above to start one.
-    cloud-badge: Synced to cloud
+    empty: No chats yet. Use New chat above to start one.
     new-chat-fallback: New chat
-    delete: Delete conversation
-    rename: Rename conversation
-    rename-input: Conversation name
-    rename-placeholder: Enter a conversation name
-    save-rename: Save conversation name
+    delete: Delete chat
+    rename: Rename chat
+    rename-short: Rename
+    rename-input: Chat name
+    rename-placeholder: Enter a chat name
+    save-rename: Save chat name
     cancel-rename: Cancel renaming
-    select: Select conversations
+    select: Select chats
     select-all: Select all
     clear-selection: Clear selection
     done-selecting: Done
     delete-selected: Delete {count}
     confirm-delete-selected: Confirm delete {count}
-    all: All
-    all-conversations: All conversations
+    all-conversations: All chats
+    last-message-you: 'You: {text}'
+    character-settings: Character settings
     switch-place: Switch view
-    filter-by-character: Filter by character
     unknown-character: Unknown character
     pinned: Pinned
-    folders: Folders
     archived: Archived
     more-actions: More actions
     pin: Pin
     unpin: Unpin
     archive: Archive
     unarchive: Restore
-    move-to-folder: Move to folder
-    no-folder: No folder
-    new-folder: New folder
-    create-folder: Create
-    new-in-folder: New conversation in {folder}
-    new-with-character: New conversation with {name}
-    new-in-folder-with-character: New conversation with {name} in {folder}
-    folder-name: Folder name
-    folder-name-placeholder: Enter a folder name
-    save-folder: Save folder
-    cancel-folder: Cancel
-    folder-actions: Folder actions
-    rename-folder: Rename folder
-    delete-folder: Delete folder, keep conversations
-    confirm-delete-folder: Confirm delete folder
     selected: '{count} selected'
-    empty-folder: '{folder} is empty. Use the button above to start a conversation here, or choose Move to folder in the menu of a conversation.'
-    empty-folder-character: '{folder} has no conversations with {name} yet. Use the button above to start one.'
-    empty-archive: No archived conversations. Archived conversations stay here.
-    empty-archive-character: No archived conversations with {name}. Archived conversations stay here.
-    empty-character: No conversations with {name} yet. Use the button above to start the first one.
+    empty-archive: No archived chats. Archived chats stay here.
     save-failed: The change could not be saved
 avatar-model-missing:
   title: No model selected

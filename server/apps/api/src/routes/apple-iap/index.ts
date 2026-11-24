@@ -5,6 +5,7 @@ import type { PaymentService } from '../../services/domain/payment'
 import type { HonoEnv } from '../../types/hono'
 import type { Verifier } from './verifier'
 
+import { ok } from '@proj-airi/http-shared'
 import { Hono } from 'hono'
 
 import { authGuard } from '../../middlewares/auth'
@@ -38,7 +39,7 @@ export function createAppleIapRoutes(
       authGuard,
       rateLimiter({ max: 10, windowSec: 60, metrics: rateLimitMetrics, routeLabel: 'apple-iap.account-token' }),
       async (c) => {
-        return c.json(await accountToken(c.get('user')!.id))
+        return ok(c, await accountToken(c.get('user')!.id))
       },
     )
     .post(
@@ -47,13 +48,14 @@ export function createAppleIapRoutes(
       rateLimiter({ max: 10, windowSec: 60, metrics: rateLimitMetrics, routeLabel: 'apple-iap.transactions' }),
       async (c) => {
         const body = await c.req.json().catch(() => null)
-        return c.json(await transactions(c.get('user')!.id, body))
+        return ok(c, await transactions(c.get('user')!.id, body))
       },
     )
     .post(
       '/notifications',
       async (c) => {
         const body = await c.req.json().catch(() => null)
+        // eslint-disable-next-line no-restricted-syntax -- Apple owns the App Store Server Notifications response.
         return c.json(await notifications(body))
       },
     )

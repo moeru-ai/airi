@@ -14,7 +14,7 @@ import { Buffer } from 'node:buffer'
 
 import { oauthProvider } from '@better-auth/oauth-provider'
 import { useLogger } from '@guiiai/logg'
-import { ApiError } from '@proj-airi/http-error-shared'
+import { ApiError } from '@proj-airi/http-shared'
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import { createAuthMiddleware, getSessionFromCtx } from 'better-auth/api'

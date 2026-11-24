@@ -20,7 +20,8 @@ function main() {
   for (const args of [
     ['-F', '@proj-airi/computer-use-mcp', 'run', 'build'],
     ['exec', 'electron-vite', 'build'],
-    ['exec', 'electron-builder', '--win', 'zip', '--x64', '--publish', 'never'],
+    // The command line overrides `build.appId` in `package.json`, so the beta installs next to AIRI.
+    ['exec', 'electron-builder', '--win', 'zip', '--x64', '--publish', 'never', '-c.appId=ai.moeru.airi.terminal-beta'],
   ]) {
     execFileSync(execPath, [env.npm_execpath, ...args], { env: buildEnv, stdio: 'inherit' })
   }

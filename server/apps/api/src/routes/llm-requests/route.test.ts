@@ -2,7 +2,7 @@ import type { RequestLogService } from '../../services/domain/request-log'
 import type { HonoEnv } from '../../types/hono'
 
 import { useLogger } from '@guiiai/logg'
-import { createErrorHandler } from '@proj-airi/http-error-shared'
+import { createErrorHandler } from '@proj-airi/http-shared'
 import { Hono } from 'hono'
 import { describe, expect, it, vi } from 'vitest'
 

@@ -1,7 +1,7 @@
 import type { Database } from '../../libs/db'
 import type { HonoEnv } from '../../types/hono'
 
-import { ApiError } from '@proj-airi/http-error-shared'
+import { ApiError } from '@proj-airi/http-shared'
 import { Hono } from 'hono'
 import { beforeAll, describe, expect, it } from 'vitest'
 

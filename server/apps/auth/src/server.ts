@@ -13,7 +13,7 @@ import Redis from 'ioredis'
 import { initLogger, LoggerFormat, LoggerLevel, setGlobalHookPostLog, useLogger } from '@guiiai/logg'
 import { serve } from '@hono/node-server'
 import { withRetry } from '@moeru/std'
-import { createErrorHandler } from '@proj-airi/http-error-shared'
+import { createErrorHandler, ok } from '@proj-airi/http-shared'
 import { Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import { cors } from 'hono/cors'
@@ -86,6 +86,7 @@ export async function buildAuthApp(deps: AuthAppDeps) {
     .use(honoLogger())
     .use('*', bodyLimit({ maxSize: 1024 * 1024 }))
     .onError(createErrorHandler(logger))
+    // eslint-disable-next-line no-restricted-syntax -- The health probe contract owns this body.
     .get('/livez', c => c.json({ status: 'live' }))
     .get('/readyz', async (c) => {
       const [dbResult, redisResult] = await Promise.allSettled([
@@ -98,12 +99,13 @@ export async function buildAuthApp(deps: AuthAppDeps) {
       const redisReady = redisResult.status === 'fulfilled'
       const ready = dbReady && redisReady
 
+      // eslint-disable-next-line no-restricted-syntax -- The health probe contract owns this body and its 503.
       return c.json({
         status: ready ? 'ready' : 'not_ready',
         checks: { db: dbReady ? 'ok' : 'fail', redis: redisReady ? 'ok' : 'fail' },
       }, ready ? 200 : 503)
     })
-    .get('/', c => c.json({
+    .get('/', c => ok(c, {
       service: 'airi-auth',
       issuer: `${deps.env.PUBLIC_URL}/api/auth`,
       accounts: deps.env.AUTH_UI_URL,

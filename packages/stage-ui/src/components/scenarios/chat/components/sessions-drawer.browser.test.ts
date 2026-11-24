@@ -35,8 +35,8 @@ function createTestI18n() {
               'current': 'Current',
               'cancel': 'Cancel',
               'confirm-delete': 'Delete this conversation and its messages?',
-              'cloud-badge': 'Cloud synced',
               'rename': 'Rename conversation',
+              'rename-short': 'Rename',
               'rename-input': 'Conversation name',
               'rename-placeholder': 'Enter a conversation name',
               'save-rename': 'Save conversation name',
@@ -114,6 +114,9 @@ describe('sessions drawer orchestration', () => {
     chatSession.sessionMessages['session-b'] = [
       { id: 'b', role: 'user', content: 'Earlier', createdAt: now - 14_400_000 },
     ]
+    // The list shows the current character only. A chat with another character stays out of it.
+    chatSession.sessionMetas['session-other'] = { ...sessionMeta('session-other', 'Chat of another character', 4), characterId: 'other' }
+    chatSession.sessionMessages['session-other'] = []
     vi.spyOn(chatSession, 'loadSession').mockResolvedValue(true)
     await screen.rerender({ modelValue: true })
     await expect.element(screen.getByRole('button', { name: /^Chat A/ })).toHaveTextContent('2 hours ago')
@@ -154,6 +157,9 @@ describe('sessions drawer orchestration', () => {
       { id: 'undated', role: 'user', content: 'No date' },
       { id: 'invalid', role: 'user', content: 'Invalid date', createdAt: Number.NaN },
     ]
+    // The list shows the current character only. A chat with another character stays out of it.
+    chatSession.sessionMetas['session-other'] = { ...sessionMeta('session-other', 'Chat of another character', 4), characterId: 'other' }
+    chatSession.sessionMessages['session-other'] = []
     vi.spyOn(chatSession, 'loadSession').mockResolvedValue(true)
     await screen.rerender({ modelValue: true })
     await expect.element(screen.getByRole('button', { name: /^Chat A/ })).toHaveTextContent('2 hours ago')
@@ -171,7 +177,7 @@ describe('sessions drawer orchestration', () => {
 
     await screen.rerender({ modelValue: true })
     await screen.getByRole('button', { name: 'More actions: Chat B' }).click()
-    await screen.getByRole('menuitem', { name: 'Rename conversation' }).click()
+    await screen.getByRole('menuitem', { name: 'Rename' }).click()
     const input = screen.getByRole('textbox', { name: 'Conversation name' })
     await input.fill('Project notes')
     await screen.getByRole('button', { name: 'Save conversation name' }).click()

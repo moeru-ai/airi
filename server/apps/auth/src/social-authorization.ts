@@ -3,7 +3,7 @@ import type { AuthEnv } from './env'
 
 import { Buffer } from 'node:buffer'
 
-import { createBadGatewayError, createServiceUnavailableError } from '@proj-airi/http-error-shared'
+import { createBadGatewayError, createServiceUnavailableError } from '@proj-airi/http-shared'
 import { eq } from 'drizzle-orm'
 import { importPKCS8, SignJWT } from 'jose'
 import { literal, object, safeParse } from 'valibot'

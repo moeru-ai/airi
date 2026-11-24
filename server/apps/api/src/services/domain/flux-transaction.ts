@@ -1,7 +1,7 @@
 import type { Database } from '../../libs/db'
 
 import { utc } from '@date-fns/utc'
-import { createBadRequestError } from '@proj-airi/http-error-shared'
+import { createBadRequestError } from '@proj-airi/http-shared'
 import { addDays, formatISO, subDays } from 'date-fns'
 import { and, desc, eq, getTableColumns, gte, inArray, lte, sql, sum } from 'drizzle-orm'
 

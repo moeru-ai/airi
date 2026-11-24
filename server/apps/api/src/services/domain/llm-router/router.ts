@@ -14,7 +14,7 @@ import { Buffer as NodeBuffer } from 'node:buffer'
 
 import { useLogger } from '@guiiai/logg'
 import { trace } from '@opentelemetry/api'
-import { ApiError, createServiceUnavailableError } from '@proj-airi/http-error-shared'
+import { ApiError, createServiceUnavailableError } from '@proj-airi/http-shared'
 import { optional, parse } from 'valibot'
 
 import { generationProtocolSchema } from '../../../schemas/generation-protocol'

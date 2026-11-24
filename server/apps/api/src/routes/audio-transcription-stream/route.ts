@@ -7,7 +7,7 @@ import type { RouterConfig } from '../../services/domain/llm-router/types'
 import type { ProviderCatalogService } from '../../services/domain/provider-catalog'
 import type { EnvelopeCrypto } from '../../utils/envelope-crypto'
 
-import { createServiceUnavailableError, createUnauthorizedError } from '@proj-airi/http-error-shared'
+import { createServiceUnavailableError, createUnauthorizedError } from '@proj-airi/http-shared'
 import { integer, maxValue, minValue, number, object, optional, pipe, safeParse, string, trim, url } from 'valibot'
 
 import { resolveRequestAuth } from '../../libs/request-auth'

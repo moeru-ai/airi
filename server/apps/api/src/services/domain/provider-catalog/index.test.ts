@@ -1,6 +1,6 @@
 import type { Database } from '../../../libs/db'
 
-import { ApiError } from '@proj-airi/http-error-shared'
+import { ApiError } from '@proj-airi/http-shared'
 import { eq } from 'drizzle-orm'
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
 

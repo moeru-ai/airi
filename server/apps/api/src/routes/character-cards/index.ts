@@ -1,7 +1,7 @@
 import type { CharacterCardService } from '../../services/domain/character-cards'
 import type { HonoEnv } from '../../types/hono'
 
-import { createNotFoundError } from '@proj-airi/http-error-shared'
+import { createNotFoundError, noContent, ok } from '@proj-airi/http-shared'
 import { Hono } from 'hono'
 
 import { authGuard } from '../../middlewares/auth'
@@ -13,19 +13,20 @@ export function createCharacterCardRoutes(characterCardService: CharacterCardSer
 
     .get('/', async (c) => {
       const user = c.get('user')!
+      // eslint-disable-next-line no-restricted-syntax -- Known deviation in 2026-10-19-http-response-conventions.md: clients read { documents }.
       return c.json(await characterCardService.list(user.id))
     })
 
     .put('/:id', async (c) => {
       const user = c.get('user')!
       const fields = parsePushRequest(await readJsonBody(c.req))
-      return c.json(await characterCardService.push(user.id, parseDocumentId(c.req.param('id')), fields))
+      return ok(c, await characterCardService.push(user.id, parseDocumentId(c.req.param('id')), fields))
     })
 
     .delete('/:id', async (c) => {
       const user = c.get('user')!
       await characterCardService.remove(user.id, parseDocumentId(c.req.param('id')), parseDeleteRevision(c.req.query()))
-      return c.body(null, 204)
+      return noContent(c)
     })
 
     .get('/:id/history', async (c) => {
@@ -34,6 +35,7 @@ export function createCharacterCardRoutes(characterCardService: CharacterCardSer
       const history = await characterCardService.history(user.id, parseDocumentId(c.req.param('id')), { before, limit })
       if (history === null)
         throw createNotFoundError('Card Not Found')
+      // eslint-disable-next-line no-restricted-syntax -- Known deviation in 2026-10-19-http-response-conventions.md: clients read { history }.
       return c.json({ history })
     })
 
@@ -43,6 +45,6 @@ export function createCharacterCardRoutes(characterCardService: CharacterCardSer
       const snapshot = await characterCardService.snapshot(user.id, parseDocumentId(c.req.param('id')), revision)
       if (snapshot === null)
         throw createNotFoundError('Card Revision Not Found')
-      return c.json(snapshot)
+      return ok(c, snapshot)
     })
 }
