@@ -60,8 +60,8 @@ function sessionMeta(sessionId: string, updatedAt: number): ChatSessionMeta {
 }
 
 function createHarness(rows = [
-  { meta: sessionMeta('session-one', 2), preview: 'First chat', isActive: true, activityAt: 2, activityAtLabel: 'now', activityAtTitle: 'now', characterName: 'Airi' },
-  { meta: sessionMeta('session-two', 1), preview: 'Second chat', isActive: false, activityAt: 1, activityAtLabel: 'yesterday', activityAtTitle: 'yesterday', characterName: 'Airi' },
+  { meta: sessionMeta('session-one', 2), preview: 'First chat', isActive: true, activityAt: 2, activityAtLabel: 'now', activityAtTitle: 'Nov 24, 2026, 6:00 PM', characterName: 'Airi' },
+  { meta: sessionMeta('session-two', 1), preview: 'Second chat', isActive: false, activityAt: 1, activityAtLabel: 'yesterday', activityAtTitle: 'Nov 23, 2026, 6:00 PM', characterName: 'Airi' },
 ], isDesktop = false) {
   return defineComponent({
     name: 'SessionsDialogHarness',
@@ -102,7 +102,7 @@ function createHarness(rows = [
 describe('sessions dialog actions', () => {
   it('renders the list in place beside the chat in the inline mode', async () => {
     const rows = [
-      { meta: sessionMeta('session-one', 2), preview: 'First chat', isActive: true, activityAt: 2, activityAtLabel: 'now', activityAtTitle: 'now', characterName: 'Airi' },
+      { meta: sessionMeta('session-one', 2), preview: 'First chat', isActive: true, activityAt: 2, activityAtLabel: 'now', activityAtTitle: 'Nov 24, 2026, 6:00 PM', characterName: 'Airi' },
     ]
     const screen = await render(defineComponent({
       components: { SessionsDialog },
@@ -132,8 +132,8 @@ describe('sessions dialog actions', () => {
 
   it('opens the menu of a touch row with a long press, not the conversation', async () => {
     const rows = [
-      { meta: sessionMeta('session-one', 2), preview: 'First chat', isActive: true, activityAt: 2, activityAtLabel: 'now', activityAtTitle: 'now', characterName: 'Airi' },
-      { meta: sessionMeta('session-two', 1), preview: 'Second chat', isActive: false, activityAt: 1, activityAtLabel: 'yesterday', activityAtTitle: 'yesterday', characterName: 'Airi' },
+      { meta: sessionMeta('session-one', 2), preview: 'First chat', isActive: true, activityAt: 2, activityAtLabel: 'now', activityAtTitle: 'Nov 24, 2026, 6:00 PM', characterName: 'Airi' },
+      { meta: sessionMeta('session-two', 1), preview: 'Second chat', isActive: false, activityAt: 1, activityAtLabel: 'yesterday', activityAtTitle: 'Nov 23, 2026, 6:00 PM', characterName: 'Airi' },
     ]
     const screen = await render(defineComponent({
       components: { SessionsDialog },
@@ -174,14 +174,14 @@ describe('sessions dialog actions', () => {
     }
 
     await expect.element(screen.getByRole('menuitem', { name: 'Archive' })).toBeVisible()
-    // The time is metadata, so the menu tells it instead of the row.
-    await expect.element(screen.getByText('yesterday')).toBeVisible()
+    // The row shows the short time. The menu tells its full date, because a touch row has no tooltip.
+    await expect.element(screen.getByText('Nov 23, 2026, 6:00 PM')).toBeVisible()
     await expect.element(screen.getByLabelText('selected-session-id')).toHaveTextContent('none')
   })
 
   it('opens the compact desktop list from its conversation trigger', async () => {
     const rows = [
-      { meta: sessionMeta('session-one', 2), preview: 'First chat', isActive: true, activityAt: 2, activityAtLabel: 'now', activityAtTitle: 'now', characterName: 'Airi' },
+      { meta: sessionMeta('session-one', 2), preview: 'First chat', isActive: true, activityAt: 2, activityAtLabel: 'now', activityAtTitle: 'Nov 24, 2026, 6:00 PM', characterName: 'Airi' },
     ]
     const screen = await render(defineComponent({
       components: { SessionsDialog },
@@ -216,8 +216,8 @@ describe('sessions dialog actions', () => {
           deleted: ref('none'),
           open: ref(false),
           rows: [
-            { meta: sessionMeta('session-one', 2), preview: 'First chat', isActive: true, activityAt: 2, activityAtLabel: 'now', activityAtTitle: 'now', characterName: 'Airi' },
-            { meta: sessionMeta('session-two', 1), preview: 'Second chat', isActive: false, activityAt: 1, activityAtLabel: 'yesterday', activityAtTitle: 'yesterday', characterName: 'Airi' },
+            { meta: sessionMeta('session-one', 2), preview: 'First chat', isActive: true, activityAt: 2, activityAtLabel: 'now', activityAtTitle: 'Nov 24, 2026, 6:00 PM', characterName: 'Airi' },
+            { meta: sessionMeta('session-two', 1), preview: 'Second chat', isActive: false, activityAt: 1, activityAtLabel: 'yesterday', activityAtTitle: 'Nov 23, 2026, 6:00 PM', characterName: 'Airi' },
           ],
         }
       },
@@ -757,7 +757,7 @@ describe('sessions dialog actions', () => {
       isActive: index === 0,
       activityAt: 2,
       activityAtLabel: 'now',
-      activityAtTitle: 'now',
+      activityAtTitle: 'Nov 24, 2026, 6:00 PM',
       characterName: 'Airi',
     }))
 
