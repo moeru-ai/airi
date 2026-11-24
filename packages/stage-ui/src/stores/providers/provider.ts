@@ -673,6 +673,7 @@ export const useProviderStore = defineStore('provider', () => {
     architecture?: { input_modalities?: string[] }
     context_length?: number
     contextLength?: number
+    costMultiplier?: number
     deprecated?: boolean
     description?: string
     display_name?: string
@@ -687,6 +688,7 @@ export const useProviderStore = defineStore('provider', () => {
       name: model.name ?? model.display_name ?? model.id,
       provider: providerId,
       description: model.description ?? '',
+      costMultiplier: model.costMultiplier,
       contextLength: model.contextLength ?? model.context_length ?? 0,
       deprecated: model.deprecated ?? false,
     }))
@@ -865,6 +867,7 @@ export const useProviderStore = defineStore('provider', () => {
           id: model.id,
           name: model.name,
           description: model.description,
+          costMultiplier: model.costMultiplier,
           contextLength: model.contextLength,
           deprecated: model.deprecated,
           provider: providerId,

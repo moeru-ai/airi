@@ -10,7 +10,7 @@ import {
   VoiceCardManySelect,
 } from '@proj-airi/stage-ui/components'
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
-import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID } from '@proj-airi/stage-ui/libs/providers/providers/official'
+import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, OFFICIAL_VOICE_PACK_MODEL_ID } from '@proj-airi/stage-ui/libs/providers/providers/official'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
@@ -139,11 +139,28 @@ function modelIdFromStreamingOptionId(optionId: string) {
     : null
 }
 
+/**
+ * Adds the localized price to an option description when the server bills the option above the base price.
+ * The server sends the multiplier as data, so the label follows the interface language.
+ */
+function describeWithCost(description: string | undefined, costMultiplier: number | undefined) {
+  if (costMultiplier === undefined || costMultiplier === 1)
+    return description
+  const cost = t('settings.pages.modules.speech.sections.section.provider-voice-selection.cost_multiplier', { multiplier: costMultiplier })
+  return description ? `${description} · ${cost}` : cost
+}
+
 const displayedProviderModels = computed(() => {
   if (!isOfficialSpeechSourceSelected.value)
     return providerModels.value
 
-  const regularModels = providersStore.getModelsForProvider(OFFICIAL_SPEECH_PROVIDER_ID)
+  const regularModels = providersStore.getModelsForProvider(OFFICIAL_SPEECH_PROVIDER_ID).map(model => model.id === OFFICIAL_VOICE_PACK_MODEL_ID
+    ? {
+        ...model,
+        name: t('settings.pages.modules.speech.sections.section.voice-pack.title'),
+        description: t('settings.pages.modules.speech.sections.section.voice-pack.description'),
+      }
+    : { ...model, description: describeWithCost(model.description, model.costMultiplier) })
   const streamingModels = providersStore.getModelsForProvider(OFFICIAL_SPEECH_STREAMING_PROVIDER_ID)
   return [
     ...regularModels,
@@ -151,7 +168,7 @@ const displayedProviderModels = computed(() => {
       ...model,
       id: streamingModelOptionId(model.id),
       name: model.name,
-      description: model.description || 'Low-latency streaming TTS',
+      description: model.description || t('settings.pages.modules.speech.sections.section.provider-voice-selection.streaming_model_description'),
     })),
   ]
 })
@@ -206,7 +223,7 @@ const displayedVoiceOptions = computed(() => {
     .map(voice => ({
       id: voice.id,
       name: voice.name,
-      description: voice.description,
+      description: describeWithCost(voice.description, voice.costMultiplier),
       previewURL: voice.previewURL,
       customizable: false,
     }))

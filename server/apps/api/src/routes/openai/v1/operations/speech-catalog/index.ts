@@ -1,4 +1,3 @@
-import type { ProviderCatalogTtsModel } from '../../../../../schemas/provider-catalog'
 import type { VoicePack } from '../../../../../schemas/voice-packs'
 import type { V1RouteDeps } from '../../types'
 
@@ -10,24 +9,20 @@ import { catalogVoiceResponse } from '../../../../../services/domain/provider-ca
 
 const VOICE_PACK_MODEL_ID = 'voice-pack'
 
-/** A Voice Pack bills at the multiplier of its catalog model. A pack whose model is missing from the catalog cannot be requested. */
+/**
+ * A Voice Pack bills at the multiplier of its catalog model. A pack whose model is missing from the catalog cannot be requested.
+ * The client localizes the price from `cost_multiplier`. The description is the operator text only.
+ */
 function voicePackCatalogVoice(pack: VoicePack, costMultiplier: number) {
-  const cost = `Flux cost: ${costMultiplier}x`
   return {
     id: pack.voiceId,
     name: pack.name,
-    description: pack.description ? `${pack.description} · ${cost}` : cost,
+    description: pack.description ?? undefined,
+    cost_multiplier: costMultiplier,
     labels: { type: 'voice_pack' },
     tags: ['voice_pack'],
     languages: [{ code: 'en', title: 'English' }],
   }
-}
-
-/** Names the price only when it differs from the base TTS price, so 1x models keep their plain name. */
-function catalogModelDescription(model: ProviderCatalogTtsModel): string | undefined {
-  const parts = [model.description, model.costMultiplier !== 1 ? `Flux cost: ${model.costMultiplier}x` : undefined]
-    .filter((part): part is string => !!part)
-  return parts.length > 0 ? parts.join(' · ') : undefined
 }
 
 export interface SpeechCatalogOperation {
@@ -158,11 +153,13 @@ export function createSpeechCatalogOperation(deps: V1RouteDeps): SpeechCatalogOp
       : null
     return Response.json({
       models: [
+        // Clients show their own localized name for the Voice Pack entry, by its id.
         { id: VOICE_PACK_MODEL_ID, name: 'Voice Pack', description: 'Server-curated voices' },
+        // The description is the operator text only. Clients localize the price from `costMultiplier`.
         ...models.map(model => ({
           id: model.routerModelId,
           name: model.displayName,
-          description: catalogModelDescription(model),
+          description: model.description ?? undefined,
           costMultiplier: model.costMultiplier,
         })),
       ],

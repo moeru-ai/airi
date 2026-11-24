@@ -10,7 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp } from 'vue'
 import { createI18n } from 'vue-i18n'
 
-import { OFFICIAL_SPEECH_STREAMING_PROVIDER_ID } from '../../libs/providers/providers/official'
+import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID } from '../../libs/providers/providers/official'
 import { useProviderConfigStore } from './config'
 import { useProviderStore } from './provider'
 
@@ -203,6 +203,29 @@ describe('provider model catalog synchronization', () => {
 
     expect(followerContext.providerStore.getDefaultModelForProvider(OFFICIAL_SPEECH_STREAMING_PROVIDER_ID)).toBe('volcengine/seed-tts-2.0')
     expect(actionNames).not.toContain('getDefaultModelForProvider')
+  })
+
+  // ROOT CAUSE:
+  //
+  // The store copied a fixed list of model fields and dropped the price multiplier,
+  // so the speech page could not show the localized price of a 5x model.
+  //
+  // We fixed this by keeping `costMultiplier` in both model normalizers.
+  it('keeps the price multiplier of official speech models in the store', async () => {
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({
+      default: null,
+      models: [{ id: 'fish', name: 'Fish', description: 'Faster first audio', costMultiplier: 5 }],
+    })))
+
+    const context = createSyncedContext(`provider-model-catalog:${crypto.randomUUID()}`, 'leader-only')
+    await vi.waitFor(() => expect(context.runtime.isLeader()).toBe(true))
+
+    await context.providerStore.initializeProvider(OFFICIAL_SPEECH_PROVIDER_ID)
+    await context.providerStore.fetchModelsForProvider(OFFICIAL_SPEECH_PROVIDER_ID)
+
+    expect(context.providerStore.getModelsForProvider(OFFICIAL_SPEECH_PROVIDER_ID)).toEqual([
+      expect.objectContaining({ id: 'fish', description: 'Faster first audio', costMultiplier: 5 }),
+    ])
   })
 
   // https://github.com/moeru-ai/airi/pull/2440#discussion_r3912911639
