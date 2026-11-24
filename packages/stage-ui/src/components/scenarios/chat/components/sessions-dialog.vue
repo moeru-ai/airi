@@ -18,8 +18,11 @@ const props = withDefaults(defineProps<{
   desktopMode?: 'dialog' | 'popover' | 'inline'
   /** The character of the conversations. The inline list names it in its title. */
   character?: { name: string }
+  /** The inline list is on a touch screen, so its rows take swipes and long presses. */
+  touch?: boolean
 }>(), {
   desktopMode: 'dialog',
+  touch: false,
 })
 
 const emit = defineEmits<{
@@ -58,6 +61,7 @@ function preserveTriggerFocus(event: Event) {
       v-model:place="place"
       compact
       fill
+      :touch="touch"
       :character="character"
       :class="['h-full']"
       :rows="rows"

@@ -1,7 +1,7 @@
 import type { ChatSessionMeta } from '../../../../types/chat-session'
 
 import { SwipeActionButton, SwipeActionsContent, SwipeActionsItem, SwipeActionsList, SwipeActionsRoot } from '@proj-airi/ui'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-vue'
 import { page, userEvent } from 'vitest/browser'
 import { defineComponent, ref } from 'vue'
@@ -31,6 +31,8 @@ function createTestI18n() {
               'confirm-delete-short': 'Confirm delete',
               'more-actions': 'More actions',
               'archive': 'Archive',
+              'pin': 'Pin',
+              'rename-short': 'Rename',
               'current': 'Current',
               'cancel': 'Cancel',
               'confirm-delete': 'Delete this conversation and its messages?',
@@ -126,6 +128,55 @@ describe('sessions dialog actions', () => {
     expect(document.querySelector('[role="dialog"]')).toBeNull()
     await screen.getByRole('button', { name: /^First chat/ }).click()
     await expect.element(screen.getByLabelText('selected-session-id')).toHaveTextContent('session-one')
+  })
+
+  it('opens the menu of a touch row with a long press, not the conversation', async () => {
+    const rows = [
+      { meta: sessionMeta('session-one', 2), preview: 'First chat', isActive: true, activityAtLabel: 'now', characterName: 'Airi' },
+      { meta: sessionMeta('session-two', 1), preview: 'Second chat', isActive: false, activityAtLabel: 'yesterday', characterName: 'Airi' },
+    ]
+    const screen = await render(defineComponent({
+      components: { SessionsDialog },
+      setup() {
+        return { rows, selected: ref('none') }
+      },
+      template: `
+        <SessionsDialog
+          :open="true"
+          :rows="rows"
+          :is-desktop="false"
+          :is-creating-session="false"
+          desktop-mode="inline"
+          touch
+          @select-session="selected = $event"
+        />
+        <output aria-label="selected-session-id">{{ selected }}</output>
+      `,
+    }), { global: { plugins: [createTestI18n()] } })
+
+    // The touch row shows no buttons. Its actions are the swipe and the menu.
+    await expect.element(screen.getByRole('button', { name: /^Second chat/ })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Archive: Second chat' }).query()).toBeNull()
+
+    const row = screen.getByRole('button', { name: /^Second chat/ }).element()
+    // A synthetic press has no active pointer, so the swipe area of the row cannot capture it.
+    const capture = vi.spyOn(Element.prototype, 'setPointerCapture').mockImplementation(() => {})
+    const release = vi.spyOn(Element.prototype, 'releasePointerCapture').mockImplementation(() => {})
+    try {
+      row.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerType: 'touch', clientX: 40, clientY: 40 }))
+      await new Promise(resolve => setTimeout(resolve, 650))
+      row.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerType: 'touch', clientX: 40, clientY: 40 }))
+      row.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    }
+    finally {
+      capture.mockRestore()
+      release.mockRestore()
+    }
+
+    await expect.element(screen.getByRole('menuitem', { name: 'Archive' })).toBeVisible()
+    // The time is metadata, so the menu tells it instead of the row.
+    await expect.element(screen.getByText('yesterday')).toBeVisible()
+    await expect.element(screen.getByLabelText('selected-session-id')).toHaveTextContent('none')
   })
 
   it('opens the compact desktop list from its conversation trigger', async () => {

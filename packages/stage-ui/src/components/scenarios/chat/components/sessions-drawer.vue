@@ -26,9 +26,12 @@ const props = withDefaults(defineProps<{
   desktopMode?: 'dialog' | 'popover' | 'inline'
   /** The host is a desktop window. A narrow desktop window then keeps the desktop surfaces and never shows the phone drawer. */
   desktop?: boolean
+  /** The inline list is on a touch screen, for example in the side drawer of the phone. */
+  touch?: boolean
 }>(), {
   desktopMode: 'dialog',
   desktop: false,
+  touch: false,
 })
 
 const emit = defineEmits<{
@@ -204,6 +207,7 @@ async function renameSession(payload: { sessionId: string, title: string }) {
     :is-desktop="props.desktop || isDesktop"
     :is-creating-session="isCreatingSession"
     :desktop-mode="props.desktopMode"
+    :touch="props.touch"
     :character="currentCharacter"
     @open-character="emit('openCharacterSettings', currentCharacterId)"
     @new-session="reportFailure(startNewSession)"
