@@ -42,7 +42,7 @@ const variants = ref<Array<{
   { id: 'invalid', title: 'Invalid mapping', mapping: { ...emptyMapping, status: 'invalid', issues: ['invalid-binding'] }, mode: 'default' },
   { id: 'unsupported', title: 'Unsupported inputs', mapping: { ...emptyMapping, status: 'unsupported', issues: ['unsupported-input'] }, mode: 'default' },
   { id: 'ready', title: 'Ready', mapping: readyMapping, mode: 'default' },
-  { id: 'model', title: 'Model configuration', mapping: readyMapping, mode: 'model' },
+  { id: 'model', title: 'VTube Studio input mapping', mapping: readyMapping, mode: 'model' },
   { id: 'partial', title: 'Partial support', mapping: { ...readyMapping, issues: ['unsupported-options'] }, mode: 'model' },
 ])
 </script>

@@ -37,9 +37,9 @@ await live2d.motions.execute('motions/wave.motion3.json')
 
 ## Model input mapping
 
-The model settings offer two control mappings: AIRI default and Model configuration.
-If the default mapping cannot control an imported model, select Model configuration.
-Both mappings keep the existing Cubism physics evaluation.
+The model settings offer two control mappings: AIRI default and VTube Studio input mapping.
+If AIRI cannot control an imported model correctly, select VTube Studio input mapping.
+This option reads supported input bindings from a VTube Studio `.vtube.json` file.
 
 ZIP and directory imports read the `.vtube.json` beside the selected `.model3.json` with the same file stem.
 The supported inputs cover head angles, eye direction, eye opening, mouth opening, and mouth shape.

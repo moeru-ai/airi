@@ -295,17 +295,17 @@ live2d:
     title: 动画
     input-mapping:
       title: 控制映射方式
-      description: 如果 AIRI 无法正常控制此模型，请尝试使用模型配置的输入映射，将 AIRI 的控制信号发送到作者指定的输入参数。
+      description: 如果 AIRI 无法正常控制此模型，请尝试使用模型附带的 VTube Studio 输入映射配置（.vtube.json），将 AIRI 的控制信号发送到作者指定的输入参数。
       options:
         default: AIRI 默认映射
-        model: 模型配置映射
+        model: VTube Studio 输入映射
       loading: 正在加载模型输入映射。
       available: '可用输入映射：{count}'
       missing: 未找到输入映射。请在模型压缩包中包含与模型同名的 .vtube.json 文件。
       invalid: 输入映射无效。请检查 .vtube.json 文件后重新导入模型。
       unsupported: 此模型没有 AIRI 支持的输入映射。
       partial: 部分输入设置不受支持。AIRI 使用自身的动作平滑。
-      limitations: AIRI 使用自身的控制信号，不会复现外部跟踪和 VBridger 计算。
+      limitations: 仅使用配置中受支持的输入映射。AIRI 使用自身的控制信号和动作平滑，不复现 VTube Studio 的跟踪或 VBridger 计算。
     motion-driver:
       title: 动作驱动器
       description: 选择 AIRI 如何生成空闲身体和眼部动作。
