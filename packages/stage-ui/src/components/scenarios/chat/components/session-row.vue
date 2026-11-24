@@ -315,12 +315,10 @@ function runSwipeAction(value: string) {
                 {{ archived ? t('stage.chat.sessions.unarchive') : t('stage.chat.sessions.archive') }}
               </MenuItem>
               <MenuSeparator />
-              <!-- The confirmation fills the item with red, so the second press has a clear target. -->
+              <!-- The item keeps the fill of the menu. The confirmation marks itself with bold text and a filled icon. -->
               <MenuItem
                 v-if="props.compact"
-                :class="confirmingMenuDelete
-                  ? ['bg-red-500! text-white! font-medium data-[highlighted]:bg-red-600! dark:bg-red-500! dark:data-[highlighted]:bg-red-600!']
-                  : ['text-red-500 data-[highlighted]:bg-red-500/10! dark:text-red-400 dark:data-[highlighted]:bg-red-500/15!']"
+                :class="['text-red-500 dark:text-red-400', confirmingMenuDelete ? 'font-semibold' : '']"
                 @select="selectDelete"
               >
                 <span aria-hidden="true" :class="[confirmingMenuDelete ? 'i-mingcute:delete-2-fill' : 'i-mingcute:delete-2-line', 'size-4 shrink-0']" />
