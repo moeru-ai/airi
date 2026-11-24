@@ -2,6 +2,7 @@
 import type { SessionRow } from './session-row-model'
 
 import { BasicButton, DropdownMenu, MenuItem, MenuSeparator, SwipeActionButton, SwipeActionsContent, SwipeActionsItem, SwipeActionsList, SwipeActionsRoot } from '@proj-airi/ui'
+import { onLongPress } from '@vueuse/core'
 import { computed, nextTick, ref, shallowRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -14,6 +15,11 @@ import { iconButtonClasses, quietIconClasses } from './icon-button-classes'
 const props = defineProps<{
   row: SessionRow
   compact: boolean
+  /**
+   * The compact row of a touch screen, for example in the side drawer of the phone. It shows no buttons. A swipe to the
+   * left shows Archive and Delete, and a long press opens the menu, which also tells the time of the last message.
+   */
+  touch?: boolean
   /** The list selects conversations for a batch action, so the row toggles its selection instead of opening. */
   selecting: boolean
   selected: boolean
@@ -46,6 +52,32 @@ watch(() => props.selecting, (selecting) => {
 })
 
 const archived = computed(() => props.row.meta.archivedAt !== undefined)
+/** The row has swipe actions: the mobile row and the touch row. */
+const swipeable = computed(() => !props.compact || props.touch)
+
+const mainButton = useTemplateRef<InstanceType<typeof BasicButton>>('mainButton')
+// The press that opened the menu ends with a click on the row. That click must not open the conversation.
+let longPressed = false
+onLongPress(mainButton, () => {
+  if (!props.touch || props.selecting)
+    return
+  longPressed = true
+  menuOpen.value = true
+}, { delay: 500, distanceThreshold: 10 })
+
+/** A long press on a touch screen also opens the system menu. The row shows its own menu instead. */
+function preventTouchMenu(event: Event) {
+  if (props.touch)
+    event.preventDefault()
+}
+
+function selectRow() {
+  if (longPressed) {
+    longPressed = false
+    return
+  }
+  emit('select')
+}
 /** The Delete item of the menu asks for a second press. It turns into its confirmation and keeps the menu open. */
 const confirmingMenuDelete = shallowRef(false)
 watch(menuOpen, (open) => {
@@ -133,10 +165,10 @@ function runSwipeAction(value: string) {
       v-else
       v-slot="{ open, toggle }"
       v-model:open="swipeOpen"
-      :disabled="props.compact || renaming"
+      :disabled="!swipeable || renaming"
       @action="runSwipeAction"
     >
-      <SwipeActionsList v-if="!props.compact" :gap="16" default-action="delete">
+      <SwipeActionsList v-if="swipeable" :gap="16" default-action="delete">
         <SwipeActionsItem v-slot="{ takeover }" value="archive" as-child>
           <SwipeActionButton
             :label="archived ? t('stage.chat.sessions.unarchive') : t('stage.chat.sessions.archive')"
@@ -161,11 +193,14 @@ function runSwipeAction(value: string) {
       <SwipeActionsContent>
         <div
           :class="[
-            'group flex items-center overflow-hidden',
+            'group relative flex items-center overflow-hidden',
             props.compact ? 'rounded-lg pr-0.5' : 'rounded-2xl pr-1',
+            // The swipe actions lie under the row, so the touch row has a solid fill, the color of the drawer.
             props.row.isActive
               ? 'bg-primary-50/80 dark:bg-primary-950/80'
-              : props.compact ? 'bg-transparent hover:bg-neutral-100/80 dark:hover:bg-neutral-800/80' : 'bg-white dark:bg-neutral-800',
+              : props.touch
+                ? 'bg-neutral-50 dark:bg-neutral-900'
+                : props.compact ? 'bg-transparent hover:bg-neutral-100/80 dark:hover:bg-neutral-800/80' : 'bg-white dark:bg-neutral-800',
           ]"
         >
           <div
@@ -186,16 +221,20 @@ function runSwipeAction(value: string) {
           </div>
           <BasicButton
             v-else
+            ref="mainButton"
             data-session-main
             size="unset"
-            :title="props.row.activityAtLabel"
+            :title="props.touch ? undefined : props.row.activityAtLabel"
             :aria-current="props.row.isActive ? 'true' : undefined"
             :class="[
               'session-select active:scale-100! min-w-0 flex-1 text-left',
               props.compact ? 'min-h-12.5 rounded-lg px-2 py-1.5' : 'min-h-20 rounded-2xl px-3 py-3',
+              // A long press opens the menu of the row, not the text selection or the link menu of the system.
+              props.touch ? 'select-none [-webkit-touch-callout:none]' : '',
               'focus-visible:outline-2 focus-visible:outline-primary-500',
             ]"
-            @click="emit('select')"
+            @click="selectRow"
+            @contextmenu="preventTouchMenu"
           >
             <SessionRowSummary :row="props.row" :compact="props.compact" marks />
           </BasicButton>
@@ -206,7 +245,7 @@ function runSwipeAction(value: string) {
               back. Delete is in its menu, where the item turns into its own confirmation. The mobile row opens the swipe
               area, where Archive and Delete are the second press.
             -->
-            <template v-if="props.compact">
+            <template v-if="props.compact && !props.touch">
               <button
                 type="button"
                 :aria-label="`${archived ? t('stage.chat.sessions.unarchive') : t('stage.chat.sessions.archive')}: ${props.row.preview}`"
@@ -218,7 +257,7 @@ function runSwipeAction(value: string) {
               </button>
             </template>
             <button
-              v-else
+              v-else-if="!props.compact"
               type="button"
               :aria-label="`${t('stage.chat.sessions.delete')}: ${props.row.preview}`"
               :title="t('stage.chat.sessions.delete')"
@@ -248,9 +287,13 @@ function runSwipeAction(value: string) {
                   :class="[
                     iconButtonClasses,
                     menuOpen ? 'text-primary-500 dark:text-primary-400' : quietIconClasses,
-                    props.compact
-                      ? ['size-8', menuOpen ? 'inline-flex' : 'hidden group-hover:inline-flex group-focus-within:inline-flex']
-                      : 'size-11',
+                    // The touch row opens its menu with a long press. Its trigger stays for the keyboard and the screen reader,
+                    // and it gives the menu its place at the end of the row.
+                    props.touch
+                      ? 'pointer-events-none absolute right-1 top-1/2 size-8 -translate-y-1/2 opacity-0 focus-visible:opacity-100'
+                      : props.compact
+                        ? ['size-8', menuOpen ? 'inline-flex' : 'hidden group-hover:inline-flex group-focus-within:inline-flex']
+                        : 'size-11',
                   ]"
                   :style="props.compact ? undefined : { opacity: 'calc(1 - var(--swipe-progress, 0))' }"
                 >
@@ -266,6 +309,10 @@ function runSwipeAction(value: string) {
                 <span aria-hidden="true" :class="['i-mingcute:edit-2-line size-4 shrink-0']" />
                 {{ t('stage.chat.sessions.rename-short') }}
               </MenuItem>
+              <MenuItem v-if="props.touch" @select="emit('archive', !archived)">
+                <span aria-hidden="true" :class="[archived ? 'i-mingcute:unarchive-line' : 'i-mingcute:archive-line', 'size-4 shrink-0']" />
+                {{ archived ? t('stage.chat.sessions.unarchive') : t('stage.chat.sessions.archive') }}
+              </MenuItem>
               <MenuSeparator />
               <MenuItem v-if="props.compact" :class="['text-red-500 dark:text-red-400']" @select="selectDelete">
                 <span aria-hidden="true" :class="[confirmingMenuDelete ? 'i-mingcute:delete-2-fill' : 'i-mingcute:delete-2-line', 'size-4 shrink-0']" />
@@ -275,6 +322,10 @@ function runSwipeAction(value: string) {
                 <span aria-hidden="true" :class="[archived ? 'i-mingcute:unarchive-line' : 'i-mingcute:archive-line', 'size-4 shrink-0']" />
                 {{ archived ? t('stage.chat.sessions.unarchive') : t('stage.chat.sessions.archive') }}
               </MenuItem>
+              <!-- The time is metadata. The touch row has no tooltip, so its menu tells it. -->
+              <p v-if="props.touch" :class="['m-0 px-2 pb-1 pt-1.5 text-xs text-neutral-400 dark:text-neutral-500']">
+                {{ props.row.activityAtLabel }}
+              </p>
             </DropdownMenu>
           </template>
         </div>

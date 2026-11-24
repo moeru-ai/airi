@@ -22,9 +22,12 @@ const props = withDefaults(defineProps<{
   fill?: boolean
   /** The character of the conversations. The title names it. See `SessionsListHeader`. */
   character?: { name: string }
+  /** Compact rows for a touch screen, with swipe actions and a long-press menu. See `SessionRowItem`. */
+  touch?: boolean
 }>(), {
   compact: false,
   fill: false,
+  touch: false,
 })
 
 const emit = defineEmits<{
@@ -364,7 +367,8 @@ const { holdLeavingItem } = useListReorderMotion({
       settles. Rows and the empty state are one keyed sequence: a row that stays slides to its new place, a new row or
       the empty state fades in where it lands, and an item that leaves fades out without holding space.
     -->
-    <div ref="listBox" :class="[props.fill ? 'min-h-0 flex-1' : 'shrink-0', props.compact ? '' : 'mt-3']">
+    <!-- A drawer that closes on a drag leaves the rows alone, because a swipe on a row shows its actions. -->
+    <div ref="listBox" :data-vaul-no-drag="props.touch ? '' : undefined" :class="[props.fill ? 'min-h-0 flex-1' : 'shrink-0', props.compact ? '' : 'mt-3']">
       <ScrollableArea :class="[props.fill ? 'h-full' : props.compact ? 'max-h-[min(24rem,60dvh)]' : '']" :style="listMaxStyle">
         <AnimatedHeight>
           <!-- The padding keeps the focus rings of the rows inside the clip area. -->
@@ -393,6 +397,7 @@ const { holdLeavingItem } = useListReorderMotion({
                   :swipe-open="expandedSessionId === row.meta.sessionId"
                   :row="row"
                   :compact="props.compact"
+                  :touch="props.touch"
                   :selecting="selecting"
                   :selected="selectedIds.has(row.meta.sessionId)"
                   @update:swipe-open="expandedSessionId = $event ? row.meta.sessionId : undefined"
