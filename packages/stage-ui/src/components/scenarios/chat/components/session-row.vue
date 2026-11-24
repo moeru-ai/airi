@@ -17,7 +17,7 @@ const props = defineProps<{
   compact: boolean
   /**
    * The compact row of a touch screen, for example in the side drawer of the phone. It shows no buttons. A swipe to the
-   * left shows Archive and Delete, and a long press opens the menu, which also tells the time of the last message.
+   * left shows Archive and Delete, and a long press opens the menu, which also tells the full date of the last message.
    */
   touch?: boolean
   /** The list selects conversations for a batch action, so the row toggles its selection instead of opening. */
@@ -224,7 +224,6 @@ function runSwipeAction(value: string) {
             ref="mainButton"
             data-session-main
             size="unset"
-            :title="props.touch ? undefined : props.row.activityAtLabel"
             :aria-current="props.row.isActive ? 'true' : undefined"
             :class="[
               'session-select active:scale-100! min-w-0 flex-1 text-left',
@@ -322,9 +321,9 @@ function runSwipeAction(value: string) {
                 <span aria-hidden="true" :class="[archived ? 'i-mingcute:unarchive-line' : 'i-mingcute:archive-line', 'size-4 shrink-0']" />
                 {{ archived ? t('stage.chat.sessions.unarchive') : t('stage.chat.sessions.archive') }}
               </MenuItem>
-              <!-- The time is metadata. The touch row has no tooltip, so its menu tells it. -->
+              <!-- The touch row has no tooltip for the full date of its time, so its menu tells it. -->
               <p v-if="props.touch" :class="['m-0 px-2 pb-1 pt-1.5 text-xs text-neutral-400 dark:text-neutral-500']">
-                {{ props.row.activityAtLabel }}
+                {{ props.row.activityAtTitle }}
               </p>
             </DropdownMenu>
           </template>
