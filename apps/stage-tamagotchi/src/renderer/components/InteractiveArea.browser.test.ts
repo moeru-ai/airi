@@ -350,11 +350,11 @@ describe('interactive area synchronized state', () => {
     }
   })
 
-  it('places the conversation selector opposite settings in the mobile header', async () => {
+  it('places the button of the characters and chats drawer opposite settings in the mobile header', async () => {
     await page.viewport(390, 844)
     const { screen } = await renderArea(MobileInteractiveArea)
     const composer = screen.getByTestId('mobile-message-composer').element()
-    const conversations = screen.getByTestId('conversation-selector-button').element()
+    const conversations = screen.getByTestId('contacts-drawer-button').element()
     const bounds = conversations.getBoundingClientRect()
     const settingsBounds = screen.getByTestId('mobile-settings-button').element().getBoundingClientRect()
     expect(composer.contains(conversations)).toBe(false)
@@ -363,8 +363,9 @@ describe('interactive area synchronized state', () => {
     expect(bounds.width).toBe(44)
     expect(bounds.height).toBe(44)
     expect(bounds.left).toBe(390 - settingsBounds.right)
-    expect(conversations.textContent?.trim()).toBe('')
-    await screen.getByTestId('conversation-selector-button').click()
+    // The button shows the avatar of the current character. The middle of the header names the character.
+    await expect.element(screen.getByTestId('active-character-name')).toBeVisible()
+    await screen.getByTestId('contacts-drawer-button').click()
     await expect.element(screen.getByRole('dialog')).toBeVisible()
   })
 
@@ -395,7 +396,7 @@ describe('interactive area synchronized state', () => {
 
     await expect.element(screen.getByRole('dialog', { name: 'stage.mobile-tools.title' })).not.toBeInTheDocument()
     await expect.element(screen.getByTestId('mobile-message-composer')).not.toBeVisible()
-    await expect.element(screen.getByTestId('conversation-selector-button')).not.toBeInTheDocument()
+    await expect.element(screen.getByTestId('contacts-drawer-button')).not.toBeInTheDocument()
     await expect.element(screen.getByRole('button', { name: 'settings.pages.models.editor.tools.size', exact: true })).toBeVisible()
     await expect.element(screen.getByRole('button', { name: 'settings.pages.models.editor.tools.position', exact: true })).toBeVisible()
     await expect.element(screen.getByRole('slider', { name: 'settings.pages.models.editor.tools.size', exact: true })).toBeVisible()
@@ -418,7 +419,7 @@ describe('interactive area synchronized state', () => {
     await screen.getByRole('button', { name: 'stage.mobile-tools.close-view', exact: true }).click()
 
     await expect.element(screen.getByTestId('mobile-message-composer')).toBeVisible()
-    await expect.element(screen.getByTestId('conversation-selector-button')).toBeVisible()
+    await expect.element(screen.getByTestId('contacts-drawer-button')).toBeVisible()
     await expect.element(screen.getByRole('button', { name: 'settings.pages.models.editor.tools.size', exact: true })).not.toBeInTheDocument()
     // ROOT CAUSE:
     //
