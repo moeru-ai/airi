@@ -146,6 +146,7 @@ export function parseResponsesRequest(value: unknown): ParsedResponsesRequest {
 /** Input for one stateless Responses gateway operation. */
 export interface ResponsesOperationRequest {
   userId: string
+  requestId: string
   body: Record<string, unknown>
   policy: ResponsesRequestPolicy
   sessionId?: string
