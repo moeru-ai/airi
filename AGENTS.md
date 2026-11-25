@@ -190,7 +190,7 @@ Skills are in `.agents/skills/<name>/SKILL.md`. Read the listed file before you 
 | Write or debug tests, reproduce a bug, add mocks, or fix test import boundaries | [`enforce-rules-for-vitest`](.agents/skills/enforce-rules-for-vitest/SKILL.md) |
 | Add, change, or plan tests or verification for a Vue page, component, or UI flow | [`enforce-rules-for-ui-tests`](.agents/skills/enforce-rules-for-ui-tests/SKILL.md) |
 | Change UnoCSS, Vue styles, UI components, animations, icons, or color mode | [`enforce-rules-for-unocss`](.agents/skills/enforce-rules-for-unocss/SKILL.md) |
-| Set or change a font, or add `font-family`, `@font-face`, or a font package | [`enforce-rules-for-fonts`](.agents/skills/enforce-rules-for-fonts/SKILL.md) |
+| Set or change a font, an icon, or a corner radius. Also add a delete confirmation or a search field to a list or panel. | [`enforce-rules-for-visual-design`](.agents/skills/enforce-rules-for-visual-design/SKILL.md) |
 | Build or review a page, panel, list, or form. Also add a border, a loading, empty, or error state, or a new component. | [`enforce-rules-for-ui-components`](.agents/skills/enforce-rules-for-ui-components/SKILL.md) |
 | Add `synced` to a Pinia store, or change a synced store | [`enforce-rules-for-pinia-synced`](.agents/skills/enforce-rules-for-pinia-synced/SKILL.md) |
 | Write or change a string that users see, or a glossary term | [`packages/i18n/AGENTS.md`](packages/i18n/AGENTS.md) and [`enforce-rules-for-ai-tone`](.agents/skills/enforce-rules-for-ai-tone/SKILL.md) |
