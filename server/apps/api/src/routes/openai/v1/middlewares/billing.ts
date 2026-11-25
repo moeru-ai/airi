@@ -7,7 +7,7 @@ import type { SpeechBilling } from '../../../../services/domain/billing/speech-b
 import type { FluxService } from '../../../../services/domain/flux'
 import type { UsageInfo } from '../../../../services/domain/generation-usage'
 
-import { createPaymentRequiredError, createServiceUnavailableError } from '@proj-airi/http-error-shared'
+import { createPaymentRequiredError, createServiceUnavailableError } from '@proj-airi/http-shared'
 import {
   ATTR_GEN_AI_REQUEST_MODEL,
 } from '@proj-airi/trace-kit/semconv'

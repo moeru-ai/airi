@@ -54,28 +54,32 @@ export function createGeneration<Native extends ProviderContinuation>(input: {
   continuation: (items: Native['data'][number][], index: number) => Native
   project: (item: Native['data'][number]) => ProjectionEntry[]
 }) {
-  const starts: number[] = []
-  const models: string[] = []
+  const turn = createAssistantTurn(input.turnId, input.runId)
+  let start: number | undefined
+  let model = input.model
 
-  /** SDK snapshots mark step starts; only offsets remain owned by this generation. */
-  function prepareStep({ input: current, model }: { input: readonly unknown[], model?: string }) {
-    starts.push(current.length)
-    models.push(model ?? input.model)
+  function snapshot(items: Native['data'][number][], steps: CompletionStep[]) {
+    if (steps.length > turn.rounds.length) {
+      if (start === undefined || steps.length !== turn.rounds.length + 1)
+        throw new Error('Missing SDK model step boundary')
+      const index = turn.rounds.length
+      recordRound(turn, input.continuation(items.slice(start), index), steps[index], model, input.roundOffset ?? 0, input.project)
+      start = undefined
+    }
+    return structuredClone(turn)
+  }
+
+  /** SDK accumulation stays append-only, even when the next provider request uses a shorter context. */
+  function prepareStep({ input: current, model: nextModel }: { input: readonly unknown[], model?: string }) {
+    start = current.length
+    model = nextModel ?? input.model
     return {}
   }
 
   async function complete(items: Promise<Native['data'][number][]>, steps: Promise<CompletionStep[]>) {
     const [final, completedSteps] = await Promise.all([items, steps])
-    const turn = createAssistantTurn(input.turnId, input.runId)
-    for (const [index, step] of completedSteps.entries()) {
-      const start = starts[index]
-      if (start === undefined)
-        throw new Error('Missing SDK model step boundary')
-      const output = final.slice(start, starts[index + 1] ?? final.length)
-      recordRound(turn, input.continuation(output, index), step, models[index] ?? input.model, input.roundOffset ?? 0, input.project)
-    }
-    return turn
+    return snapshot(final, completedSteps)
   }
 
-  return { prepareStep, complete }
+  return { prepareStep, snapshot, complete }
 }

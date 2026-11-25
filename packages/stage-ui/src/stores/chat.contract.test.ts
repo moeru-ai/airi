@@ -1,14 +1,16 @@
 import type { ChatOrchestratorSessionPort, Conversation, StreamOptions, Turn } from '@proj-airi/core-agent'
 import type { GenerationProvider } from '@proj-airi/provider-inference'
 import type { TraceRecord, TraceSpanBegin, TraceSpanEnd } from '@proj-airi/trace-kit'
-import type { Tool } from '@xsai/shared-chat'
+import type { Tool, ToolExecuteOptions } from '@xsai/shared-chat'
 import type { SyncedPiniaRuntime } from 'pinia-plugin-synced'
 
+import type { McpExecutionOptions } from '../tools/mcp'
 import type { ChatHistoryItem, StreamingAssistantMessage } from '../types/chat'
 import type { ChatSessionMeta } from '../types/chat-session'
 import type { LlmStreamOptions } from './ai/chat-llm/llm'
 
 import { errorMessageFrom } from '@moeru/std'
+import { conversationToChatMessages } from '@proj-airi/core-agent'
 import { ATTR_GEN_AI_CONVERSATION_ID, ATTR_GEN_AI_OPERATION_NAME, ATTR_GEN_AI_TOOL_NAME } from '@proj-airi/trace-kit'
 import { AgentAttributes, AgentIdKeys, AgentNames } from '@proj-airi/trace-kit/agent'
 import { VoiceIdKeys } from '@proj-airi/trace-kit/voice'
@@ -76,7 +78,7 @@ const getChatProviderInstanceMock = vi.fn()
 const getToolsByNamesMock = vi.fn<(names: string[]) => Tool[]>()
 const visionMocks = vi.hoisted(() => ({ configured: false, model: 'system', runInference: vi.fn(), useForToolImages: true }))
 /** A catalog model can omit its abilities, as most provider catalogs do. */
-interface CatalogModel { id: string, inputModalities?: string[], metadata: { abilities?: { vision: boolean } } }
+interface CatalogModel { id: string, inputModalities?: string[], contextLength?: number, metadata: { abilities?: { vision: boolean }, maxOutput?: number } }
 const consciousnessModels = vi.hoisted(() => ({ value: [{ id: 'gpt-test', metadata: { abilities: { vision: false } } }] as CatalogModel[] }))
 
 const activeSessionIdRef = ref('session-1')
@@ -247,6 +249,18 @@ vi.mock('./modules/consciousness', () => ({
   })),
 }))
 
+const hearingMocks = vi.hoisted(() => ({ enabled: false, configured: true, transcribe: vi.fn() }))
+
+vi.mock('./modules/hearing', () => ({
+  useHearingStore: () => ({
+    get enabled() { return hearingMocks.enabled },
+    get configured() { return hearingMocks.configured },
+    activeTranscriptionProvider: 'speech-provider',
+    activeTranscriptionModel: 'whisper',
+    createTranscriber: () => ({ transcribe: hearingMocks.transcribe }),
+  }),
+}))
+
 const cardPrompt = vi.hoisted(() => ({ value: 'system prompt' }))
 
 vi.mock('./modules/airi-card', () => ({
@@ -303,6 +317,30 @@ function storedToolImageMessage(): ChatHistoryItem {
 }
 
 describe('chat store contract', () => {
+  it('projects old MCP schemas before the production request budget without editing tool receipts', async () => {
+    const schema = JSON.stringify([{ serverName: 'fixture', name: 'fixture::read', toolName: 'read', inputSchema: { type: 'object', description: 'schema detail '.repeat(5000) } }])
+    const context: Conversation = { turns: [
+      { type: 'assistant', id: 'catalog-run', status: 'completed', rounds: [{
+        id: 'catalog-run/0',
+        content: [{ type: 'tool', invocationId: 'catalog' }],
+        projectionIssues: [],
+        toolInvocations: [{ id: 'catalog', callId: 'catalog-call', name: 'builtIn_mcpListTools', arguments: '{}', execution: { status: 'succeeded', output: [{ type: 'text', text: schema }] } }],
+      }] },
+      { type: 'user', id: 'notice', notice: { source: 'host' }, content: [{ type: 'text', text: 'status=unknown; noNewDispatch=false' }] },
+    ] }
+    const original = structuredClone(context)
+    llmStreamMock.mockImplementation(async (model: string, provider: GenerationProvider, _conversation: Conversation, options: LlmStreamOptions) => {
+      const projected = await options.prepareConversation!(context, { model, request: provider.generation(model), scope: model, measureContextBytes: value => new TextEncoder().encode(JSON.stringify(value)).byteLength })
+      expect(JSON.stringify(projected)).toContain('schemasOmitted')
+      expect(JSON.stringify(projected)).not.toContain('schema detail')
+      expect(JSON.stringify(projected)).toContain('status=unknown; noNewDispatch=false')
+      expect(context).toEqual(original)
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+    await useChatStore().send({ sessionId: 'session-1', text: 'Continue the fixture.' })
+    expect(llmStreamMock).toHaveBeenCalledOnce()
+  })
+
   beforeEach(async () => {
     await memoryRepo.clear()
     await recipesRepo.clear()
@@ -323,6 +361,9 @@ describe('chat store contract', () => {
     })
     vi.spyOn(getAnalytics(), 'recordFirstMessage').mockImplementation(trackFirstMessageMock)
     llmStreamMock.mockReset()
+    hearingMocks.enabled = false
+    hearingMocks.configured = true
+    hearingMocks.transcribe.mockReset()
     trackFirstMessageMock.mockReset()
     for (const analyticsMock of Object.values(chatAnalyticsMocks))
       analyticsMock.mockReset()
@@ -387,6 +428,70 @@ describe('chat store contract', () => {
     sessionMessages['session-1'] = [{ role: 'system', content: 'system prompt', createdAt: 1, id: 'system' }]
   })
 
+  it('stops a queued Host notice when its delivery signal is cancelled before storage', async () => {
+    const held = Promise.withResolvers<void>()
+    const started = Promise.withResolvers<void>()
+    llmStreamMock.mockImplementationOnce(async () => {
+      started.resolve()
+      await held.promise
+    })
+    const store = useChatStore()
+    const first = store.send({ sessionId: 'session-1', text: 'Existing original turn.' })
+    await started.promise
+    const control = new AbortController()
+    const queued = store.notifyConversation('session-1', { source: 'airi:terminal-settlement', text: 'Controlled execution result.', messageId: 'terminal:queued-action' }, { waitForCompletion: false, signal: control.signal })
+    await vi.waitFor(() => expect(store.pendingQueuedSendCount).toBe(1))
+    control.abort(new Error('The original request was cancelled.'))
+    held.resolve()
+    await first
+    expect(await queued).toBeUndefined()
+    expect(llmStreamMock).toHaveBeenCalledOnce()
+    expect(sessionMessages['session-1'].some(message => message.id === 'terminal:queued-action')).toBe(false)
+  })
+
+  it('acknowledges a stored Host notice without tying the new generation to delivery cleanup', async () => {
+    const held = Promise.withResolvers<void>()
+    const started = Promise.withResolvers<void>()
+    let generationSignal: AbortSignal | undefined
+    llmStreamMock.mockImplementationOnce(async (_model: string, _provider: GenerationProvider, _messages: Conversation, options: StreamOptions) => {
+      generationSignal = options.abortSignal
+      started.resolve()
+      await held.promise
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+    const store = useChatStore()
+    const control = new AbortController()
+    const receipt = await store.notifyConversation('session-1', { source: 'airi:terminal-settlement', text: 'Controlled execution result.', messageId: 'terminal:stored-action' }, { waitForCompletion: false, signal: control.signal })
+    await started.promise
+    control.abort(new Error('The Main delivery context has finished.'))
+    expect(receipt).toEqual({ sessionId: 'session-1', messageId: 'terminal:stored-action' })
+    expect(generationSignal?.aborted).toBe(false)
+    held.resolve()
+    await vi.waitFor(() => expect(store.activeTurns).toHaveLength(0))
+    expect(sessionMessages['session-1'].find(message => message.id === receipt?.messageId)).toMatchObject({ notice: { source: 'airi:terminal-settlement' } })
+    expect(llmStreamMock).toHaveBeenCalledOnce()
+  })
+
+  it('keeps the existing default of awaiting a notice generation before returning', async () => {
+    const held = Promise.withResolvers<void>()
+    const started = Promise.withResolvers<void>()
+    llmStreamMock.mockImplementationOnce(async () => {
+      started.resolve()
+      await held.promise
+    })
+    const store = useChatStore()
+    let finished = false
+    const delivery = store.notifyConversation('session-1', { source: 'background-task', text: 'Controlled task result.' }).then((receipt) => {
+      finished = true
+      return receipt
+    })
+    await started.promise
+    expect(finished).toBe(false)
+    held.resolve()
+    expect(await delivery).toMatchObject({ sessionId: 'session-1' })
+    expect(finished).toBe(true)
+  })
+
   it('cancels a named submission while session preparation is pending', async () => {
     const loading = Promise.withResolvers<boolean>()
     loadSessionMock.mockReturnValueOnce(loading.promise)
@@ -403,7 +508,8 @@ describe('chat store contract', () => {
   it('waits for the transcript of a submitted voice message instead of transcribing the file', async () => {
     const requests: Conversation[] = []
     llmStreamMock.mockImplementation(async (model: string, chatProvider: GenerationProvider, context: Conversation, options: LlmStreamOptions) => {
-      requests.push(await options.prepareConversation!(context, { model, providerId: options.providerId, request: chatProvider.generation(model) }))
+      const measureContextBytes = (value: Conversation) => new TextEncoder().encode(JSON.stringify(conversationToChatMessages(value))).byteLength
+      requests.push(await options.prepareConversation!(context, { model, providerId: options.providerId, request: chatProvider.generation(model), scope: 'audio-model', measureContextBytes }))
       await options.onStreamEvent?.({ type: 'finish' })
     })
     const store = useChatStore()
@@ -427,6 +533,136 @@ describe('chat store contract', () => {
       content: expect.arrayContaining([{ type: 'text', text: 'hello there' }]),
     })
     expect(sessionMessages['session-1'].find(message => message.id === 'voice-1')?.audioTranscripts).toEqual(['hello there'])
+  })
+
+  describe('with Hearing enabled and a text-only model', () => {
+    function seedEarlierVoiceMessage() {
+      sessionMessages['session-1'] = [
+        { role: 'system', content: 'system prompt', createdAt: 1, id: 'system' },
+        { role: 'user', content: [{ type: 'input_audio', input_audio: { data: 'UklGRg==', format: 'wav' } }], createdAt: 2, id: 'old-voice' },
+      ] as ChatHistoryItem[]
+    }
+
+    async function* emptyTranscription() {
+      yield { type: 'update', segments: [{ text: '' }] }
+      yield { type: 'complete' }
+    }
+
+    // https://github.com/moeru-ai/airi/issues/3552
+    // ROOT CAUSE:
+    //
+    // Each send transcribes every earlier recording again. A silent clip returns no text.
+    // `prepareTextOnlyAudioContext` threw for that result and stopped every later send.
+    //
+    // We fixed this by throwing only for the last user turn. An earlier recording becomes a placeholder.
+    it('sends a typed message when an earlier recording transcribes to nothing (Issue #3552)', async () => {
+      vi.spyOn(console, 'warn').mockImplementation(() => {})
+      hearingMocks.enabled = true
+      hearingMocks.transcribe.mockImplementation(emptyTranscription)
+      seedEarlierVoiceMessage()
+      const requests: Conversation[] = []
+      llmStreamMock.mockImplementation(async (model: string, chatProvider: GenerationProvider, context: Conversation, options: LlmStreamOptions) => {
+        const measureContextBytes = (value: Conversation) => new TextEncoder().encode(JSON.stringify(conversationToChatMessages(value))).byteLength
+        requests.push(await options.prepareConversation!(context, { model, providerId: options.providerId, request: chatProvider.generation(model), scope: 'text-model', measureContextBytes }))
+        await options.onStreamEvent?.({ type: 'finish' })
+      })
+
+      await useChatStore().send({ sessionId: 'session-1', text: 'typed after a silent clip' })
+
+      expect(requests).toHaveLength(1)
+      expect(JSON.stringify(requests[0])).toContain('stage.chat.audio.transcription-unavailable')
+      expect(JSON.stringify(requests[0])).toContain('typed after a silent clip')
+      // A placeholder is request text. The stored message must stay without a transcript.
+      expect(sessionMessages['session-1'].find(message => message.id === 'old-voice')?.audioTranscripts).toBeUndefined()
+    })
+
+    it('sends a typed message when an earlier recording fails to transcribe (Issue #3552)', async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      hearingMocks.enabled = true
+      hearingMocks.transcribe.mockImplementation(async function* () {
+        throw new Error('provider unreachable')
+      })
+      seedEarlierVoiceMessage()
+      const requests: Conversation[] = []
+      llmStreamMock.mockImplementation(async (model: string, chatProvider: GenerationProvider, context: Conversation, options: LlmStreamOptions) => {
+        const measureContextBytes = (value: Conversation) => new TextEncoder().encode(JSON.stringify(conversationToChatMessages(value))).byteLength
+        requests.push(await options.prepareConversation!(context, { model, providerId: options.providerId, request: chatProvider.generation(model), scope: 'text-model', measureContextBytes }))
+        await options.onStreamEvent?.({ type: 'finish' })
+      })
+
+      await useChatStore().send({ sessionId: 'session-1', text: 'typed after a failed clip' })
+
+      expect(requests).toHaveLength(1)
+      expect(JSON.stringify(requests[0])).toContain('stage.chat.audio.transcription-unavailable')
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('An earlier recording could not be transcribed'), expect.any(Error))
+    })
+
+    it('sends a typed message when an earlier recording has no transcription provider (Issue #3552)', async () => {
+      vi.spyOn(console, 'warn').mockImplementation(() => {})
+      hearingMocks.enabled = true
+      hearingMocks.configured = false
+      seedEarlierVoiceMessage()
+      const requests: Conversation[] = []
+      llmStreamMock.mockImplementation(async (model: string, chatProvider: GenerationProvider, context: Conversation, options: LlmStreamOptions) => {
+        const measureContextBytes = (value: Conversation) => new TextEncoder().encode(JSON.stringify(conversationToChatMessages(value))).byteLength
+        requests.push(await options.prepareConversation!(context, { model, providerId: options.providerId, request: chatProvider.generation(model), scope: 'text-model', measureContextBytes }))
+        await options.onStreamEvent?.({ type: 'finish' })
+      })
+
+      await useChatStore().send({ sessionId: 'session-1', text: 'typed without a provider' })
+
+      expect(JSON.stringify(requests[0])).toContain('stage.chat.audio.transcription-unavailable')
+      expect(hearingMocks.transcribe).not.toHaveBeenCalled()
+    })
+
+    it('reports a missing transcription provider for the recording that is sent now (Issue #3552)', async () => {
+      hearingMocks.enabled = true
+      hearingMocks.configured = false
+      sessionMessages['session-1'] = [{ role: 'system', content: 'system prompt', createdAt: 1, id: 'system' }]
+      llmStreamMock.mockImplementation(async (model: string, chatProvider: GenerationProvider, context: Conversation, options: LlmStreamOptions) => {
+        const measureContextBytes = (value: Conversation) => new TextEncoder().encode(JSON.stringify(conversationToChatMessages(value))).byteLength
+        await options.prepareConversation!(context, { model, providerId: options.providerId, request: chatProvider.generation(model), scope: 'text-model', measureContextBytes })
+      })
+
+      await expect(useChatStore().send({
+        sessionId: 'session-1',
+        text: '',
+        attachments: [{ type: 'audio', mimeType: 'audio/wav', data: 'UklGRg==' }],
+      })).rejects.toThrow('Configure a transcription provider')
+    })
+
+    it('does not request a failed earlier recording again on the next send (Issue #3552)', async () => {
+      vi.spyOn(console, 'warn').mockImplementation(() => {})
+      hearingMocks.enabled = true
+      hearingMocks.transcribe.mockImplementation(emptyTranscription)
+      seedEarlierVoiceMessage()
+      llmStreamMock.mockImplementation(async (model: string, chatProvider: GenerationProvider, context: Conversation, options: LlmStreamOptions) => {
+        const measureContextBytes = (value: Conversation) => new TextEncoder().encode(JSON.stringify(conversationToChatMessages(value))).byteLength
+        await options.prepareConversation!(context, { model, providerId: options.providerId, request: chatProvider.generation(model), scope: 'text-model', measureContextBytes })
+        await options.onStreamEvent?.({ type: 'finish' })
+      })
+
+      await useChatStore().send({ sessionId: 'session-1', text: 'first' })
+      await useChatStore().send({ sessionId: 'session-1', text: 'second' })
+
+      expect(hearingMocks.transcribe).toHaveBeenCalledTimes(1)
+    })
+
+    it('still reports an empty transcription of the recording that is sent now (Issue #3552)', async () => {
+      hearingMocks.enabled = true
+      hearingMocks.transcribe.mockImplementation(emptyTranscription)
+      sessionMessages['session-1'] = [{ role: 'system', content: 'system prompt', createdAt: 1, id: 'system' }]
+      llmStreamMock.mockImplementation(async (model: string, chatProvider: GenerationProvider, context: Conversation, options: LlmStreamOptions) => {
+        const measureContextBytes = (value: Conversation) => new TextEncoder().encode(JSON.stringify(conversationToChatMessages(value))).byteLength
+        await options.prepareConversation!(context, { model, providerId: options.providerId, request: chatProvider.generation(model), scope: 'text-model', measureContextBytes })
+      })
+
+      await expect(useChatStore().send({
+        sessionId: 'session-1',
+        text: '',
+        attachments: [{ type: 'audio', mimeType: 'audio/wav', data: 'UklGRg==' }],
+      })).rejects.toThrow('The recording has no completed transcription')
+    })
   })
 
   it('removes a submitted voice message whose transcript has no speech', async () => {
@@ -523,18 +759,24 @@ describe('chat store contract', () => {
     expect(getChatProviderInstanceMock).toHaveBeenLastCalledWith('official-provider', { reasoning: 'disabled' })
   })
 
-  it('projects stored audio again when a tool step changes to a text-only model', async () => {
-    cardSelections.set('alice', { provider: 'mock-provider', model: 'audio-model' })
+  it('projects stored audio and recognizes provider-declared image input across model changes', async () => {
+    cardSelections.set('alice', { provider: 'mock-provider', model: 'multimodal-model' })
     consciousnessModels.value = [
-      { id: 'audio-model', inputModalities: ['text', 'audio'], metadata: {} },
-      { id: 'text-model', inputModalities: ['text'], metadata: {} },
+      { id: 'multimodal-model', inputModalities: ['text', 'audio', 'image'], contextLength: 64000, metadata: { maxOutput: 8000 } },
+      { id: 'text-model', inputModalities: ['text'], contextLength: 16000, metadata: { abilities: { vision: false }, maxOutput: 2000 } },
     ]
     const requests: Conversation[] = []
     llmStreamMock.mockImplementation(async (model: string, chatProvider: GenerationProvider, context: Conversation, options: LlmStreamOptions) => {
-      requests.push(await options.prepareConversation!(context, { model, providerId: options.providerId, request: chatProvider.generation(model) }))
+      const imageStep = await options.resolveStep!()
+      expect(imageStep).toMatchObject({ contextWindowTokens: 64000, modelMaxOutputTokens: 8000, supportsVisionInput: true })
+      cardSelections.set('alice', { provider: 'mock-provider', model: 'text-model' })
+      const textStep = await options.resolveStep!()
+      expect(textStep).toMatchObject({ contextWindowTokens: 16000, modelMaxOutputTokens: 2000, supportsVisionInput: false })
+      const measureContextBytes = (value: Conversation) => new TextEncoder().encode(JSON.stringify(conversationToChatMessages(value))).byteLength
+      requests.push(await options.prepareConversation!(context, { model, providerId: options.providerId, request: chatProvider.generation(model), scope: model, measureContextBytes }))
       // Core passes a new conversation with the completed tool round after a scope change.
       const continued: Conversation = { turns: [...context.turns] }
-      requests.push(await options.prepareConversation!(continued, { model: 'text-model', providerId: 'mock-provider', request: chatProvider.generation('text-model') }))
+      requests.push(await options.prepareConversation!(continued, { model: 'text-model', providerId: 'mock-provider', request: chatProvider.generation('text-model'), scope: 'text-model', measureContextBytes }))
       await options.onStreamEvent?.({ type: 'finish' })
     })
     const store = useChatStore()
@@ -560,7 +802,13 @@ describe('chat store contract', () => {
     consciousnessModels.value = [{ id: 'audio-model', inputModalities: ['text', 'audio'], metadata: {} }]
     const requests: Conversation[] = []
     llmStreamMock.mockImplementation(async (model: string, chatProvider: GenerationProvider, context: Conversation, options: LlmStreamOptions) => {
-      requests.push(await options.prepareConversation!(context, { model, providerId: options.providerId, request: chatProvider.generation(model) }))
+      requests.push(await options.prepareConversation!(context, {
+        model,
+        providerId: options.providerId,
+        request: chatProvider.generation(model),
+        scope: model,
+        measureContextBytes: value => new TextEncoder().encode(JSON.stringify(conversationToChatMessages(value))).byteLength,
+      }))
       await options.onStreamEvent?.({ type: 'finish' })
     })
     const store = useChatStore()
@@ -897,6 +1145,43 @@ describe('chat store contract', () => {
     ]))
   })
 
+  it('records serialized projection bytes separately from reported tokens', async () => {
+    const image = `data:image/png;base64,${'A'.repeat(80)}`
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _context: Conversation, options: StreamOptions) => {
+      await options.prepareConversation?.({
+        turns: [{ type: 'user', id: 'user-1', content: [{ type: 'text', text: 'Look' }] }],
+      }, {
+        model: 'gpt-test',
+        scope: 'test-scope',
+        request: { protocol: 'chat-completions', config: { model: 'gpt-test', apiKey: 'test', baseURL: 'https://example.test/v1/' } },
+        measureContextBytes: () => 1,
+        readProjectedRequest: () => ({
+          messages: [{
+            role: 'user',
+            content: [
+              { type: 'text', text: 'Look' },
+              { type: 'image_url', image_url: { url: image } },
+            ],
+          }],
+          tools: [{ type: 'function', function: { name: 'observe', parameters: { type: 'object' } } }],
+        }),
+      })
+      await options.onUsage?.({ inputTokens: 12, outputTokens: 3, totalTokens: 15, source: 'reported' })
+      await options.onUsage?.({ inputTokens: 99, source: 'estimated' })
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+
+    await useChatStore().send({ sessionId: 'session-1', text: 'Look' })
+
+    const projection = useContextObservabilityStore().lastPromptProjection
+    expect(projection?.request?.model).toBe('gpt-test')
+    expect(projection?.request?.contextWindowTokens).toBeUndefined()
+    expect(projection?.breakdown?.imageBytes).toBeGreaterThan(0)
+    expect(projection?.breakdown?.sections.some(section => section.kind === 'tool-schema' && section.title === 'observe')).toBe(true)
+    expect(JSON.stringify(projection?.breakdown)).not.toContain('AAAA')
+    expect(projection?.reportedUsage).toMatchObject({ source: 'reported', inputTokens: 12, outputTokens: 3, totalTokens: 15 })
+  })
+
   it('traces each tool call of a model request as a span on the tools track', async () => {
     llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _context: Conversation, options: StreamOptions) => {
       await options.onStreamEvent?.({ type: 'tool-call-start', toolCallId: 'call-1', toolName: 'home_assistant_list_entities' })
@@ -1111,6 +1396,58 @@ describe('chat store contract', () => {
     const stored = JSON.stringify(sessionMessages['session-1'][1])
     expect(stored).not.toContain('data:image')
     expect(stored).toContain('A settings window.')
+  })
+
+  it('announces a rerun under its own turn label so a Host can admit its tools', async () => {
+    // ROOT CAUSE:
+    //
+    // A rerun never reached `onBeforeSend`, so a Host-side listener never opened
+    // an admission for it. Every controlled tool of that rerun failed for a
+    // missing request id, and its attribution reused an earlier turn's label.
+    let attribution: { sessionId?: string, turnId?: string } | undefined
+    getToolsByNamesMock.mockImplementation(() => [{
+      type: 'function',
+      function: { name: 'computer_use', parameters: {} },
+      execute: async (_input: unknown, options: ToolExecuteOptions) => {
+        attribution = (options as McpExecutionOptions).attribution
+        return 'done'
+      },
+    }])
+    sessionMessages['session-1'] = [
+      { role: 'system', content: 'system prompt', createdAt: 1, id: 'system' },
+      {
+        role: 'assistant',
+        id: 'assistant-1',
+        content: '',
+        createdAt: 2,
+        slices: [{ type: 'tool-call', toolCall: { toolCallId: 'call-1', toolCallType: 'function', toolName: 'computer_use', args: '{}' } }],
+        tool_results: [],
+      },
+    ]
+
+    const store = useChatStore()
+    const started: string[] = []
+    const ended: string[] = []
+    store.onToolCallRerun(async ({ turnId }) => {
+      started.push(turnId)
+    })
+    store.onToolCallRerunEnd(async ({ turnId }) => {
+      ended.push(turnId)
+    })
+
+    await store.rerunToolCall({
+      sessionId: 'session-1',
+      messageId: 'assistant-1',
+      toolCallId: 'call-1',
+      toolName: 'computer_use',
+      args: '{}',
+      tools: [{ name: 'computer_use' }],
+    })
+
+    expect(started).toHaveLength(1)
+    expect(ended).toEqual(started)
+    expect(started[0]).toMatch(/^assistant-1:rerun:/)
+    expect(attribution).toMatchObject({ sessionId: 'session-1', turnId: started[0] })
   })
 
   it('sends a note in place of a stored tool image while the vision model reads tool images', async () => {

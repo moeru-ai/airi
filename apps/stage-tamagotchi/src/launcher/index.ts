@@ -1,5 +1,7 @@
 import process from 'node:process'
 
+import { mkdirSync } from 'node:fs'
+
 import config from 'virtual:ergosphere-it/config'
 
 import { startLauncher } from '@ergosphere-it/electron/launcher'
@@ -42,6 +44,13 @@ function isUpdatedByPackageManager() {
 
 // Re-exec before the launcher loads a bundle, so that no update work runs twice.
 becomeOwnResponsibleProcess()
+
+// The launcher claims the instance lock before loading main. Select its profile before that claim.
+const appUserDataPath = process.env.APP_USER_DATA_PATH?.trim()
+if (appUserDataPath) {
+  mkdirSync(appUserDataPath, { recursive: true })
+  app.setPath('userData', appUserDataPath)
+}
 
 // NOTICE: Electron emits `ready` only after the top-level await of its entry, so the bundle main starts before ready.
 // See the custom launcher section of the @ergosphere-it/electron API reference.

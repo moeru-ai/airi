@@ -4,7 +4,7 @@ import type { Database } from '../libs/db'
 import type { Env } from '../libs/env'
 import type { HonoEnv } from '../types/hono'
 
-import { createUnauthorizedError } from '@proj-airi/http-error-shared'
+import { createUnauthorizedError } from '@proj-airi/http-shared'
 
 import { resolveRequestAuth } from '../libs/request-auth'
 

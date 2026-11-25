@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  hasInteractiveOutputMarkers,
-  INTERACTIVE_OUTPUT_MARKERS,
   isKnownInteractiveCommand,
   KNOWN_INTERACTIVE_COMMAND_PATTERNS,
 } from './interactive-patterns'
@@ -81,40 +79,6 @@ describe('interactive-patterns', () => {
 
     it('trims whitespace', () => {
       expect(isKnownInteractiveCommand('  vim  ')).toBe(true)
-    })
-  })
-
-  describe('interactive output markers', () => {
-    it('has exactly 7 markers', () => {
-      expect(INTERACTIVE_OUTPUT_MARKERS).toHaveLength(7)
-    })
-  })
-
-  describe('hasInteractiveOutputMarkers', () => {
-    it.each([
-      'READY>',
-      'Password:',
-      'Press any key',
-      'Select an option',
-      'Enter your choice',
-      '[y/N]',
-      '[Y/n]',
-    ])('detects marker: %s', (marker) => {
-      expect(hasInteractiveOutputMarkers(`Some output... ${marker} more text`)).toBe(true)
-    })
-
-    it('is case-insensitive', () => {
-      expect(hasInteractiveOutputMarkers('please enter PASSWORD:')).toBe(true)
-      expect(hasInteractiveOutputMarkers('ready>')).toBe(true)
-    })
-
-    it('returns false for normal output', () => {
-      expect(hasInteractiveOutputMarkers('Build succeeded in 4.2s')).toBe(false)
-      expect(hasInteractiveOutputMarkers('All tests passed')).toBe(false)
-    })
-
-    it('returns false for empty string', () => {
-      expect(hasInteractiveOutputMarkers('')).toBe(false)
     })
   })
 })

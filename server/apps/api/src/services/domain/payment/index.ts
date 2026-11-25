@@ -11,7 +11,7 @@ import type {
 } from './types'
 
 import { useLogger } from '@guiiai/logg'
-import { createInternalError } from '@proj-airi/http-error-shared'
+import { createInternalError } from '@proj-airi/http-shared'
 import { and, eq, isNull } from 'drizzle-orm'
 
 import * as schema from '../../../schemas/payment'

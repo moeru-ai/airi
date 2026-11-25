@@ -9,7 +9,7 @@ import WebSocket from 'ws'
 
 import { useLogger } from '@guiiai/logg'
 import { context as otelContext, SpanStatusCode, trace } from '@opentelemetry/api'
-import { ApiError } from '@proj-airi/http-error-shared'
+import { ApiError } from '@proj-airi/http-shared'
 import {
   ATTR_GEN_AI_REQUEST_MODEL,
 } from '@proj-airi/trace-kit/semconv'

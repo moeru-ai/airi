@@ -1,3 +1,5 @@
+import { TransferRequestError } from './request-error'
+
 export interface UploadTarget {
   url: string
   method: 'PUT'
@@ -47,7 +49,7 @@ export function putToTarget(blob: Blob, target: UploadTarget, options: PutToTarg
       if (request.status >= 200 && request.status < 300)
         resolve()
       else
-        reject(new Error(`Upload failed with status ${request.status}`))
+        reject(new TransferRequestError(request.status, `Upload failed with status ${request.status}`, false))
     })
     // The browser does not tell why the request failed, for example an offline device or a refused CORS preflight.
     request.addEventListener('error', () => reject(new Error('Upload failed because the request did not reach the storage')))

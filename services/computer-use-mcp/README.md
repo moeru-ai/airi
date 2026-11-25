@@ -1,74 +1,13 @@
 # computer-use-mcp
 
-AIRI-specific macOS desktop orchestration MCP service.
+This package executes desktop, terminal, browser, and workflow operations for AIRI.
+AIRI owns planning and the Desktop Host approval window.
+This package owns execution, workflow steps, trace, and the service approval mode.
 
-## Why This Exists
-
-This package exists because AIRI already has many useful pieces in the monorepo —
-providers, chat UX, MCP attachment, desktop app surfaces, browser integrations,
-tool bridges, and workflow-related logic — but those pieces are still too easy to
-use as isolated features instead of one coherent agent system.
-
-`computer-use-mcp` is the missing execution substrate for that gap.
-
-The current goal is not to add "another computer use demo". The goal is to give
-AIRI a unified way to:
-
-- observe the current desktop or browser state
-- choose the right execution surface for the task
-- run deterministic actions through tools and terminal commands
-- keep approvals, trace, and audit artifacts attached to the run
-- compose those actions into repeatable workflows instead of one-off demos
-
-In short:
-
-- AIRI remains the control plane and agent shell
-- `computer-use-mcp` is the local execution and workflow substrate
-- the value is in orchestration, not in cursor movement by itself
-
-## What It Is
-
-This package is no longer positioned as a generic remote computer-use experiment.
-The current v1 shape is:
-
-- AIRI keeps the control plane:
-  - MCP tool surface
-  - approval queue protocol
-  - audit log
-  - trace history
-  - screenshot persistence
-- `computer-use-mcp` provides a local macOS execution layer:
-  - window observation
-  - screenshots
-  - app open/focus
-  - mouse/keyboard injection
-  - background terminal command execution
-- AIRI desktop adds a native approval adapter:
-  - `approval_required` still comes from MCP
-  - Electron shows a native dialog
-  - AIRI automatically calls approve/reject on the user's behalf
-
-The intended story is:
-
-- AIRI uses tools first
-- visual observation is supplementary, not the primary execution path
-- terminal commands are executed by a background shell runner, not by scripting Terminal tabs
-- desktop/Electron/native apps and browser DOM are treated as different execution surfaces
-
-## Why It Is Not "Just A Mouse Toy"
-
-This package should not be understood as a coordinate-replay automation toy.
-
-What makes it different:
-
-- it exposes an MCP tool surface instead of a one-off macro recorder
-- it keeps action policy, approval, trace history, and audit output per run
-- it distinguishes between desktop control and browser DOM control instead of forcing everything through blind clicks
-- it prefers deterministic execution paths (`terminal_exec`, workflows, `browser_dom_*`) before raw coordinate actions
-- it is designed to be called by AIRI automatically as part of a task flow, not merely driven by a human demo operator
-
-That means the package is useful only when it helps AIRI turn scattered local
-capabilities into one observable, controllable task system.
+Windows observation and input use the AUV runner.
+Terminal launches processes.
+The Desktop Host modes `ask`, `auto`, and `full` are in `apps/stage-tamagotchi/README.md`.
+They do not replace `actions`, `all`, and `never` in this service.
 
 ## Current Executor Modes
 
@@ -76,16 +15,31 @@ capabilities into one observable, controllable task system.
   - default
   - never injects input
   - still captures best-effort local screenshots for debugging
+- `auv`
+  - current Windows primary backend
+  - window observation through the local AUV daemon
+  - display capture and window-bound click/type/key/scroll operations
+  - each mutation keeps the Host approval gate and a fresh target-window binding
 - `macos-local`
-  - current primary backend
+  - legacy local backend
   - window observation via `NSWorkspace + CGWindowList`
   - input injection via Swift + Quartz `CGEvent`
   - app open/focus via `open -a` and `activate`
 - `linux-x11`
   - retained as a legacy experimental backend
-  - not the main v1 story anymore
+  - not the current primary backend
 
 ## Tool Surface
+
+### Service tools and the Desktop catalog
+
+This package exposes the tools below to a direct MCP client.
+The Desktop Host's default Agent catalog is a separate decision.
+That catalog, and the rule that exposure is not authorization, is in `packages/stage-ui/README.md`.
+
+### Other direct MCP tools
+
+The MCP protocol also exposes the focused tools below to direct clients:
 
 Desktop observation and control:
 
@@ -152,25 +106,83 @@ Workflow orchestration:
 - `workflow_resume`
   - resumes a workflow that paused on `approval_required`
 
-## Policy Model
+## Authorization
 
-The current macOS v1 boundary is intentionally narrow and explicit:
+The Desktop Host and this service use different approval settings.
+One list does not replace the other.
+
+The Host settings are `ask`, `auto`, and `full`.
+They live in the desktop app and are documented in `apps/stage-tamagotchi/README.md`.
+A direct MCP client does not receive that approval window.
+
+This service reads `COMPUTER_USE_APPROVAL_MODE`:
+
+- `actions` is the default. Mutating actions and terminal commands require approval.
+- `all` requires approval for a broader set of operations.
+- `never` is an explicit operator setting. It turns action approval off, including arbitrary shell commands. It does not sandbox Terminal, PTY, or CDP.
+
+In `actions` and `all`, a caller cannot approve its own pending action or claim an approved workflow continuation.
+Workflow `autoApprove` cannot weaken the server mode.
+Unrestricted CDP evaluation, navigation, and delegated browser execution stay closed while the server requires approval.
+`desktop_approve_pending_action` returns denied in those modes.
+These restrictions are not the Desktop Host approval window.
+
+## Execution records
+
+Each action keeps four records separate.
+`modelDecision` is the tool and arguments the model selected.
+`authorization` is the policy or Host decision.
+`execution` records whether the operation was dispatched and delivered.
+`businessVerification` records whether the application state matches the user goal.
+`contextCompaction` belongs to Core Agent, not to this package.
+
+A delivered input is not business completion.
+A command exit code of 0 is not business completion.
+`execution.status` of `delivered` does not set `businessVerification.status` to `verified`.
+If the response is lost after dispatch, `execution.status` is `unknown` and `doNotReplay` is true.
+Another dispatch waits for a fresh observation.
+
+## Execution lifecycle
+
+Shell execution is not a sandbox.
+Approval freezes argv and the spawn directory.
+It does not freeze referenced scripts or their dependencies.
+A Terminal command is not a persistent interactive shell.
+The Terminal runner and the desktop executor are independent.
+Command exit and output drain are separate lifecycle events.
+Cancellation does not undo side effects.
+Cancellation also does not prove that dispatch never happened.
+On Windows, termination covers the direct shell process.
+Cleanup of descendant processes is not proven.
+PTY authorization is separate from ordinary command authorization.
+
+The desktop policy boundary is narrow:
 
 - global screen coordinates are allowed for UI actions
 - `allowApps` is not used as a hard gate for click/type/scroll
 - `denyApps` still blocks sensitive foreground apps
 - `COMPUTER_USE_OPENABLE_APPS` only gates `desktop_open_app` and `desktop_focus_app`
 - AIRI itself is in the default deny list to avoid self-operation
-- terminal commands always require approval
-- app open/focus always require approval
+- terminal commands require approval in `actions` and `all` modes
+- app open/focus requires approval in `actions` and `all` modes
 - click/type/press/scroll still use per-action approval
+
+`dry-run` only describes desktop input.
+The AUV backend executes through the app-owned daemon and refuses stale, placeholder, or cross-window mutation attempts.
+Terminal uses its own runner and is the route for launching a process that has no existing window.
 
 ## Environment Variables
 
 Core:
 
 - `COMPUTER_USE_EXECUTOR`
-  - `dry-run`, `macos-local`, or `linux-x11`
+  - `dry-run`, `auv`, `macos-local`, or `linux-x11`
+- `COMPUTER_USE_AUV_BINARY_PATH`
+  - optional path override for the Windows AUV executable
+- `COMPUTER_USE_AUV_STORE_ROOT`
+  - defaults to `<COMPUTER_USE_SESSION_ROOT>/auv`
+- `COMPUTER_USE_AUV_STARTUP_TIMEOUT_MS`, `COMPUTER_USE_AUV_SHUTDOWN_TIMEOUT_MS`
+  - daemon lifecycle deadlines; defaults are 10000 ms and 5000 ms
 - `COMPUTER_USE_APPROVAL_MODE`
   - `actions` (default), `all`, `never`
 - `COMPUTER_USE_SESSION_ROOT`
@@ -181,7 +193,14 @@ Core:
 - `COMPUTER_USE_MAX_OPERATION_UNITS`
 - `COMPUTER_USE_MAX_PENDING_ACTIONS`
 
-macOS orchestration:
+Host control:
+
+- `AIRI_TRUSTED_TERMINAL` and `AIRI_HOST_TERMINAL_NONCE`
+  - private Terminal approval connection. It only authorizes `terminal_exec`.
+- `AIRI_TRUSTED_COMPUTER_USE` and `AIRI_HOST_COMPUTER_USE_NONCE`
+  - private Computer Use approval connection. It authorizes approved desktop and browser mutations without requiring Terminal control.
+
+Desktop orchestration:
 
 - `COMPUTER_USE_OPENABLE_APPS`
   - default `Terminal,Cursor,Google Chrome`
@@ -231,10 +250,10 @@ Binary overrides:
 - `COMPUTER_USE_SSH_BINARY`
 - `COMPUTER_USE_TAR_BINARY`
 
-## AIRI Integration
+## Getting started
 
 AIRI still connects through `mcp.json`.
-Example local macOS entry:
+Example Windows AUV entry:
 
 ```json
 {
@@ -248,7 +267,7 @@ Example local macOS entry:
       ],
       "cwd": "/path/to/your/airi/repo",
       "env": {
-        "COMPUTER_USE_EXECUTOR": "macos-local",
+        "COMPUTER_USE_EXECUTOR": "auv",
         "COMPUTER_USE_APPROVAL_MODE": "actions",
         "COMPUTER_USE_OPENABLE_APPS": "Terminal,Cursor,Google Chrome"
       }
@@ -257,13 +276,9 @@ Example local macOS entry:
 }
 ```
 
-On the AIRI desktop side, approvals are handled like this:
-
-1. model calls a `computer_use::*` tool
-2. MCP returns `approval_required`
-3. Electron shows a native approval dialog
-4. AIRI automatically calls `desktop_approve_pending_action` or `desktop_reject_pending_action`
-5. terminal/app approvals can be reused for the current run only
+The Desktop Host binds a private credential and uses its own approval window.
+An external MCP client does not receive that window.
+In `actions` and `all`, `desktop_approve_pending_action` still returns denied.
 
 For browser DOM automation, `computer-use-mcp` also exposes a local WebSocket bridge that matches the user's Chrome extension bridge pattern:
 
@@ -282,7 +297,7 @@ Use the two surfaces differently:
 - `browser_dom_*` for real browser pages, cross-frame DOM reads, form filling, selector-based interaction, and iframe-heavy flows
 - `browser_agent_run` for goal-driven browser tasks where AIRI should delegate the web exploration loop instead of manually hard-coding each browser step
 
-## Validation Commands
+## Development
 
 - `pnpm -F @proj-airi/computer-use-mcp typecheck`
 - `pnpm -F @proj-airi/computer-use-mcp test`
@@ -296,57 +311,11 @@ Legacy remote validation remains available:
 - `pnpm -F @proj-airi/computer-use-mcp bootstrap:remote`
 - `pnpm -F @proj-airi/computer-use-mcp smoke:remote`
 
-## Demo Story To Record
+## Known limitations
 
-If you want to record a convincing demo, show the system as an orchestrated task
-runner instead of a flashy cursor dance.
-
-Recommended recording structure:
-
-1. Show the AIRI desktop window, a terminal, and the generated report directory.
-2. Start the local AIRI desktop app and the `computer-use-mcp` service.
-3. Show that AIRI can call the MCP tools automatically instead of only listing them.
-4. Demonstrate one short task that exercises the full loop:
-  - observe state
-  - execute a tool or workflow
-  - produce a visible result
-  - persist trace / audit / screenshots
-5. End by opening the generated `report.json`, `audit.jsonl`, or screenshots so the demo finishes with evidence rather than just screen motion.
-
-Good first demos:
-
-- open a workspace, confirm `pwd`, inspect local changes, and run `pnpm typecheck`
-- create and run a Python hello-world project through `terminal_exec`
-- use desktop control for AIRI or native apps and use `browser_dom_*` only when the task truly moves into a browser page
-
-### Discord integration demo
-
-For a management-readable AIRI demo, the Discord settings flow is more representative than a generic hello-world reply:
-
-1. start AIRI desktop and `integrations/discord-bot`
-2. open `/settings/modules/messaging-discord`
-3. enable the module and save settings
-4. verify that the Discord bot receives the forwarded config from AIRI and reconnects itself
-5. finish by opening `report.json`, screenshots, audit log, and `discord-bot.log`
-
-Notes:
-
-- for a pure local-secret run, set `AIRI_E2E_DISCORD_TOKEN`
-- for a more agentic run, set `AIRI_E2E_DISCORD_TOKEN_SOURCE=portal` or `auto` and let AIRI retrieve the token from the live browser / Discord Developer Portal session
-- `clipboard_read_text` / `clipboard_write_text` are the intended bridge when AIRI must move a copied token from the browser back into AIRI settings
-- the observable harness keeps the token out of the desktop audit trail by applying the secret through the renderer instead of typing it through Quartz key events
-- if you only want to validate the AIRI → Discord bot configuration plumbing without a real token, set `AIRI_E2E_DISCORD_ALLOW_LOGIN_FAILURE=true`
-
-Less convincing demos:
-
-- long videos of coordinate clicking with no trace output
-- browser form-filling done only by screen coordinates when DOM tools were available
-- tasks that cannot explain afterwards what the agent observed, executed, or verified
-
-## Known Limits
-
-- macOS only for the main v1 path
-- no accessibility tree grounding yet
-- PTY/TUI terminal support is product-supported on the self-acquire mainline; legacy outward terminal reroute remains secondary
-- no multi-monitor orchestration policy yet
-- global coordinates are allowed, so the safety boundary is approval + audit, not strict app isolation
+- A complete real-model Agent task is not accepted evidence. Unit tests, an MCP handshake, and an HTTP 200 response do not replace that run.
+- On Windows, direct-shell termination does not prove descendant-process cleanup.
+- There is no accessibility-tree grounding yet.
+- There is no multi-monitor orchestration policy yet.
+- Global coordinates are allowed. The safety boundary is approval and audit, not strict app isolation.
+- PTY support and ordinary command approval stay separate. Legacy outward terminal reroute is secondary.

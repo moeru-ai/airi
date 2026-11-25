@@ -27,6 +27,7 @@ import { useFactorioStore } from '../stores/modules/gaming-factorio'
 import { useMinecraftStore } from '../stores/modules/gaming-minecraft'
 import { useHearingStore } from '../stores/modules/hearing'
 import { useHomeAssistantStore } from '../stores/modules/home-assistant'
+import { usePhotonStore } from '../stores/modules/photon'
 import { useSpeechStore } from '../stores/modules/speech'
 import { useTwitterStore } from '../stores/modules/twitter'
 import { useWebSearchStore } from '../stores/modules/web-search'
@@ -118,6 +119,7 @@ export function useDataMaintenance() {
   const twitterStore = useTwitterStore()
   const webSearchStore = useWebSearchStore()
   const discordStore = useDiscordStore()
+  const photonStore = usePhotonStore()
   const factorioStore = useFactorioStore()
   const minecraftStore = useMinecraftStore()
   const mcpStore = useMcpStore()
@@ -151,6 +153,7 @@ export function useDataMaintenance() {
       () => twitterStore.resetState(),
       () => webSearchStore.resetState(),
       () => discordStore.resetState(),
+      () => photonStore.resetState(),
       () => factorioStore.resetState(),
       () => minecraftStore.resetState(),
       // Memories and recipes hold what the character learned about the owner.

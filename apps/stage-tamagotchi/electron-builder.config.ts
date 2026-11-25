@@ -42,7 +42,8 @@ else {
 }
 
 export default {
-  appId: 'ai.moeru.airi',
+  // `build.appId` in `package.json` sets the app ID, and it overrides this file. The ergosphere-it CLI reads its product
+  // ID only from there, and the release store channels belong to `ai.moeru.airi`.
   productName: 'AIRI',
   directories: {
     output: 'dist',

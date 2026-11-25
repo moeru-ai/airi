@@ -8,6 +8,8 @@
 
 `AssistantTurn` owns an ordered `rounds` array. One round represents one model invocation and all tool executions it requested, including parallel calls. Its content references tool invocations; each invocation owns its call and result once. The provider call id correlates results within that round. Tool reruns use the AIRI invocation id to distinguish repeated provider call ids. A run id refers to a real scheduler execution, not the number of rounds. Imported history has no model-call metadata when that information is unavailable.
 
+`StreamOptions.maxSteps` limits model decision rounds. It defaults to 30. One decision round can contain any number of tool calls. The runtime settles every call in the final allowed round. It then stores `AssistantTurn.stopReason` and emits `StreamEvent` with `type: 'step-limit'`. The checkpoint does not report business completion. A later request can continue from its exact tool receipts. Set a larger value for tasks that need more model decisions. Do not add a tool-count limit to enforce this policy.
+
 `ProviderContinuation` stores each protocol's own SDK message type: Chat `Message[]` or Responses `ItemParam[]`.
 
 `streamFrom` selects the configured provider capability before request projection. The Chat adapter renders Chat Completions messages. The Responses adapter renders native Items directly from the same context. Chat array compatibility cannot change Responses input. Both projections leave the context snapshot unchanged.
@@ -16,7 +18,39 @@
 
 When a caller supplies `resolveStep`, `streamFrom` reads current settings before each model request. It resolves the first request before projecting the conversation. A continuation scope change starts a new SDK stream. Completed rounds and usage remain in one assistant turn. The callback returns the current tools and header overrides for each request.
 
-`prepareConversation` adapts media to the resolved request before the protocol adapter projects the conversation. It runs for each SDK stream, so it also runs after a scope change selects another model. It returns a request copy and keeps stored recordings intact. Stage uses it to send audio only to models that accept audio, and transcripts to other models.
+`prepareConversation` runs before every provider request, including tool continuations. It receives the original context plus every settled generation round.
+Its target includes the resolved request, native continuation scope, and `measureContextBytes` for context and current tool schemas.
+The byte measurement uses the protocol projection and current system prompt. It is not a provider token count.
+The callback returns a request copy. Stored history and complete generation records stay unchanged.
+Stage also uses this callback for audio projection and conversation Compact.
+
+Stage defaults Compact to Off. Byte measurements only schedule best-effort compaction; they never reject provider requests.
+Each resolved model supplies its catalog context window and output limit, when available.
+The estimated soft threshold subtracts the request output cap and a safety margin from that window.
+Without an explicit output cap, the policy reserves up to 4,096 tokens from the declared model output maximum.
+The safety margin is 5%, at least 256 tokens, capped at one quarter of small windows.
+Each remaining token allows one text byte. This estimate is not a tokenizer bound or measured usage.
+Without window metadata, the fallback schedules compaction at 256 KiB.
+Explicit vision support separates inline image bytes from text and tool-schema bytes.
+Missing vision metadata counts image bytes toward the soft threshold. PDF and ordinary text remain in it.
+Images still consume provider context. The provider is authoritative about image and actual token limits.
+Provider context errors after tool execution stop the run without automatically replaying settled tools.
+Synchronous and Background scheduling use the same soft threshold and projection.
+Both modes share snapshots, summary generation, delta merging, and stale-result checks.
+Changing modes invalidates only summary work. It does not cancel tool execution.
+The background model receives a frozen prefix with no tools. New rounds continue while its summary runs.
+A matching prefix can merge its summary with later content. Changed prefixes, cancellation, session clear and provider changes discard stale work.
+Owner messages, Host notices, tool identities, arguments and text receipts remain exact. Old images and assistant narratives become context-level summaries.
+Pending, failed and opaque rounds stay intact. If context cannot be compacted, the provider still receives the request and decides whether it fits.
+An ineffective summary suppresses its exact prefix. Newly eligible observations can start a different snapshot without retrying the failed job.
+The estimate does not certify the provider's token window or the factual accuracy of a model summary.
+
+`contextCompaction` records the compression status, the summarized rounds, and the model-decision and tool-call identities that remain.
+It stores no authorization and no execution state.
+Compact does not mark an unverified task complete.
+It does not grant execution permission.
+A delivered input or a zero exit code stays unverified after compression.
+A real-model run has not shown that Compact keeps the goal and the unverified work.
 
 The chat orchestrator forwards a send's `resolveStep`. It appends that send's system prompt supplement, including sticker instructions, to each resolved prompt.
 
@@ -56,17 +90,17 @@ An omitted limit or `-1` keeps all history. `0` sends only the current input and
 
 After all SDK steps settle, `onGeneratedTurn` receives the new `AssistantTurn`. Each round records model usage, its finish reason, tool invocations, and native continuation data. SDK input snapshots define round boundaries; message roles do not define runtime rounds.
 
-The generated turn contains settled rounds and is stored under the existing `generationTranscript` history key. Live deltas still use the existing stream event contract. An interrupted execution does not store a generated turn. If it produced visible output, local Chat history preserves that output with `interrupted: true` so the user can read and retry it.
+The generated turn contains settled rounds. It is stored under the existing `generationTranscript` history key. A step-limited turn keeps `stopReason: { type: 'step-limit', maxSteps, completedSteps }`. Its provider projection adds `goalState: 'not-verified'`. Continuation does not treat the checkpoint as a completed task. Live deltas still use the existing stream event contract. An interrupted execution does not store a generated turn. If it produced visible output, local Chat history preserves that output with `interrupted: true` so the user can read and retry it.
 
 A stored assistant message has `createdAt` from when it started and `completedAt` from when it stopped receiving output, at its end or at its interruption. Windows that do not run the generation use `completedAt`, for example to time how long a reply shows.
 
-The adapter preserves SDK continuation data without parsing nested provider fields through local schemas. It checks the outer array before replay. Its scope contains provider identity, endpoint, model, and conversation. Credentials and request headers do not change this scope. A protocol or scope change projects round content. Unknown native content records a projection issue without removing the original payload or other readable items. Cross-protocol projection reports that issue instead of silently omitting content. A local tool-result edit invalidates native data for that round and later rounds that used the old result. Cancelled or failed generations do not commit a generated turn. `AssistantTurn.status` is therefore `completed`. Tool executions within that turn can still report failure.
+The adapter preserves SDK continuation data without parsing nested provider fields through local schemas. It checks the outer array before replay. Its scope contains provider identity, endpoint, model, and conversation. Credentials and request headers do not change this scope. A protocol or scope change projects round content. Unknown native content records a projection issue without removing the original payload or other readable items. Cross-protocol projection reports that issue instead of silently omitting content. A local tool-result edit invalidates native data for that round and later rounds that used the old result. Cancelled or failed generations do not commit a generated turn. A step-limited generation commits its settled checkpoint with `AssistantTurn.status: 'completed'` and a separate `stopReason`. Tool executions within that turn can still report failure.
 
 Local history preserves complete turns and visible output from interrupted turns. Interrupted records stay on the device because the cloud wire format cannot preserve their incomplete state. Cloud chat sync currently transfers completed text and does not restore native continuation on another device.
 
 ## Responses API
 
-A provider resolves a discriminated `GenerationRequest` before context projection. The adapter owns its wire format and SDK event conversion. The adapter uses `@xsai-ext/responses` with `store: false`. It replays complete Items and executes local function tools for at most ten steps.
+A provider resolves a discriminated `GenerationRequest` before context projection. The adapter owns its wire format and SDK event conversion. The adapter uses `@xsai-ext/responses` with `store: false`. Its tool loop stops when the model answers without a tool call.
 
 The current Responses adapter supports text, images, file data or URLs, refusals, and function calls. It rejects audio input and provider file IDs. It supports provider-executed web search alongside local function tools. Search records remain in native continuation. Citation events and portable text retain source URLs and offsets. Incomplete responses and EOF before a terminal event fail the generation. Session cancellation aborts the active provider request.
 

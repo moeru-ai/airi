@@ -459,12 +459,12 @@ describe('responses generation', () => {
   })
 })
 
-it('keeps calling tools until the model answers, with no step limit', async () => {
+it('stores a checkpoint after the default decision-step budget', async () => {
   // ROOT CAUSE:
   // The tool loop stopped after 10 steps with "Generation tool step limit
-  // reached", so a long computer-use task failed in the middle.
-  // The loop now ends only when the model answers or the request aborts.
-  const toolSteps = 15
+  // reached", before the final allowed step settled its tool calls.
+  // The new budget checkpoints after the 30th decision step settles.
+  const toolSteps = 35
   let requestCount = 0
   const execute = vi.fn(() => 'done')
   const onGeneratedTurn = vi.fn()
@@ -482,17 +482,18 @@ it('keeps calling tools until the model answers, with no step limit', async () =
       onGeneratedTurn,
     },
   })
-  expect(requestCount).toBe(toolSteps + 1)
-  expect(execute).toHaveBeenCalledTimes(toolSteps)
+  expect(requestCount).toBe(30)
+  expect(execute).toHaveBeenCalledTimes(30)
   expect(onGeneratedTurn).toHaveBeenCalledTimes(1)
-  expect(onGeneratedTurn.mock.calls[0][0].rounds).toHaveLength(toolSteps + 1)
+  expect(onGeneratedTurn.mock.calls[0][0].rounds).toHaveLength(30)
+  expect(onGeneratedTurn.mock.calls[0][0].stopReason).toEqual({ type: 'step-limit', maxSteps: 30, completedSteps: 30 })
 })
 
 it('forces the tool choice only on the first request, so the model can answer after the tool', async () => {
   // ROOT CAUSE:
   // Each request of the tool loop kept a tool choice that names one function.
-  // The model had to call it again every time, so a loop without a step limit
-  // never ended. The caller's tool choice now applies to the first request.
+  // The model had to call it again every time, so it could not finish before the step budget.
+  // The caller's tool choice now applies to the first request.
   const bodies: Array<{ tool_choice?: unknown }> = []
   const execute = vi.fn(() => 'sent')
   await streamFrom({

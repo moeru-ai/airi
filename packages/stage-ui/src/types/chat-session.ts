@@ -54,6 +54,35 @@ export interface ChatSessionMeta {
    * @default undefined
    */
   cloudMaxSeq?: number
+  /** When the owner pinned the conversation. The conversation list shows pinned conversations first. This device only. */
+  pinnedAt?: number
+  /**
+   * The text of the conversation for its row in the list. The session store writes it with each save of the messages,
+   * so the list needs no message records. This device only.
+   */
+  summary?: ChatSessionSummary
+  /** When the owner archived the conversation. The conversation list moves it to its archive. This device only. */
+  archivedAt?: number
+}
+
+/**
+ * Where the conversation list looks. The title of the list switches it.
+ *
+ * - `all`: every conversation that is not archived.
+ * - `archive`: the archived conversations.
+ */
+export type ChatSessionsPlace = { kind: 'all' } | { kind: 'archive' }
+
+/** What the row of a conversation shows. See {@link ChatSessionMeta.summary}. */
+export interface ChatSessionSummary {
+  /** The first message with text. An untitled conversation shows it as its title. */
+  firstText?: string
+  /** The last message with text. */
+  lastText?: string
+  /** Whether the user wrote the last message with text. */
+  lastFromUser?: boolean
+  /** The time of the last message of the user or the character. */
+  lastAt?: number
 }
 
 export interface ChatSessionRecord {

@@ -7,7 +7,7 @@ auth/OIDC routes.
 ## Responsibilities
 
 - Hono business APIs and WebSocket endpoints.
-- Characters, chats, providers, Flux, Stripe, model routing, and billing.
+- Characters, chats, private attachments, providers, Flux, Stripe, model routing, and billing.
 - PostgreSQL migration ownership for the currently shared database. Drizzle reads the checked-in `drizzle/` journal and SQL files at startup.
 - Redis cache, configuration KV, cross-instance Pub/Sub, and the Redis Streams infrastructure.
 - Local verification of Auth-issued OIDC JWTs through public JWKS.
@@ -95,7 +95,11 @@ A fee that no bucket can pay stays outstanding. A new Capacitor grant or a credi
 `flux_transaction.pool` is `wallet` or `capacitor`. Its balance columns describe that bucket.
 `BillingService.syncCapacitor` stores a period, `setFallbackToFlux` saves the choice, and `GET /api/v1/flux` returns `capacitorPercent`.
 
-`GET /api/v1/flux/usage` returns paginated fees from `flux_usage`. Wallet history returns integer balance changes.
+`GET /api/v1/flux/usage/daily?timeZone=<IANA>` returns 365 local daily fee totals.
+The activity chart derives daily, weekly, and cumulative views from this response.
+Wallet history returns integer balance changes. `GET /api/v1/flux/usage` lists confirmed fees by request.
+The transaction service reads activity, history, and capacity. `BillingService` owns ledger writes.
+See [the activity ADR](../../docs/ai/adr/2026-10-25-flux-usage-charts.md) for the response contract.
 
 Old Redis TTS character counters are not migrated. The old meter already forgave a residual of less than one Flux.
 Stop old API writers before the new version starts. Mixed old and new writers are unsupported.
@@ -212,6 +216,11 @@ customer, or until the client calls `POST /sync`. The Capacitor name and expiry 
 The Auth service asks `POST /internal/auth/user-deletion/check` before it sends the deletion email, and again
 before it deletes. The check returns 409 `SUBSCRIPTION_ACTIVE` while a subscription can still charge. The user
 cancels the subscription first.
+
+## Private chat attachments
+
+Chat images use the same private bucket as display models. In the bucket CORS policy, allow browser GET and PUT requests.
+Allow the `content-type`, `if-none-match`, and `x-amz-checksum-sha256` request headers.
 
 ## Run locally
 

@@ -80,8 +80,8 @@ verifyEmail:
     success: Email verified
     failed: Verification failed
   message:
-    pending: We sent a verification link to your email. Open it to finish creating your account — this page will continue automatically once you click the link.
-    pendingWithAddress: We sent a verification link to {email}. Open it to finish creating your account — this page will continue automatically once you click the link.
+    pending: We sent a verification link to your email. Open it to finish creating your account. This page continues after you open the link.
+    pendingWithAddress: We sent a verification link to {email}. Open it to finish creating your account. This page continues after you open the link.
     success: Your email has been verified and you are signed in. You can close this tab.
     failed: We could not verify your email ({error}). Try requesting a new link.
   action:

@@ -7,7 +7,7 @@ import type { V1RouteDeps } from '../../types'
 
 import { useLogger } from '@guiiai/logg'
 import { errorMessageFrom } from '@moeru/std'
-import { ApiError, createBadGatewayError } from '@proj-airi/http-error-shared'
+import { ApiError, createBadGatewayError } from '@proj-airi/http-shared'
 import { EventSourceParserStream } from '@xsai/shared-stream'
 import { array, integer, looseObject, minValue, nullable, number, optional, picklist, pipe, regex, safeParse, string, unknown } from 'valibot'
 

@@ -49,6 +49,10 @@ chat:
     sign-in-description: 登录即可使用 AIRI 官方 Provider，也可以在设置中配置你自己的 Provider。
     sign-in-description-official-only: 登录即可使用 AIRI 官方 Provider。
     sign-in-action: 登录
+  archived-session:
+    description: 这个对话已归档，取消归档后才能继续。
+    restore: 取消归档
+    restore-failed: 没能取消归档
   voice-message:
     recording: 正在录制
     starting: 正在启动麦克风
@@ -266,11 +270,11 @@ chat:
     current: 当前
     confirm-delete: 删除此对话及其中的消息？
     cancel: 取消
-    empty: 暂无对话
-    cloud-badge: 已同步到云
+    empty: 还没有对话。点上面的“新建对话”开始。
     new-chat-fallback: 新建对话
     delete: 删除对话
     rename: 重命名对话
+    rename-short: 重命名
     rename-input: 对话名称
     rename-placeholder: 输入对话名称
     save-rename: 保存对话名称
@@ -281,6 +285,25 @@ chat:
     done-selecting: 完成
     delete-selected: 删除 {count} 个对话
     confirm-delete-selected: 确认删除 {count} 个对话
+    all-conversations: 全部对话
+    last-message-you: '你：{text}'
+    character-settings: 角色设置
+    switch-place: 切换位置
+    unknown-character: 未知角色
+    pinned: 置顶
+    archived: 归档
+    more-actions: 更多操作
+    pin: 置顶
+    unpin: 取消置顶
+    archive: 归档
+    unarchive: 取消归档
+    selected: 已选 {count} 个
+    empty-archive: 没有归档的对话。归档的对话放在这里。
+    search: 搜索对话
+    search-empty: '没有包含“{query}”的对话'
+    searching: 正在搜索对话…
+    search-failed: 部分对话无法搜索
+    save-failed: 这次修改没能保存
 avatar-model-missing:
   title: 还没有选择模型
   unavailable-title: 这台设备上没有这个模型
@@ -401,9 +424,6 @@ websocket-status:
   connected: 已连接
   disconnected: 无网络连接
   open-settings: 打开连接设置
-computer-use:
-  label: 使用电脑
-  description: 允许此聊天窗口查看和操作本机应用。
 status:
   preparing: 正在准备麦克风
   listening: 正在听

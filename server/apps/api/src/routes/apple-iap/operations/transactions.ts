@@ -4,7 +4,7 @@ import type { PaymentService } from '../../../services/domain/payment'
 import type { Verifier } from '../verifier'
 
 import { useLogger } from '@guiiai/logg'
-import { createBadRequestError, createForbiddenError } from '@proj-airi/http-error-shared'
+import { createBadRequestError, createForbiddenError } from '@proj-airi/http-shared'
 import { minLength, object, pipe, safeParse, string } from 'valibot'
 
 import {

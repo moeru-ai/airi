@@ -56,6 +56,19 @@ describe('card detail history', () => {
     return { screen, cardId }
   }
 
+  it('offers the model editor only for the active character', async () => {
+    const { screen, cardId } = await renderDetail()
+    const cards = useAiriCardStore(pinia)
+    expect(cards.activeCardId).not.toBe(cardId)
+    // The editor shows the model of the active character. Another character must not open it and change the chat.
+    expect(screen.getByRole('button', { name: 'Edit model' }).elements()).toHaveLength(0)
+
+    await cards.activateCard(cardId)
+    await screen.getByRole('button', { name: 'Edit model' }).click()
+
+    expect(screen.emitted('model')).toEqual([[cardId]])
+  })
+
   it('does not offer history for a user who is not signed in', async () => {
     const { screen } = await renderDetail()
 

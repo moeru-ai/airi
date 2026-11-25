@@ -37,6 +37,23 @@ describe('v1 chat WebSocket request contracts', () => {
     })
   })
 
+  it('accepts at most four attachment ids per message', () => {
+    const request = {
+      chatId: 'chat-1',
+      messages: [{
+        id: 'message-2',
+        role: 'user',
+        content: 'Images',
+        mediaIds: ['attachment-1', 'attachment-2'],
+      }],
+    }
+    expect(parseSendMessagesRequest(request)).toEqual(request)
+    expect(() => parseSendMessagesRequest({
+      ...request,
+      messages: [{ ...request.messages[0], mediaIds: ['1', '2', '3', '4', '5'] }],
+    })).toThrow()
+  })
+
   it('rejects malformed pull-messages requests', () => {
     expect(() => parsePullMessagesRequest({ chatId: 'chat-1', afterSeq: -1 }))
       .toThrow()

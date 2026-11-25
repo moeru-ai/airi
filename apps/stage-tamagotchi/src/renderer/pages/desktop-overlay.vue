@@ -219,7 +219,7 @@ onMounted(async () => {
       getMcpRuntimeStatus,
       getOverlayState: () => state.value,
       getReadiness,
-      listMcpTools,
+      listMcpTools: () => listMcpTools(undefined),
     }
   }
 

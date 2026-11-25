@@ -4,11 +4,12 @@ import type { ObjectStore } from '../adapters/object-store'
 
 import { Buffer } from 'node:buffer'
 
-import { ApiError, createConflictError } from '@proj-airi/http-error-shared'
+import { ApiError, createConflictError } from '@proj-airi/http-shared'
 import { and, eq, gt, ne, sql } from 'drizzle-orm'
 
 import { uploadSessions } from '../../schemas/upload-sessions'
 import { nanoid } from '../../utils/id'
+import { signWriteOnceUpload, uploadedObjectMismatch } from './direct-upload'
 
 /** Database handle or open transaction. */
 export type DatabaseExecutor = Pick<Database, 'select' | 'insert' | 'update' | 'execute'>
@@ -35,10 +36,6 @@ export interface ReserveUploadInput {
 export interface VerifyUploadOptions {
   /** Required leading bytes of the object, for format signature checks. */
   signature?: Buffer
-}
-
-function hexToBase64(hex: string) {
-  return Buffer.from(hex, 'hex').toString('base64')
 }
 
 function isMissingObject(error: unknown) {
@@ -117,12 +114,7 @@ export function createUploadSessionService(objectStore: ObjectStore) {
 
     /** Signs a write-once PUT. The store rejects wrong bytes and existing keys. */
     async createTarget(session: UploadSession) {
-      const target = await objectStore.createUploadTarget({
-        Key: session.objectKey,
-        ContentType: session.contentType,
-        ChecksumSHA256: hexToBase64(session.expectedSha256),
-        IfNoneMatch: '*',
-      })
+      const target = await signWriteOnceUpload(objectStore, session.objectKey, session.contentType, session.expectedSha256)
       return { uploadId: session.id, method: 'PUT' as const, url: target.url, headers: target.headers, expiresAt: session.expiresAt }
     },
 
@@ -144,14 +136,8 @@ export function createUploadSessionService(objectStore: ObjectStore) {
         throw error
       }
 
-      let problem: string | undefined
-      if (head.ContentLength !== session.expectedSize) {
-        problem = 'The uploaded size does not match'
-      }
-      else if (head.ChecksumSHA256 !== hexToBase64(session.expectedSha256)) {
-        problem = 'The uploaded checksum does not match'
-      }
-      else if (options.signature) {
+      let problem = uploadedObjectMismatch(head, session.expectedSize, session.expectedSha256)
+      if (!problem && options.signature) {
         const body = (await objectStore.getObject(session.objectKey, `bytes=0-${options.signature.length - 1}`)).Body
         const head4 = body ? Buffer.from(await body.transformToByteArray()) : Buffer.alloc(0)
         if (!head4.subarray(0, options.signature.length).equals(options.signature))

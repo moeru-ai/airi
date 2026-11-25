@@ -32,6 +32,11 @@ const props = withDefaults(defineProps<{
   variant: 'default',
 })
 
+const emit = defineEmits<{
+  /** Fires when the closed menu returns focus to its trigger. Cancel it to move focus elsewhere, for example into a field that a menu item opened. */
+  closeAutoFocus: [event: Event]
+}>()
+
 /** The open state. Bind it to open the menu from code, for example after a hover delay. */
 const open = defineModel<boolean>('open', { default: false })
 </script>
@@ -68,6 +73,7 @@ const open = defineModel<boolean>('open', { default: false })
             : [],
           props.contentClass,
         ]"
+        @close-auto-focus="emit('closeAutoFocus', $event)"
       >
         <AnimatedContent>
           <slot />

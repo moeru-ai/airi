@@ -168,6 +168,22 @@ describe('wireMessageToLocal', () => {
     expect(local.role).toBe('error')
     expect(local.content).toContain('tool message')
   })
+
+  it('restores downloaded attachments as local image content', () => {
+    const wire = makeWire({
+      id: 'm-image',
+      seq: 2,
+      role: 'user',
+      content: 'look',
+      attachments: [{ id: 'attachment-1', mimeType: 'image/png', size: 4 }],
+    })
+    const local = wireMessageToLocal(wire, new Map([['attachment-1', 'data:image/png;base64,dGVzdA==']]))
+
+    expect(local.content).toEqual([
+      { type: 'text', text: 'look' },
+      { type: 'image_url', image_url: { url: 'data:image/png;base64,dGVzdA==' } },
+    ])
+  })
 })
 
 describe('mergeCloudMessagesIntoLocal', () => {

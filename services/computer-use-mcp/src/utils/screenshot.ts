@@ -32,6 +32,7 @@ function buildScreenshotArtifact(params: {
   note?: string
   placeholder?: boolean
   executionTarget?: ExecutionTarget
+  sourceWindowId?: string
 }): ScreenshotArtifact {
   const dimensions = readPngDimensions(params.buffer)
 
@@ -47,6 +48,7 @@ function buildScreenshotArtifact(params: {
     executionTargetMode: params.executionTarget?.mode,
     sourceHostName: params.executionTarget?.hostName,
     sourceDisplayId: params.executionTarget?.displayId,
+    sourceWindowId: params.sourceWindowId,
     sourceSessionTag: params.executionTarget?.sessionTag,
     ...dimensions,
   }
@@ -60,6 +62,7 @@ async function persistScreenshotBuffer(params: {
   note?: string
   placeholder?: boolean
   executionTarget?: ExecutionTarget
+  sourceWindowId?: string
 }): Promise<ScreenshotArtifact> {
   const capturedAt = new Date().toISOString()
   const fileName = `${Date.now()}-${sanitizeFileSegment(params.label, 'desktop')}.png`
@@ -75,6 +78,7 @@ async function persistScreenshotBuffer(params: {
     note: params.note,
     placeholder: params.placeholder,
     executionTarget: params.executionTarget,
+    sourceWindowId: params.sourceWindowId,
   })
 }
 
@@ -85,6 +89,7 @@ export async function writeScreenshotArtifact(params: {
   publicUrl?: string
   note?: string
   executionTarget?: ExecutionTarget
+  sourceWindowId?: string
 }): Promise<ScreenshotArtifact> {
   const buffer = Buffer.from(params.dataBase64, 'base64')
 
@@ -95,6 +100,7 @@ export async function writeScreenshotArtifact(params: {
     publicUrl: params.publicUrl,
     note: params.note,
     executionTarget: params.executionTarget,
+    sourceWindowId: params.sourceWindowId,
   })
 }
 
