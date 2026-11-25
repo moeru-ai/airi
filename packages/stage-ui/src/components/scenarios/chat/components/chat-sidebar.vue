@@ -1,11 +1,8 @@
 <script setup lang="ts">
-import { storeToRefs } from 'pinia'
-import { computed, shallowRef, watch } from 'vue'
-
 import CharacterRail from '../../../misc/character-rail.vue'
 import SessionsDrawer from './sessions-drawer.vue'
 
-import { useAiriCardStore } from '../../../../stores/modules/airi-card'
+import { useListCharacter } from '../../../../composables/use-list-character'
 
 const props = withDefaults(defineProps<{
   /** The host is a desktop window. See `ChatSessionsDrawer`. */
@@ -27,19 +24,8 @@ const emit = defineEmits<{
 /** The surface that holds the sidebar, for example a popover or a drawer. Opening a chat closes it. */
 const open = defineModel<boolean>('open', { default: false })
 
-const { activeCardId } = storeToRefs(useAiriCardStore())
-
-/**
- * The character that the user picked on the rail. The pick changes only the list: the stage keeps its character until
- * the user opens or starts a chat of the picked character. The pick ends when the stage changes its character, so the
- * list follows the stage again. Opening a chat selects the chat at once and activates its character later. Ending the
- * pick at the selection would show the chats of the earlier character until the activation finishes.
- */
-const picked = shallowRef<string>()
-const shownCharacterId = computed(() => picked.value ?? (activeCardId.value || 'default'))
-watch(activeCardId, () => {
-  picked.value = undefined
-})
+/** The rail picks the character of the list. The stage keeps its character. See `useListCharacter`. */
+const { shownCharacterId, pick } = useListCharacter()
 </script>
 
 <template>
@@ -53,7 +39,7 @@ watch(activeCardId, () => {
       variant="docked"
       :selected="shownCharacterId"
       :class="['bg-neutral-500/8 dark:bg-black/25']"
-      @select="characterId => picked = characterId"
+      @select="pick"
       @manage="emit('manage')"
     />
     <SessionsDrawer

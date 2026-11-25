@@ -25,7 +25,7 @@ useBackdropSurface(useTemplateRef<HTMLElement>('surface'), { enabled: () => prop
     data-testid="desktop-chat-page-shell"
     :class="[
       'h-full w-full overflow-hidden pt-11',
-      !transparentWindow ? 'bg-neutral-50 dark:bg-neutral-950' : props.glass ? 'bg-neutral-50/80 dark:bg-neutral-950/80' : 'bg-transparent',
+      !transparentWindow ? 'bg-neutral-100 dark:bg-neutral-950' : props.glass ? 'bg-neutral-100/70 dark:bg-neutral-950/70' : 'bg-transparent',
     ]"
     :style="{
       overflow: 'hidden',

@@ -41,7 +41,7 @@ This gives the result of a stage that follows the chat without a second model se
 - So every window shows a chat of the active character. Two windows do not show chats of two characters.
 - A character switcher over the stage activates a character. Every window then moves to the index session of that character.
 - The rail beside the floating chat also activates a character, with or without a chat. The floating chat then shows the list of the conversations of that character.
-- The docked rail in the sidebar of the classic chat window and of the phone drawer only picks the chats that the list shows. The stage keeps its character until the user opens or starts a chat of the picked character. The pick ends when the stage changes its character.
+- The docked rail of the classic chat window and of the phone drawer only picks the chats that the list shows. The stage keeps its character until the user opens or starts a chat of the picked character. The pick ends when the stage changes its character.
 
 ### The leader window
 
