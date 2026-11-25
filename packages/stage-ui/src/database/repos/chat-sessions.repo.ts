@@ -1,6 +1,7 @@
 import type { ChatSessionRecord, ChatSessionsIndex } from '../../types/chat-session'
 
 import { chatAssetIdsOf, extractInlineChatAssets } from '../../libs/chat-assets'
+import { sha256Hex } from '../../libs/file-transfer/transfer'
 import { storage } from '../storage'
 import { chatAssetsRepo } from './chat-assets.repo'
 
@@ -22,11 +23,14 @@ export interface ChatSendOutboxEntry {
   cloudChatId?: string
   role: 'user' | 'assistant'
   content: string
+  attachments?: { id: string, ref: string }[]
   replyToMessageId?: string
   attempts: number
   lastError?: string
   queuedAt: number
 }
+
+type ChatSendOutboxMessage = Omit<ChatSendOutboxEntry, 'attachments'> & { imageRefs?: string[] }
 
 /** Asset IDs that each session already owns in this window. A save adds the session as owner only for new IDs. */
 const ownedAssets = new Map<string, Set<string>>()
@@ -150,7 +154,12 @@ export const chatSessionsRepo = {
     return stored ?? []
   },
 
-  async enqueueOutbox(userId: string, entry: ChatSendOutboxEntry) {
+  async enqueueOutbox(userId: string, { imageRefs, ...message }: ChatSendOutboxMessage) {
+    const attachments = imageRefs && await Promise.all(imageRefs.map(async (ref, index) => {
+      const identity = JSON.stringify([userId, message.messageId, index, ref])
+      return { id: await sha256Hex(new Blob([identity])), ref }
+    }))
+    const entry: ChatSendOutboxEntry = { ...message, attachments }
     const current = await this.getOutbox(userId)
     // Idempotent on messageId — re-queue overwrites in place rather than
     // duplicating, so a flap between online/offline doesn't multiply rows.

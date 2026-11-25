@@ -1,5 +1,6 @@
 import en from '@proj-airi/i18n/locales/en'
 
+import { PiniaColada } from '@pinia/colada'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { createPinia, disposePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -101,6 +102,8 @@ describe('flux page with the Capacitor subscription', () => {
         return Response.json([{ stripePriceId: 'price_flux_500', label: '500 Flux', defaultCurrency: 'usd', currencies: { usd: '$3.00' } }])
       if (pathname.endsWith('/flux/stats'))
         return Response.json({ capacity: 0 })
+      if (pathname.endsWith('/payments'))
+        return Response.json({ records: [], hasMore: false })
       if (pathname.endsWith('/flux/capacitor/usage'))
         return usage ? Response.json(usage) : new Response(null, { status: 500 })
       if (pathname.endsWith('/revenuecat/sync'))
@@ -126,7 +129,7 @@ describe('flux page with the Capacitor subscription', () => {
       token: 'owner-token',
     })
     return render(FluxPage, {
-      global: { plugins: [pinia, router, createI18n({ legacy: false, locale: 'en', messages: { en }, missingWarn: false, fallbackWarn: false })] },
+      global: { plugins: [pinia, PiniaColada, router, createI18n({ legacy: false, locale: 'en', messages: { en }, missingWarn: false, fallbackWarn: false })] },
     })
   }
 

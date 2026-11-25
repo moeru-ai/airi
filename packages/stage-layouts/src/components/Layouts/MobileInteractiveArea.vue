@@ -67,7 +67,7 @@ const {
   replyTarget,
   selectReply,
 } = composer
-const { addFiles, selectFiles, error: imageError, pending: pendingImages } = useChatImages(composer, () => activeSessionId.value)
+const { accept: imageAccept, addFiles, selectFiles, error: imageError, pending: pendingImages } = useChatImages(composer, () => activeSessionId.value)
 const imageInput = useTemplateRef<HTMLInputElement>('imageInput')
 /** A recording bar or the walkie-talkie bar covers the input bubble, so the text is hidden under it. */
 const voiceCovering = shallowRef(false)
@@ -514,7 +514,7 @@ onUnmounted(() => {
           @attach-images="imageInput?.click()"
           @call="startVoiceCall"
         />
-        <input ref="imageInput" type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple :class="['hidden']" @change="selectFiles">
+        <input ref="imageInput" type="file" :accept="imageAccept" multiple :class="['hidden']" @change="selectFiles">
         <div
           ref="inputBubble"
           data-testid="mobile-input-bubble"

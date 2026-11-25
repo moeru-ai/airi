@@ -143,6 +143,25 @@ describe('auth store sign-in requests', () => {
     await authStore.clearAllAuthState()
   })
 
+  it('waits for verification before exposing a replacement session', async () => {
+    const authStore = useAuthStore()
+    await authStore.completeSignIn({ accessToken: 'first-access-token', expiresIn: 3600, clientId: 'airi-stage-web' })
+    const firstSession = authStore.verifiedSession
+    expect(firstSession?.userId).toBe(user.id)
+
+    const pending = Promise.withResolvers<{ user: User, session: Session }>()
+    vi.mocked(requestAuthSession).mockReturnValueOnce(pending.promise)
+    const signingIn = authStore.completeSignIn({ accessToken: 'next-access-token', expiresIn: 3600, clientId: 'airi-stage-web' })
+    expect(authStore.verifiedSession).toBeNull()
+
+    pending.resolve({ user, session: { ...session, id: 'session-2' } })
+    await signingIn
+    expect(authStore.verifiedSession?.userId).toBe(user.id)
+    expect(authStore.verifiedSession).not.toEqual(firstSession)
+
+    await authStore.clearAllAuthState()
+  })
+
   it('loads persisted credentials only when the store initializes', async () => {
     storage.values.set('auth/v1/token', 'persisted-access-token')
     storage.values.set('auth/v1/refresh-token', 'persisted-refresh-token')

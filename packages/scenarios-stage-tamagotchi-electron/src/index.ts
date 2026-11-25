@@ -17,4 +17,5 @@ export type {
 export { default as pluginChessWidgetFlowScenario } from './scenarios/plugin-chess-widget-flow'
 export { default as pluginChessWorkerSmokeScenario } from './scenarios/plugin-chess-worker-smoke'
 export { default as pluginWidgetStaticAssetsLocalAddressScenario } from './scenarios/plugin-widget-static-assets-local-address'
+export { default as settingsBillingAndUsageScenario } from './scenarios/settings-billing-and-usage'
 export { default as settingsConnectionScenario } from './scenarios/settings-connection'
