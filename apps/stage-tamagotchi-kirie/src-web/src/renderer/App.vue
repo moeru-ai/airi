@@ -156,7 +156,7 @@ function createFullStageRuntime() {
 
   return {
     async initialize() {
-      initializeAnalytics()
+      initializeAnalytics(isMainRenderer ? 'primary' : 'auxiliary')
       await authStore.initialize()
       await displayModelsStore.initialize()
       await cardStore.initialize()

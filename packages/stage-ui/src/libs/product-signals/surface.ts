@@ -11,8 +11,8 @@ const apps = {
 type App = typeof apps[keyof typeof apps]
 
 /**
- * Kind of device that a stage app runs on: the `app_surface` property of each product event, and the `platform`
- * property of `app_loaded`. Several client apps can have the same surface.
+ * Kind of device that a stage app runs on: the `app_surface` property of each product event.
+ * Several client apps can have the same surface.
  */
 export type AnalyticsSurface = App['surface']
 
