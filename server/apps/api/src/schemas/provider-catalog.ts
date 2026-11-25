@@ -1,6 +1,6 @@
 import type { InferInsertModel, InferSelectModel } from 'drizzle-orm'
 
-import { boolean, integer, jsonb, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core'
+import { boolean, integer, jsonb, pgTable, real, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core'
 
 import { nanoid } from '../utils/id'
 
@@ -58,6 +58,10 @@ export const providerCatalogTtsModels = pgTable(
     routerModelId: text('router_model_id').notNull(),
     provider: text('provider').notNull(),
     displayName: text('display_name').notNull(),
+    /** Shown to users next to the model name, for example to say that it answers faster. */
+    description: text('description'),
+    /** Flux per character is the global TTS price times this value. Requests for this model, also through a Voice Pack, use it. */
+    costMultiplier: real('cost_multiplier').notNull().default(1),
     enabled: boolean('enabled').notNull().default(true),
     displayOrder: integer('display_order').notNull().default(0),
     lastSyncedAt: timestamp('last_synced_at'),

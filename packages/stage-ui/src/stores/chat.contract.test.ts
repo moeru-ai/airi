@@ -249,6 +249,18 @@ vi.mock('./modules/consciousness', () => ({
   })),
 }))
 
+const hearingMocks = vi.hoisted(() => ({ enabled: false, configured: true, transcribe: vi.fn() }))
+
+vi.mock('./modules/hearing', () => ({
+  useHearingStore: () => ({
+    get enabled() { return hearingMocks.enabled },
+    get configured() { return hearingMocks.configured },
+    activeTranscriptionProvider: 'speech-provider',
+    activeTranscriptionModel: 'whisper',
+    createTranscriber: () => ({ transcribe: hearingMocks.transcribe }),
+  }),
+}))
+
 const cardPrompt = vi.hoisted(() => ({ value: 'system prompt' }))
 
 vi.mock('./modules/airi-card', () => ({
@@ -349,6 +361,9 @@ describe('chat store contract', () => {
     })
     vi.spyOn(getAnalytics(), 'recordFirstMessage').mockImplementation(trackFirstMessageMock)
     llmStreamMock.mockReset()
+    hearingMocks.enabled = false
+    hearingMocks.configured = true
+    hearingMocks.transcribe.mockReset()
     trackFirstMessageMock.mockReset()
     for (const analyticsMock of Object.values(chatAnalyticsMocks))
       analyticsMock.mockReset()
@@ -518,6 +533,136 @@ describe('chat store contract', () => {
       content: expect.arrayContaining([{ type: 'text', text: 'hello there' }]),
     })
     expect(sessionMessages['session-1'].find(message => message.id === 'voice-1')?.audioTranscripts).toEqual(['hello there'])
+  })
+
+  describe('with Hearing enabled and a text-only model', () => {
+    function seedEarlierVoiceMessage() {
+      sessionMessages['session-1'] = [
+        { role: 'system', content: 'system prompt', createdAt: 1, id: 'system' },
+        { role: 'user', content: [{ type: 'input_audio', input_audio: { data: 'UklGRg==', format: 'wav' } }], createdAt: 2, id: 'old-voice' },
+      ] as ChatHistoryItem[]
+    }
+
+    async function* emptyTranscription() {
+      yield { type: 'update', segments: [{ text: '' }] }
+      yield { type: 'complete' }
+    }
+
+    // https://github.com/moeru-ai/airi/issues/3552
+    // ROOT CAUSE:
+    //
+    // Each send transcribes every earlier recording again. A silent clip returns no text.
+    // `prepareTextOnlyAudioContext` threw for that result and stopped every later send.
+    //
+    // We fixed this by throwing only for the last user turn. An earlier recording becomes a placeholder.
+    it('sends a typed message when an earlier recording transcribes to nothing (Issue #3552)', async () => {
+      vi.spyOn(console, 'warn').mockImplementation(() => {})
+      hearingMocks.enabled = true
+      hearingMocks.transcribe.mockImplementation(emptyTranscription)
+      seedEarlierVoiceMessage()
+      const requests: Conversation[] = []
+      llmStreamMock.mockImplementation(async (model: string, chatProvider: GenerationProvider, context: Conversation, options: LlmStreamOptions) => {
+        const measureContextBytes = (value: Conversation) => new TextEncoder().encode(JSON.stringify(conversationToChatMessages(value))).byteLength
+        requests.push(await options.prepareConversation!(context, { model, providerId: options.providerId, request: chatProvider.generation(model), scope: 'text-model', measureContextBytes }))
+        await options.onStreamEvent?.({ type: 'finish' })
+      })
+
+      await useChatStore().send({ sessionId: 'session-1', text: 'typed after a silent clip' })
+
+      expect(requests).toHaveLength(1)
+      expect(JSON.stringify(requests[0])).toContain('stage.chat.audio.transcription-unavailable')
+      expect(JSON.stringify(requests[0])).toContain('typed after a silent clip')
+      // A placeholder is request text. The stored message must stay without a transcript.
+      expect(sessionMessages['session-1'].find(message => message.id === 'old-voice')?.audioTranscripts).toBeUndefined()
+    })
+
+    it('sends a typed message when an earlier recording fails to transcribe (Issue #3552)', async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      hearingMocks.enabled = true
+      hearingMocks.transcribe.mockImplementation(async function* () {
+        throw new Error('provider unreachable')
+      })
+      seedEarlierVoiceMessage()
+      const requests: Conversation[] = []
+      llmStreamMock.mockImplementation(async (model: string, chatProvider: GenerationProvider, context: Conversation, options: LlmStreamOptions) => {
+        const measureContextBytes = (value: Conversation) => new TextEncoder().encode(JSON.stringify(conversationToChatMessages(value))).byteLength
+        requests.push(await options.prepareConversation!(context, { model, providerId: options.providerId, request: chatProvider.generation(model), scope: 'text-model', measureContextBytes }))
+        await options.onStreamEvent?.({ type: 'finish' })
+      })
+
+      await useChatStore().send({ sessionId: 'session-1', text: 'typed after a failed clip' })
+
+      expect(requests).toHaveLength(1)
+      expect(JSON.stringify(requests[0])).toContain('stage.chat.audio.transcription-unavailable')
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('An earlier recording could not be transcribed'), expect.any(Error))
+    })
+
+    it('sends a typed message when an earlier recording has no transcription provider (Issue #3552)', async () => {
+      vi.spyOn(console, 'warn').mockImplementation(() => {})
+      hearingMocks.enabled = true
+      hearingMocks.configured = false
+      seedEarlierVoiceMessage()
+      const requests: Conversation[] = []
+      llmStreamMock.mockImplementation(async (model: string, chatProvider: GenerationProvider, context: Conversation, options: LlmStreamOptions) => {
+        const measureContextBytes = (value: Conversation) => new TextEncoder().encode(JSON.stringify(conversationToChatMessages(value))).byteLength
+        requests.push(await options.prepareConversation!(context, { model, providerId: options.providerId, request: chatProvider.generation(model), scope: 'text-model', measureContextBytes }))
+        await options.onStreamEvent?.({ type: 'finish' })
+      })
+
+      await useChatStore().send({ sessionId: 'session-1', text: 'typed without a provider' })
+
+      expect(JSON.stringify(requests[0])).toContain('stage.chat.audio.transcription-unavailable')
+      expect(hearingMocks.transcribe).not.toHaveBeenCalled()
+    })
+
+    it('reports a missing transcription provider for the recording that is sent now (Issue #3552)', async () => {
+      hearingMocks.enabled = true
+      hearingMocks.configured = false
+      sessionMessages['session-1'] = [{ role: 'system', content: 'system prompt', createdAt: 1, id: 'system' }]
+      llmStreamMock.mockImplementation(async (model: string, chatProvider: GenerationProvider, context: Conversation, options: LlmStreamOptions) => {
+        const measureContextBytes = (value: Conversation) => new TextEncoder().encode(JSON.stringify(conversationToChatMessages(value))).byteLength
+        await options.prepareConversation!(context, { model, providerId: options.providerId, request: chatProvider.generation(model), scope: 'text-model', measureContextBytes })
+      })
+
+      await expect(useChatStore().send({
+        sessionId: 'session-1',
+        text: '',
+        attachments: [{ type: 'audio', mimeType: 'audio/wav', data: 'UklGRg==' }],
+      })).rejects.toThrow('Configure a transcription provider')
+    })
+
+    it('does not request a failed earlier recording again on the next send (Issue #3552)', async () => {
+      vi.spyOn(console, 'warn').mockImplementation(() => {})
+      hearingMocks.enabled = true
+      hearingMocks.transcribe.mockImplementation(emptyTranscription)
+      seedEarlierVoiceMessage()
+      llmStreamMock.mockImplementation(async (model: string, chatProvider: GenerationProvider, context: Conversation, options: LlmStreamOptions) => {
+        const measureContextBytes = (value: Conversation) => new TextEncoder().encode(JSON.stringify(conversationToChatMessages(value))).byteLength
+        await options.prepareConversation!(context, { model, providerId: options.providerId, request: chatProvider.generation(model), scope: 'text-model', measureContextBytes })
+        await options.onStreamEvent?.({ type: 'finish' })
+      })
+
+      await useChatStore().send({ sessionId: 'session-1', text: 'first' })
+      await useChatStore().send({ sessionId: 'session-1', text: 'second' })
+
+      expect(hearingMocks.transcribe).toHaveBeenCalledTimes(1)
+    })
+
+    it('still reports an empty transcription of the recording that is sent now (Issue #3552)', async () => {
+      hearingMocks.enabled = true
+      hearingMocks.transcribe.mockImplementation(emptyTranscription)
+      sessionMessages['session-1'] = [{ role: 'system', content: 'system prompt', createdAt: 1, id: 'system' }]
+      llmStreamMock.mockImplementation(async (model: string, chatProvider: GenerationProvider, context: Conversation, options: LlmStreamOptions) => {
+        const measureContextBytes = (value: Conversation) => new TextEncoder().encode(JSON.stringify(conversationToChatMessages(value))).byteLength
+        await options.prepareConversation!(context, { model, providerId: options.providerId, request: chatProvider.generation(model), scope: 'text-model', measureContextBytes })
+      })
+
+      await expect(useChatStore().send({
+        sessionId: 'session-1',
+        text: '',
+        attachments: [{ type: 'audio', mimeType: 'audio/wav', data: 'UklGRg==' }],
+      })).rejects.toThrow('The recording has no completed transcription')
+    })
   })
 
   it('removes a submitted voice message whose transcript has no speech', async () => {

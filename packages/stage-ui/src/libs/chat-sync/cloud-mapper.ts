@@ -4,6 +4,8 @@ import { errorMessageFrom } from '@moeru/std'
 
 import * as v from 'valibot'
 
+import { readJsonOrThrow, throwOnError } from './http-response'
+
 const REMOTE_CHAT_TYPES = ['private', 'bot', 'group', 'channel'] as const
 
 const RemoteChatSchema = v.object({
@@ -84,38 +86,6 @@ export interface CloudChatMapper {
    * harmlessly until the user manually closes that session.
    */
   deleteChat: (chatId: string) => Promise<void>
-}
-
-interface ApiErrorBody {
-  error?: string
-  message?: string
-}
-
-async function readErrorDetail(res: Response): Promise<string> {
-  try {
-    const body = await res.json() as ApiErrorBody
-    return body.message ?? body.error ?? res.statusText
-  }
-  catch {
-    // Non-JSON body — keep statusText.
-    return res.statusText
-  }
-}
-
-async function readJsonOrThrow<T>(res: Response, schema: v.BaseSchema<unknown, T, v.BaseIssue<unknown>>): Promise<T> {
-  if (!res.ok) {
-    throw new Error(`HTTP ${res.status}: ${await readErrorDetail(res)}`)
-  }
-  // External boundary: validate the success shape too. A server schema drift
-  // would otherwise feed a structurally broken object into `reconcileLocalAndRemote`.
-  const raw: unknown = await res.json()
-  return v.parse(schema, raw)
-}
-
-async function throwOnError(res: Response): Promise<void> {
-  if (res.ok)
-    return
-  throw new Error(`HTTP ${res.status}: ${await readErrorDetail(res)}`)
 }
 
 /**

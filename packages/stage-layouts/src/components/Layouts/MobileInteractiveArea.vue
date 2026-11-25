@@ -3,10 +3,11 @@ import type { ChatHistoryReplyPayload } from '@proj-airi/stage-ui/components/sce
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 
 import { useThreeViewControl } from '@proj-airi/stage-ui-three'
-import { CharacterSwitcherDrawer, ChatBackgroundTasks, ChatHistory } from '@proj-airi/stage-ui/components'
+import { CharacterRail, ChatBackgroundTasks, ChatHistory, Swipeable } from '@proj-airi/stage-ui/components'
 import { ChatArchivedSessionCallout, ChatComposerAddMenu, ChatComposerVoiceInput, ChatImageAttachmentPreview, ChatProviderSetupCallout, ChatReplyPreview, ChatSessionsDrawer, useChatImages, useStartVoiceCall, VoiceCallCapsule, VoicePresence } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { ModelPlacementPanel, ModelPlacementSurface } from '@proj-airi/stage-ui/components/scenarios/settings/model-settings'
 import { useAnalytics, useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
+import { useCharacterPreviews } from '@proj-airi/stage-ui/composables/use-character-previews'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
@@ -14,10 +15,11 @@ import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-sto
 import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store'
 import { useL2dViewControl } from '@proj-airi/stage-ui/stores/live2d'
 import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/context-bridge'
+import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { useSettingsStageModel } from '@proj-airi/stage-ui/stores/settings/stage-model'
 import { useVoiceCallStore } from '@proj-airi/stage-ui/stores/voice-call'
-import { BasicButton, BasicTextarea, ProgressiveBlur } from '@proj-airi/ui'
+import { Avatar, BasicButton, BasicTextarea, ProgressiveBlur, SideDrawer } from '@proj-airi/ui'
 import { useFocusWithin } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, nextTick, onUnmounted, shallowRef, useTemplateRef, watch } from 'vue'
@@ -65,7 +67,7 @@ const {
   replyTarget,
   selectReply,
 } = composer
-const { addFiles, selectFiles, error: imageError, pending: pendingImages } = useChatImages(composer, () => activeSessionId.value)
+const { accept: imageAccept, addFiles, selectFiles, error: imageError, pending: pendingImages } = useChatImages(composer, () => activeSessionId.value)
 const imageInput = useTemplateRef<HTMLInputElement>('imageInput')
 /** A recording bar or the walkie-talkie bar covers the input bubble, so the text is hidden under it. */
 const voiceCovering = shallowRef(false)
@@ -111,7 +113,6 @@ async function handleRetryMessage(index: number) {
   await chatOrchestrator.retry({ sessionId: activeSessionId.value, index })
 }
 
-const sessionsDrawerOpen = shallowRef(false)
 const mobileInteractiveArea = useTemplateRef<HTMLElement>('mobileInteractiveArea')
 const messageComposer = useTemplateRef<HTMLElement>('messageComposer')
 const inputBubble = useTemplateRef<HTMLElement>('inputBubble')
@@ -182,6 +183,19 @@ const settingsAudioDevice = useSettingsAudioDevice()
 const { listening, stream } = storeToRefs(settingsAudioDevice)
 
 const { t } = useI18n()
+
+/** The side drawer with the characters and the chats of the current character. */
+const contactsOpen = shallowRef(false)
+const { activeCard, activeCardId } = storeToRefs(useAiriCardStore())
+const characterPreviews = useCharacterPreviews()
+const activeCharacterName = computed(() => activeCard.value?.name ?? t('stage.character-switcher.empty'))
+
+/** Settings are a page of their own, so the drawer closes before the page opens. */
+function openFromContacts(path: string) {
+  contactsOpen.value = false
+  void router.push(path)
+}
+
 const { audioContext } = useAudioContext()
 const { startAnalyzer, stopAnalyzer } = useAudioAnalyzer()
 let analyzerSource: MediaStreamAudioSourceNode | undefined
@@ -331,23 +345,37 @@ onUnmounted(() => {
       :class="['pointer-events-auto']"
     />
     <MobileHeader v-if="!viewControlsEnabled">
+      <!-- The avatar of the current character opens the side drawer, as a swipe to the right over the chat does. -->
       <BasicButton
         size="unset"
-        data-testid="conversation-selector-button"
+        data-testid="contacts-drawer-button"
         :class="[
-          'pointer-events-auto size-11 shrink-0 rounded-full backdrop-blur-md',
+          'pointer-events-auto size-11 shrink-0 rounded-full p-0.5 backdrop-blur-md',
           'bg-neutral-50/70 text-neutral-600 dark:bg-neutral-900/70 dark:text-neutral-300',
           'focus-visible:outline-2 focus-visible:outline-primary-500',
         ]"
         :title="t('stage.chat.sessions.title')"
         :aria-label="t('stage.chat.sessions.title')"
         aria-haspopup="dialog"
-        :aria-expanded="sessionsDrawerOpen"
-        @click="sessionsDrawerOpen = true"
+        :aria-expanded="contactsOpen"
+        @click="contactsOpen = true"
       >
-        <span aria-hidden="true" :class="['i-solar:dialog-2-outline size-6']" />
+        <!-- Display model previews are portrait. Align them to the top so the circle keeps the head. -->
+        <Avatar
+          :src="characterPreviews.get(activeCardId)"
+          :class="['block size-10 rounded-full bg-neutral-200/70 text-neutral-600 dark:bg-neutral-700/70 dark:text-neutral-300', '[&_[data-avatar-image]]:object-top']"
+        >
+          <template #fallback>
+            <span :class="['text-base font-semibold']">{{ activeCharacterName.slice(0, 1) }}</span>
+          </template>
+        </Avatar>
       </BasicButton>
-      <CharacterSwitcherDrawer />
+      <!-- The name is the title of the stage. The side drawer changes the character. -->
+      <div :class="['min-w-0 flex flex-1 justify-center px-2']">
+        <span data-testid="active-character-name" :class="['truncate text-base font-semibold text-neutral-700 dark:text-neutral-200']">
+          {{ activeCharacterName }}
+        </span>
+      </div>
       <MobileSettingsDrawer
         v-model:character-voice-enabled="characterVoiceEnabled"
         :view-controls-available="viewControlsAvailable"
@@ -370,10 +398,15 @@ onUnmounted(() => {
         <span aria-hidden="true" :class="['i-solar:close-circle-outline size-6']" />
       </BasicButton>
     </MobileHeader>
-    <div
+    <!-- A swipe to the right over the chat opens the side drawer. A swipe to the left on a message still replies to it. -->
+    <Swipeable
+      direction="right"
+      :threshold="56"
+      :enabled="!viewControlsEnabled && !contactsOpen"
       :class="[
         'min-h-0 flex flex-1 flex-col justify-end overflow-hidden',
       ]"
+      @commit="contactsOpen = true"
     >
       <KeepAlive>
         <Transition name="fade">
@@ -394,7 +427,7 @@ onUnmounted(() => {
           />
         </Transition>
       </KeepAlive>
-    </div>
+    </Swipeable>
     <div
       v-show="!viewControlsEnabled"
       ref="interactionControls"
@@ -428,7 +461,23 @@ onUnmounted(() => {
             'flex flex-col gap-1',
           ]"
         >
-          <ChatSessionsDrawer v-model="sessionsDrawerOpen" />
+          <!-- Discord on a phone: the characters on the left, the chats of the current character beside them. -->
+          <SideDrawer v-model="contactsOpen" :title="t('stage.chat.sessions.title')">
+            <div data-testid="contacts-drawer" :class="['min-h-0 flex flex-1']">
+              <CharacterRail
+                docked
+                :class="['bg-neutral-100 dark:bg-neutral-950/60']"
+                @manage="openFromContacts('/settings/airi-card')"
+              />
+              <ChatSessionsDrawer
+                v-model="contactsOpen"
+                desktop-mode="inline"
+                touch
+                :class="['min-w-0 flex-1']"
+                @open-character-settings="characterId => openFromContacts(`/settings/airi-card/${encodeURIComponent(characterId)}`)"
+              />
+            </div>
+          </SideDrawer>
         </div>
       </div>
       <!-- Speech and drafts show above the composer, also during a call. The call itself is the capsule at the top. -->
@@ -465,7 +514,7 @@ onUnmounted(() => {
           @attach-images="imageInput?.click()"
           @call="startVoiceCall"
         />
-        <input ref="imageInput" type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple :class="['hidden']" @change="selectFiles">
+        <input ref="imageInput" type="file" :accept="imageAccept" multiple :class="['hidden']" @change="selectFiles">
         <div
           ref="inputBubble"
           data-testid="mobile-input-bubble"

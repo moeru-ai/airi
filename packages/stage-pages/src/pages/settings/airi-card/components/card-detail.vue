@@ -32,6 +32,8 @@ const props = defineProps<{
 const emit = defineEmits<{
   back: []
   edit: [cardId: string]
+  /** The user asked for the display model editor of this character. Only the active character offers it. */
+  model: [cardId: string]
 }>()
 
 const { t, te, locale } = useI18n()
@@ -409,6 +411,13 @@ const proseClasses = [
               icon="i-solar:pen-2-linear"
               :label="t('settings.pages.card.edit_card')"
               @click="emit('edit', cardId)"
+            />
+            <!-- The model editor and its preview show the model of the active character, so only that character offers it. -->
+            <Button
+              v-if="isActive"
+              icon="i-solar:people-nearby-linear"
+              :label="t('settings.pages.card.edit_model')"
+              @click="emit('model', cardId)"
             />
             <Button
               icon="i-solar:download-minimalistic-linear"

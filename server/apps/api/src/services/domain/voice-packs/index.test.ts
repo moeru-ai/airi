@@ -30,7 +30,6 @@ describe('voicePackService', () => {
       upstreamVoiceId: 'voice-neuro-upstream',
       ttsModelId: 'volcengine/neuro-pool',
       params: { pitch: 20, volume: 5 },
-      costMultiplier: 1.5,
       enabled: true,
     })
 
@@ -41,7 +40,6 @@ describe('voicePackService', () => {
     expect(pack.upstreamVoiceId).toBe('voice-neuro-upstream')
     expect(pack.ttsModelId).toBe('volcengine/neuro-pool')
     expect(pack.params).toEqual({ pitch: 20, volume: 5 })
-    expect(pack.costMultiplier).toBe(1.5)
     expect(pack.enabled).toBe(true)
   })
 
@@ -55,7 +53,6 @@ describe('voicePackService', () => {
       upstreamVoiceId: 'voice-a-upstream',
       ttsModelId: 'volcengine/pool',
       params: {},
-      costMultiplier: 1,
       enabled: true,
     })
     await service.create({
@@ -66,7 +63,6 @@ describe('voicePackService', () => {
       upstreamVoiceId: 'voice-a-upstream',
       ttsModelId: 'volcengine/pool',
       params: { pitch: 20 },
-      costMultiplier: 1,
       enabled: true,
     })
 
@@ -85,20 +81,17 @@ describe('voicePackService', () => {
       upstreamVoiceId: 'en-US-AvaMultilingualNeural',
       ttsModelId: 'microsoft/v1',
       params: {},
-      costMultiplier: 1,
       enabled: true,
     })
 
     const updated = await service.update(pack.id, {
       name: 'New',
       params: { rate: 1.1 },
-      costMultiplier: 2,
     })
 
     expect(updated?.id).toBe(pack.id)
     expect(updated?.name).toBe('New')
     expect(updated?.params).toEqual({ rate: 1.1 })
-    expect(updated?.costMultiplier).toBe(2)
   })
 
   it('soft-disables a pack and excludes it from listEnabled', async () => {
@@ -111,7 +104,6 @@ describe('voicePackService', () => {
       upstreamVoiceId: 'longxiaochun_v2',
       ttsModelId: 'alibaba/cosyvoice-v2',
       params: {},
-      costMultiplier: 1,
       enabled: true,
     })
 
@@ -134,7 +126,6 @@ describe('voicePackService', () => {
       upstreamVoiceId: 'disabled-upstream',
       ttsModelId: 'microsoft/v1',
       params: {},
-      costMultiplier: 1,
       enabled: false,
     })
     const enabled = await service.create({
@@ -145,7 +136,6 @@ describe('voicePackService', () => {
       upstreamVoiceId: 'enabled-upstream',
       ttsModelId: 'microsoft/v1',
       params: {},
-      costMultiplier: 1,
       enabled: true,
     })
 

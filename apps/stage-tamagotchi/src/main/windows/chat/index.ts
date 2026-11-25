@@ -57,14 +57,14 @@ type ChatWindowConfig = InferOutput<typeof chatWindowConfigSchema>
  * The floating chat beside the character is the default, so users try it and
  * give feedback. The style menu in both chat windows switches back to the
  * legacy window. The floating size fits the composer and a few bubbles beside
- * the default 450x600 main window.
+ * the default 450x600 main window, and the 72px character rail beside the panel.
  */
 const defaultChatWindowConfig: ChatWindowConfig = {
   mode: 'floating',
   placement: 'attached',
   danmaku: false,
   pinned: true,
-  floating: { width: 380, height: 560 },
+  floating: { width: 520, height: 640 },
 }
 
 /**
@@ -203,10 +203,14 @@ export function setupChatWindowManager(params: {
   }
 
   const legacy = createReusableWindow(async () => {
+    // The window holds the character rail, the conversation column, and the chat, like Discord. The minimum width
+    // keeps about 450px for the chat beside the two columns.
     const window = new BrowserWindow({
       title: 'Chat',
-      width: 600.0,
-      height: 800.0,
+      width: 1000,
+      height: 700,
+      minWidth: 760,
+      minHeight: 480,
       show: false,
       icon,
       ...(isMacOS ? { transparent: true, backgroundColor: '#00000000' } : {}),

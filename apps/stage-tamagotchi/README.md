@@ -28,6 +28,29 @@ process serves installed files to the renderer through `airi-model`. The desktop
 release bundles X-ASR through `airi-sherpaw`. Sherpaw settings control
 remote downloads. The Resource Status Island shows transfer progress and errors.
 
+## Host approval
+
+The Desktop Host uses `ask`, `auto`, or `full` on each lane.
+Ask confirms every action.
+Auto stands in for the user until the grant expires, then the lane returns to Ask.
+Full grants session-scoped execution for that lane.
+Terminal and Computer Use are separate lanes.
+These three modes do not change the MCP service settings `actions`, `all`, and `never`.
+Those settings are in `services/computer-use-mcp/README.md`.
+
+Chat request correlation identifies the application request.
+It is not permission.
+Electron reads the source window from the IPC sender, not from the model payload.
+The Host copies the arguments when it creates a pending action.
+It consumes that approval once, before execution.
+Cancellation invalidates waiting approvals for the same source, session, and turn.
+A committed operation keeps its actual result.
+Cancellation does not report that the operation never ran.
+
+A new MCP config leaves the bundled Terminal off.
+`terminalEnabled: true` starts it with the packaged Electron executable.
+`APP_USER_DATA_PATH` selects the profile directory before the instance lock.
+
 ## Computer use
 
 The desktop chat composer starts with **Use computer** on. Turn it off to send a request without desktop access.

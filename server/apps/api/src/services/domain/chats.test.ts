@@ -4,9 +4,10 @@ import { eq } from 'drizzle-orm'
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import { mockDB } from '../../libs/mock-db'
+import { attachments } from '../../schemas/attachments'
 import { clampLimit, createChatService, resolveSenderId } from './chats'
 
-import * as schema from '../../schemas'
+import * as schema from '../../schemas/chats'
 
 describe('resolveSenderId', () => {
   it('returns userId for user role', () => {
@@ -41,7 +42,7 @@ describe('pushMessages', () => {
   let db: Database
 
   beforeEach(async () => {
-    db = await mockDB(schema)
+    db = await mockDB({ ...schema, attachments })
   })
 
   it('persists and returns a native reply relation', async () => {
@@ -73,6 +74,60 @@ describe('pushMessages', () => {
       content: 'My follow-up',
       replyToMessageId: 'assistant-1',
     })
+  })
+
+  it('synchronizes descriptors for ready message attachments', async () => {
+    await db.insert(schema.chats).values({ id: 'group', type: 'group' })
+    await db.insert(schema.chatMembers).values({ chatId: 'group', memberType: 'user', userId: 'member' })
+    await db.insert(attachments).values({
+      id: 'attachment-1',
+      ownerId: 'member',
+      objectKey: 'attachments/attachment-1/original',
+      mimeType: 'image/png',
+      size: 4,
+      sha256: 'a'.repeat(64),
+      state: 'ready',
+    })
+    const service = createChatService(db)
+
+    await service.pushMessages('member', 'group', [{
+      id: 'user-image',
+      role: 'user',
+      content: 'look',
+      mediaIds: ['attachment-1'],
+    }])
+    const result = await service.pullMessages('member', 'group', 0)
+
+    expect(result.messages[0]?.attachments).toEqual([{
+      id: 'attachment-1',
+      mimeType: 'image/png',
+      size: 4,
+    }])
+  })
+
+  it.each([
+    { ownerId: 'member', state: 'pending' },
+    { ownerId: 'other-user', state: 'ready' },
+  ] as const)('rejects attachments with owner $ownerId and state $state', async ({ ownerId, state }) => {
+    await db.insert(schema.chats).values({ id: 'group', type: 'group' })
+    await db.insert(schema.chatMembers).values({ chatId: 'group', memberType: 'user', userId: 'member' })
+    await db.insert(attachments).values({
+      id: 'attachment-1',
+      ownerId,
+      objectKey: 'attachments/attachment-1/original',
+      mimeType: 'image/png',
+      size: 4,
+      sha256: 'a'.repeat(64),
+      state,
+    })
+    const service = createChatService(db)
+
+    await expect(service.pushMessages('member', 'group', [{
+      id: 'user-image',
+      role: 'user',
+      content: 'look',
+      mediaIds: ['attachment-1'],
+    }])).rejects.toMatchObject({ statusCode: 400, errorCode: 'BAD_REQUEST' })
   })
 
   it('rejects a member attempt to update another member’s message', async () => {
@@ -289,7 +344,7 @@ describe('listChats', () => {
   let db: Database
 
   beforeEach(async () => {
-    db = await mockDB(schema)
+    db = await mockDB({ ...schema, attachments })
   })
 
   it('returns the members of each chat of the user', async () => {
