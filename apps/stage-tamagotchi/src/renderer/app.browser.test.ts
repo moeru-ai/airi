@@ -188,6 +188,8 @@ async function renderStage(routePath: string, search: string) {
     reason: 'initial' as const,
     updatedAt: 0,
     visible: true,
+    suspended: false,
+    screenLocked: false,
   }))
   defineInvokeHandler(bridge.main, electronGetWindowLifecycleState, getWindowLifecycleState)
   defineInvokeHandler(bridge.main, electronGodotStageGetStatus, () => ({ state: 'stopped' as const, pid: null, updatedAt: 0 }))

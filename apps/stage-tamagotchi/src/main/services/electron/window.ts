@@ -4,7 +4,7 @@ import type { BrowserWindow } from 'electron'
 import type { ElectronWindowControlsState, ElectronWindowLifecycleState } from '../../../shared/eventa'
 
 import { defineInvokeHandler } from '@moeru/eventa'
-import { bounds, startLoopGetBounds } from '@proj-airi/electron-eventa'
+import { bounds, electronEvents, startLoopGetBounds } from '@proj-airi/electron-eventa'
 import { createRendererLoop, onWindowClosed, safeClose } from '@proj-airi/electron-vueuse/main'
 import { isMacOS, isWindows } from 'std-env'
 
@@ -34,6 +34,8 @@ export function createWindowService(params: {
   /** Owns the window's pin when the window decides more than the renderer asks, like the main window in fullscreen mode. */
   setAlwaysOnTop?: (flag: boolean) => void
 }) {
+  let screenLocked = false
+  let suspended = false
   function getWindowLifecycleState(reason: ElectronWindowLifecycleState['reason']): ElectronWindowLifecycleState {
     return {
       focused: params.window.isFocused(),
@@ -41,6 +43,8 @@ export function createWindowService(params: {
       reason,
       updatedAt: Date.now(),
       visible: params.window.isVisible(),
+      suspended,
+      screenLocked,
     }
   }
 
@@ -94,6 +98,23 @@ export function createWindowService(params: {
   params.window.on('unmaximize', emitWindowControlsState)
   params.window.on('enter-full-screen', emitWindowControlsState)
   params.window.on('leave-full-screen', emitWindowControlsState)
+
+  params.context.on(electronEvents.powerMonitor.suspended, () => {
+    suspended = true
+    emitWindowLifecycle('suspended')
+  })
+  params.context.on(electronEvents.powerMonitor.resumed, () => {
+    suspended = false
+    emitWindowLifecycle('resumed')
+  })
+  params.context.on(electronEvents.powerMonitor.lockScreen, () => {
+    screenLocked = true
+    emitWindowLifecycle('lock-screen')
+  })
+  params.context.on(electronEvents.powerMonitor.unlockScreen, () => {
+    screenLocked = false
+    emitWindowLifecycle('unlock-screen')
+  })
 
   defineInvokeHandler(params.context, electron.window.getBounds, (_, options) => {
     if (params.window.webContents.id === options?.raw.ipcMainEvent.sender.id) {

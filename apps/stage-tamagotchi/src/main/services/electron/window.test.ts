@@ -75,7 +75,7 @@ class FakeWindow extends EventEmitter {
 function setupService() {
   const window = new FakeWindow()
   const emit = vi.fn()
-  createWindowService({ context: { emit } as never, window: window as never })
+  createWindowService({ context: { emit, on: vi.fn(() => () => {}) } as never, window: window as never })
   return { emit, window }
 }
 
