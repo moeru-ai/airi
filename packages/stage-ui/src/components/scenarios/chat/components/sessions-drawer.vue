@@ -235,11 +235,11 @@ async function startNewSession() {
     // Creation runs in the synchronized leader, while navigation belongs to
     // this window. Activating inside createSession would navigate the leader.
     const sessionId = await chatSession.createSession(characterId, { setActive: false })
-    // Rows remain interactive while creation is persisted in the leader. Do
-    // not let that stale continuation replace a newer local user selection.
-    if (activeSessionId.value === selectionBeforeCreation)
+    // Rows and the character rail remain interactive while creation is persisted in the leader. Do not let that stale
+    // continuation replace a newer local user selection, of a conversation or of the character of the list.
+    if (activeSessionId.value === selectionBeforeCreation && currentCharacterId.value === characterId)
       await chatSession.setActiveSession(sessionId)
-    // Store-created sessions also include restore and fork flows; only this
+    // Store-created sessions also include restore and fork flows. Only this
     // user action belongs in the retention denominator.
     trackChatSessionStarted(activeModel.value || 'unknown')
     showDialog.value = false

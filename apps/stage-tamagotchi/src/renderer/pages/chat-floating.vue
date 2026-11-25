@@ -49,6 +49,14 @@ const { t } = useI18n()
  * pushes in from the start. A conversation that the list opens pushes back in from the end.
  */
 const listOpen = shallowRef(false)
+const listLevel = useTemplateRef<HTMLElement>('list-level')
+// The list takes the focus when it opens, so Escape reaches it. The button that opened it is often in the conversation,
+// which turns inert and drops the focus to the page.
+watch(listOpen, async (open) => {
+  await nextTick()
+  if (open && !listLevel.value?.contains(document.activeElement))
+    listLevel.value?.focus({ preventScroll: true })
+})
 const interactiveArea = useTemplateRef<InstanceType<typeof InteractiveArea>>('interactive-area')
 
 // Folded until the main process answers, so the first unfold plays the same
@@ -637,9 +645,11 @@ const gripListeners = {
             opens. Escape that the list does not use goes back to the conversation.
           -->
           <div
+            ref="list-level"
+            tabindex="-1"
             :inert="!listOpen"
             :class="[
-              'absolute inset-0 transition-[transform,opacity] duration-340 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none',
+              'absolute inset-0 outline-none transition-[transform,opacity] duration-340 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none',
               listOpen ? '' : '-translate-x-1/4 opacity-0',
             ]"
             @keydown.esc="listOpen = false"
