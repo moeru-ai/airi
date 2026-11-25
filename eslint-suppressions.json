@@ -464,11 +464,6 @@
       "count": 3
     }
   },
-  "packages/stage-pages/src/pages/settings/providers/transcription/mimo-audio-transcription.vue": {
-    "ts/no-explicit-any": {
-      "count": 2
-    }
-  },
   "packages/stage-pages/src/pages/settings/providers/transcription/openai-audio-transcription.vue": {
     "ts/no-explicit-any": {
       "count": 1
