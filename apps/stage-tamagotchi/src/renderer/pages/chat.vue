@@ -49,10 +49,7 @@ useChatDraftHandover(interactiveArea)
       />
       <div
         data-testid="desktop-chat-card"
-        :class="[
-          'min-w-0 flex flex-1 overflow-hidden rounded-lg shadow-sm',
-          'border border-neutral-200/80 dark:border-neutral-800',
-        ]"
+        :class="['min-w-0 flex flex-1 overflow-hidden rounded-lg shadow-sm']"
       >
         <ChatSessionsDrawer
           desktop-mode="inline"
