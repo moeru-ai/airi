@@ -5,7 +5,7 @@ import type { Attachment } from '../../schemas/attachments'
 import type { ObjectStore } from '../adapters/object-store'
 
 import { createConflictError, createNotFoundError } from '@proj-airi/http-shared'
-import { and, arrayContains, eq, inArray, isNotNull, isNull, sql } from 'drizzle-orm'
+import { and, arrayContains, eq, inArray, isNull } from 'drizzle-orm'
 
 import * as v from 'valibot'
 
@@ -43,6 +43,7 @@ export function createAttachmentService(
         ...input,
         objectKey: `attachments/${input.id}/original`,
         ownerId: userId,
+        state: 'pending',
       }).onConflictDoNothing()
 
       const attachment = await requireOwnedAttachment(userId, input.id)
@@ -54,15 +55,15 @@ export function createAttachmentService(
         throw createConflictError('Attachment metadata does not match the existing upload')
       }
 
-      const upload = attachment.finalizedAt === null
-        ? await signWriteOnceUpload(objectStore, attachment.objectKey, attachment.mimeType, attachment.sha256)
-        : null
+      const upload = attachment.state === 'ready'
+        ? null
+        : await signWriteOnceUpload(objectStore, attachment.objectKey, attachment.mimeType, attachment.sha256)
       return { attachment: toWireAttachment(attachment), upload }
     },
 
     async finalizeUpload(userId: string, attachmentId: string) {
       const attachment = await requireOwnedAttachment(userId, attachmentId)
-      if (attachment.finalizedAt !== null)
+      if (attachment.state === 'ready')
         return toWireAttachment(attachment)
 
       const object = await objectStore.inspectObject(attachment.objectKey)
@@ -70,18 +71,18 @@ export function createAttachmentService(
       if (mismatch)
         throw createConflictError(mismatch)
 
-      const [finalizedAttachment] = await db.update(attachments)
-        .set({ finalizedAt: sql`coalesce(${attachments.finalizedAt}, now())` })
+      const [readyAttachment] = await db.update(attachments)
+        .set({ state: 'ready', updatedAt: new Date() })
         .where(and(eq(attachments.id, attachmentId), eq(attachments.ownerId, userId)))
         .returning()
-      if (!finalizedAttachment)
+      if (!readyAttachment)
         throw createNotFoundError('Attachment not found')
-      return toWireAttachment(finalizedAttachment)
+      return toWireAttachment(readyAttachment)
     },
 
     async createDownload(userId: string, attachmentId: string) {
       const attachment = await db.query.attachments.findFirst({
-        where: and(eq(attachments.id, attachmentId), isNotNull(attachments.finalizedAt)),
+        where: and(eq(attachments.id, attachmentId), eq(attachments.state, 'ready')),
       })
       if (!attachment)
         throw createNotFoundError('Attachment not found')

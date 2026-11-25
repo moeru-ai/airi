@@ -5,7 +5,7 @@ import type { EngagementMetrics } from '../../otel'
 
 import { useLogger } from '@guiiai/logg'
 import { createBadRequestError, createConflictError, createForbiddenError, createNotFoundError } from '@proj-airi/http-shared'
-import { and, eq, gt, inArray, isNotNull, isNull, sql } from 'drizzle-orm'
+import { and, eq, gt, inArray, isNull, sql } from 'drizzle-orm'
 import { groupBy, isEqual } from 'es-toolkit'
 
 import { attachments } from '../../schemas/attachments'
@@ -254,7 +254,7 @@ export function createChatService(db: Database, metrics?: EngagementMetrics | nu
             .where(and(
               inArray(attachments.id, attachmentIds),
               eq(attachments.ownerId, userId),
-              isNotNull(attachments.finalizedAt),
+              eq(attachments.state, 'ready'),
             ))
           if (ownedAttachments.length !== attachmentIds.length)
             throw createBadRequestError('Messages can reference only ready attachments owned by the sender')
@@ -509,7 +509,7 @@ export function createChatService(db: Database, metrics?: EngagementMetrics | nu
               .from(attachments)
               .where(and(
                 inArray(attachments.id, attachmentIds),
-                isNotNull(attachments.finalizedAt),
+                eq(attachments.state, 'ready'),
               ))
           : []
         const attachmentsById = new Map(attachmentRows.map(attachment => [attachment.id, attachment]))

@@ -11,8 +11,9 @@ export const attachments = pgTable(
     mimeType: text('mime_type').notNull(),
     size: integer('size').notNull(),
     sha256: text('sha256').notNull(),
+    state: text('state', { enum: ['pending', 'ready'] }).notNull(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
-    finalizedAt: timestamp('finalized_at'),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
   },
   table => [
     uniqueIndex('attachments_object_key_uidx').on(table.objectKey),

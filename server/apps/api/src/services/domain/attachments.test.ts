@@ -89,7 +89,7 @@ describe('attachment service', () => {
       mimeType: 'image/png',
       size: 4,
       sha256: 'a'.repeat(64),
-      finalizedAt: new Date(),
+      state: 'ready',
     })
     await db.insert(schema.chats).values({ id: 'chat-1', type: 'group' })
     await db.insert(schema.chatMembers).values([

@@ -4,8 +4,8 @@ Status: proposed
 
 ## Decision
 
-Store image bytes in the existing private S3 bucket. Store the owner, object key, creation time, and finalization time in PostgreSQL. A null finalization time means verification is pending.
-Chat messages reference finalized attachments by ID. The API signs a download after it checks ownership or active chat membership.
+Store image bytes in the existing private S3 bucket. Store the owner, object key, state, creation time, and last update time in PostgreSQL.
+Chat messages reference ready attachments by ID. The API signs a download after it checks ownership or active chat membership.
 
 ## Scope
 
