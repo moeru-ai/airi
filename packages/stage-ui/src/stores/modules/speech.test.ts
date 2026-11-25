@@ -52,6 +52,48 @@ describe('speech store helpers', () => {
     vi.unstubAllGlobals()
   })
 
+  it('rebuilds a manual voice selection for the catalog-free Comet provider', async () => {
+    const providers = useProviderStore()
+    vi.spyOn(providers, 'listProviderVoices').mockResolvedValue([])
+    const speech = useSpeechStore()
+    await speech.selectProviderModel('comet-api-speech', 'tts', 'alloy')
+    await speech.ensureActiveSpeechVoice()
+    expect(speech.activeSpeechVoice).toEqual({
+      id: 'alloy',
+      name: 'alloy',
+      description: 'alloy',
+      previewURL: '',
+      languages: [{ code: 'en', title: 'English' }],
+      provider: 'comet-api-speech',
+      gender: 'neutral',
+    })
+    const selected = speech.activeSpeechVoice
+    await speech.ensureActiveSpeechVoice()
+    expect(speech.activeSpeechVoice).toBe(selected)
+  })
+
+  it('does not synthesize a missing ID for an authoritative voice catalog', async () => {
+    const providers = useProviderStore()
+    vi.spyOn(providers, 'listProviderVoices').mockResolvedValue([
+      { id: 'catalog-voice', name: 'Catalog Voice', languages: [], provider: 'microsoft-speech' },
+    ])
+    const speech = useSpeechStore()
+    await speech.selectProviderModel('microsoft-speech', '', 'missing-voice')
+    await speech.loadVoicesForProvider('microsoft-speech')
+    speech.activeSpeechVoiceId = 'missing-voice'
+    await speech.ensureActiveSpeechVoice()
+    expect(speech.activeSpeechVoice).toBeUndefined()
+  })
+
+  it('does not synthesize an ID while an authoritative catalog is empty', async () => {
+    const providers = useProviderStore()
+    vi.spyOn(providers, 'listProviderVoices').mockResolvedValue([])
+    const speech = useSpeechStore()
+    await speech.selectProviderModel('microsoft-speech', '', 'missing-voice')
+    await speech.ensureActiveSpeechVoice()
+    expect(speech.activeSpeechVoice).toBeUndefined()
+  })
+
   it('formats positive percentages with a plus sign', () => {
     expect(toSignedPercent(25)).toBe('+25%')
   })
