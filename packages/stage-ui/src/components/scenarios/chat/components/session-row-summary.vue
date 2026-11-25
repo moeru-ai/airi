@@ -2,6 +2,7 @@
 import type { SessionRow } from './session-row-model'
 
 import { formatISO } from 'date-fns'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 /**
@@ -16,6 +17,8 @@ const props = defineProps<{
 }>()
 
 const { t } = useI18n()
+const snippet = computed(() => props.row.match?.snippet)
+const markClasses = ['rounded-sm bg-primary-100 px-0.5 text-inherit dark:bg-primary-900/60']
 </script>
 
 <template>
@@ -35,7 +38,23 @@ const { t } = useI18n()
       </time>
     </span>
     <span :class="['w-full flex items-center gap-1.5 text-xs font-normal text-neutral-500 dark:text-neutral-400', props.compact ? 'mt-0.5' : 'mt-1']">
-      <span :class="['min-w-0 flex-1 truncate']">{{ props.row.lastMessage ?? '' }}</span>
+      <!-- A search match shows the message that contains the query, with the query marked, in place of the last message. -->
+      <i18n-t v-if="snippet?.fromUser" keypath="stage.chat.sessions.last-message-you" tag="span" scope="global" :class="['min-w-0 flex-1 truncate']">
+        <template #text>
+          {{ snippet.before }}<mark :class="markClasses">{{ snippet.match }}</mark>{{ snippet.after }}
+        </template>
+      </i18n-t>
+      <span v-else-if="snippet" :class="['min-w-0 flex-1 truncate']">
+        {{ snippet.before }}<mark :class="markClasses">{{ snippet.match }}</mark>{{ snippet.after }}
+      </span>
+      <span v-else :class="['min-w-0 flex-1 truncate']">{{ props.row.lastMessage ?? '' }}</span>
+      <span
+        v-if="props.row.match && props.row.meta.archivedAt !== undefined"
+        role="img"
+        :aria-label="t('stage.chat.sessions.archived')"
+        :title="t('stage.chat.sessions.archived')"
+        :class="['i-mingcute:archive-line size-3.5 shrink-0']"
+      />
       <span
         v-if="props.marks && props.row.meta.pinnedAt"
         role="img"

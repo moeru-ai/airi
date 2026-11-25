@@ -20,6 +20,8 @@ const props = withDefaults(defineProps<{
   character?: { name: string }
   /** The inline list is on a touch screen, so its rows take swipes and long presses. */
   touch?: boolean
+  /** The owner reads stored messages for the search. See `SessionsList`. */
+  searching?: boolean
 }>(), {
   desktopMode: 'dialog',
   touch: false,
@@ -39,6 +41,8 @@ const emit = defineEmits<{
 
 /** The place of the list. The owner can keep it, so the list opens where the user left it. */
 const place = defineModel<ChatSessionsPlace>('place', { default: () => ({ kind: 'all' }) })
+/** The search of the list. The owner filters the rows by it. */
+const query = defineModel<string>('query', { default: '' })
 
 const { t } = useI18n()
 // Every open starts outside selection mode, so a closed list never keeps a selection.
@@ -59,6 +63,8 @@ function preserveTriggerFocus(event: Event) {
     <SessionsList
       v-model:selecting="selecting"
       v-model:place="place"
+      v-model:query="query"
+      :searching="searching"
       compact
       fill
       :touch="touch"
@@ -90,6 +96,8 @@ function preserveTriggerFocus(event: Event) {
     <SessionsList
       v-model:selecting="selecting"
       v-model:place="place"
+      v-model:query="query"
+      :searching="searching"
       :rows="rows"
       :is-creating-session="isCreatingSession"
       @new-session="emit('newSession')"
@@ -119,6 +127,8 @@ function preserveTriggerFocus(event: Event) {
         <SessionsList
           v-model:selecting="selecting"
           v-model:place="place"
+          v-model:query="query"
+          :searching="searching"
           compact
           :rows="rows"
           :is-creating-session="isCreatingSession"
@@ -154,6 +164,8 @@ function preserveTriggerFocus(event: Event) {
         <SessionsList
           v-model:selecting="selecting"
           v-model:place="place"
+          v-model:query="query"
+          :searching="searching"
           :rows="rows"
           :is-creating-session="isCreatingSession"
           @new-session="emit('newSession')"
