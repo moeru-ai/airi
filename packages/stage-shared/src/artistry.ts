@@ -1,7 +1,7 @@
 import type { InferInput, InferOutput } from 'valibot'
 
 import { defineInvokeEventa } from '@moeru/eventa'
-import { array, number, object, optional, record, string, unknown } from 'valibot'
+import { array, finite, maxValue, minValue, number, object, optional, pipe, record, string, unknown } from 'valibot'
 
 const comfyUIWorkflowTemplateSchema = object({
   id: string(),
@@ -13,6 +13,11 @@ const comfyUIWorkflowTemplateSchema = object({
 /** Validates provider-wide settings that the renderer sends to main. */
 export const artistryGlobalsSchema = object({
   comfyuiServerUrl: optional(string(), 'http://localhost:8188'),
+  /**
+   * Polling window in minutes. Upload and queue requests have separate transport timeouts.
+   * @default 10
+   */
+  comfyuiGenerationTimeoutMinutes: optional(pipe(number(), finite(), minValue(5), maxValue(60)), 10),
   comfyuiSavedWorkflows: optional(array(comfyUIWorkflowTemplateSchema), []),
   comfyuiActiveWorkflow: optional(string(), ''),
   replicateApiKey: optional(string(), ''),

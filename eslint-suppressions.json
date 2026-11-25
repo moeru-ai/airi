@@ -51,7 +51,7 @@
   },
   "apps/stage-tamagotchi/src/main/services/airi/widgets/artistry-bridge.ts": {
     "ts/no-explicit-any": {
-      "count": 10
+      "count": 7
     }
   },
   "apps/stage-tamagotchi/src/main/services/airi/widgets/providers/base.ts": {
@@ -61,7 +61,7 @@
   },
   "apps/stage-tamagotchi/src/main/services/airi/widgets/providers/comfyui.ts": {
     "ts/no-explicit-any": {
-      "count": 15
+      "count": 7
     }
   },
   "apps/stage-tamagotchi/src/main/services/airi/widgets/providers/nanobanana.ts": {
@@ -672,11 +672,6 @@
   "packages/stage-ui/src/stores/modules/artistry-autonomous.ts": {
     "ts/no-explicit-any": {
       "count": 3
-    }
-  },
-  "packages/stage-ui/src/stores/modules/artistry.ts": {
-    "ts/no-explicit-any": {
-      "count": 4
     }
   },
   "packages/stage-ui/src/stores/modules/gaming-minecraft.ts": {
