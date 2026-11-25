@@ -121,8 +121,9 @@ const mapFormatRenderer: Record<DisplayModelFormat, string> = {
         </DropdownMenuPortal>
       </DropdownMenuRoot>
     </div>
+    <!-- Generated previews have other shapes, for example 9:16 for VRM. The zero minimum height keeps every preview at 12:16. -->
     <div
-      :class="props.previewClass"
+      :class="[props.previewClass, 'min-h-0']"
       aspect="12/16"
       px-1 py-2
     >
