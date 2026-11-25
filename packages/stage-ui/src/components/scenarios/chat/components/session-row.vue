@@ -59,12 +59,10 @@ const archived = computed(() => props.row.meta.archivedAt !== undefined)
  */
 const archiveOnlySwipe = computed(() => props.compact && !props.touch)
 // NOTICE:
-// A compact row is 50px high. In it, the surface of a swipe action dropped below the middle of the row and touched the
-// next row, and its label was cut off.
-// `SwipeActionButton` of `@proj-airi/ui` gives its surface a 44px minimum and its button an 8px inset, for rows of 80px.
+// In a 50px compact row, the swipe action surface sank below the middle and cut its label.
+// `SwipeActionButton` sets a 44px minimum and an 8px inset, sized for 80px rows.
 // Source: packages/ui/src/components/misc/swipe-action-button.vue (`min-h-11`, `py-2`).
-// These classes give the compact row a 4px inset and a surface that fills the row. Remove them when the button has a
-// compact size.
+// Remove these classes when the button has a compact size.
 const compactActionSurface = computed(() => props.compact ? 'min-h-0!' : '')
 const compactActionButton = computed(() => props.compact ? 'py-1!' : '')
 
