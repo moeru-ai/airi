@@ -17,6 +17,8 @@ import { useChatDraftHandover } from '../composables/use-chat-draft-handover'
 
 const { activeCard } = storeToRefs(useAiriCardStore())
 const hasNativeControls = isElectronWindow(window) && window.platform === 'darwin'
+// The surface of the conversation list and of the chat.
+const cardClass = 'overflow-hidden rounded-xl border border-neutral-200/80 bg-white shadow-sm dark:border-neutral-800 dark:bg-neutral-900'
 const interactiveArea = useTemplateRef<InstanceType<typeof InteractiveArea>>('interactive-area')
 const openSettings = useElectronEventaInvoke(electronOpenSettings)
 
@@ -39,33 +41,27 @@ useChatDraftHandover(interactiveArea)
     <!--
       The layout of a messenger: characters, then the conversations of the current character, then the chat. The
       conversations stay at every window width, like the channel list of Discord. The window frame, that is the title
-      bar and the two side columns, is one surface. On macOS it shows the window glass. The chat is a solid card that
-      floats inside the frame, so it reads as the main content.
+      bar and the character rail, is one surface. On macOS it shows the window glass. The conversations and the chat are
+      solid cards that float inside the frame. The 8px gaps of the frame separate them, so they need no divider lines.
     -->
-    <div :class="['h-full min-h-0 flex']">
-      <div :class="['h-full min-h-0 flex shrink-0']">
-        <CharacterRail
-          docked
-          :class="['border-r border-neutral-200/70 dark:border-neutral-800/70']"
-          @manage="openSettings({ route: '/settings/airi-card' })"
-        />
-        <ChatSessionsDrawer
-          desktop-mode="inline"
-          desktop
-          :class="['w-60 shrink-0']"
-          @open-character-settings="characterId => openSettings({ route: `/settings/airi-card/${encodeURIComponent(characterId)}` })"
-        />
-      </div>
+    <div :class="['h-full min-h-0 flex gap-2 pb-2 pr-2']">
+      <CharacterRail
+        docked
+        @manage="openSettings({ route: '/settings/airi-card' })"
+      />
+      <ChatSessionsDrawer
+        desktop-mode="inline"
+        desktop
+        data-testid="desktop-chat-sessions-card"
+        :class="['w-60 shrink-0 pr-2', cardClass]"
+        @open-character-settings="characterId => openSettings({ route: `/settings/airi-card/${encodeURIComponent(characterId)}` })"
+      />
       <!--
-        The chat area has two root elements, so it takes no class. This wrapper paints its solid card. The 8px gap to the
-        window edge is the same on the right and at the bottom.
+        The chat area has two root elements, so it takes no class. This wrapper paints its card.
       -->
       <div
         data-testid="desktop-chat-card"
-        :class="[
-          'mb-2 mr-2 ml-1 h-[calc(100%-0.5rem)] min-w-0 flex-1 overflow-hidden rounded-xl',
-          'border border-neutral-200/80 bg-white shadow-sm dark:border-neutral-800 dark:bg-neutral-900',
-        ]"
+        :class="['min-w-0 flex-1', cardClass]"
       >
         <InteractiveArea
           ref="interactive-area"
