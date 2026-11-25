@@ -8,20 +8,19 @@ import { getElectronEventaContext, useElectronEventaInvoke, useElectronMouseArou
 import { isElectronWindow } from '@proj-airi/stage-shared'
 import { CharacterRail, ChatSessionsDrawer } from '@proj-airi/stage-ui/components'
 import { useBackdropSurface } from '@proj-airi/stage-ui/composables/backdrop-surface'
-import { useActiveChatName } from '@proj-airi/stage-ui/composables/use-active-chat-name'
 import { useCharacterActivation } from '@proj-airi/stage-ui/composables/use-character-activation'
-import { useCharacterPreviews } from '@proj-airi/stage-ui/composables/use-character-previews'
 import { useDanmakuFeedExpiry } from '@proj-airi/stage-ui/composables/use-danmaku-feed-expiry'
-import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
-import { Avatar, Dock, DockButton, dockItemClasses, DockSeparator, Tooltip, TransitionBud } from '@proj-airi/ui'
+import { Dock, DockButton, dockItemClasses, DockSeparator, Tooltip, TransitionBud } from '@proj-airi/ui'
 import { refDebounced, useElementSize, useEventListener, useFocusWithin, useLocalStorage, useMutationObserver, usePreferredReducedMotion } from '@vueuse/core'
 import { animate, createSpring } from 'animejs'
 import { storeToRefs } from 'pinia'
 import { computed, nextTick, onMounted, onScopeDispose, shallowRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import ChatConversationButton from '../components/chat-window/chat-conversation-button.vue'
 import ChatDanmakuFeedMenu from '../components/chat-window/chat-danmaku-feed-menu.vue'
+import ChatMoveGrip from '../components/chat-window/chat-move-grip.vue'
 import ChatSpeechMuteButton from '../components/chat-window/chat-speech-mute-button.vue'
 import ChatWindowStyleMenu from '../components/chat-window/chat-window-style-menu.vue'
 import InteractiveArea from '../components/InteractiveArea.vue'
@@ -50,12 +49,6 @@ const { t } = useI18n()
  * pushes in from the start. A conversation that the list opens pushes back in from the end.
  */
 const listOpen = shallowRef(false)
-const { activeCardId, cards } = storeToRefs(useAiriCardStore())
-const characterPreviews = useCharacterPreviews()
-const activeCharacterName = computed(() => cards.value.get(activeCardId.value)?.name ?? t('stage.character-switcher.empty'))
-/** The name of the open chat, as its row shows it. A chat without a name shows the fallback in a lighter color. */
-const activeChatName = useActiveChatName()
-const activeSessionTitle = computed(() => activeChatName.value ?? t('stage.chat.sessions.new-chat-fallback'))
 const interactiveArea = useTemplateRef<InstanceType<typeof InteractiveArea>>('interactive-area')
 
 // Folded until the main process answers, so the first unfold plays the same
@@ -199,10 +192,6 @@ const dockTooltipSide = computed<TooltipContentProps['side']>(() => {
     return 'bottom'
   return characterOnLeft.value ? 'right' : 'left'
 })
-// The conversation button shows the character and the current conversation, and opens the list of the conversations.
-// A dock that stands up has room for the avatar only, so its title gives both names.
-const conversationsLabel = computed(() => `${activeCharacterName.value} · ${activeSessionTitle.value} · ${t('tamagotchi.stage.chat-window.conversations')}`)
-
 /** Opens a page of the character settings. */
 function openCharacterPage(route: string) {
   void openSettings({ route })
@@ -216,6 +205,30 @@ const windowButtonClasses = [
   'size-13 shrink-0 flex items-center justify-center rounded-[18px] outline-none transition-colors',
   'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary-300',
 ]
+
+/** A button of the window. The window island and the dock of the message feed show the same definition. */
+interface WindowControl {
+  icon: string
+  /** The icon of a toggle that is on. */
+  pressedIcon?: string
+  label: string
+  /** The state of a toggle. A plain action has none. */
+  pressed?: boolean
+}
+
+const foldControl = computed<WindowControl>(() => ({ icon: 'i-lucide:minimize-2', label: t('tamagotchi.stage.chat-window.fold') }))
+const pinControl = computed<WindowControl>(() => ({
+  icon: 'i-mingcute:pin-2-line',
+  pressedIcon: 'i-mingcute:pin-2-fill',
+  label: t('tamagotchi.stage.chat-window.pin'),
+  pressed: state.value.pinned,
+}))
+const danmakuControl = computed<WindowControl>(() => ({ icon: 'i-mingcute:subtitle-line', label: t('tamagotchi.stage.chat-window.danmaku'), pressed: danmaku.value }))
+/** The buttons of the window island, in their order. The grip of a free chat follows them. */
+const islandControls = computed(() => [
+  { key: 'fold', control: foldControl.value, run: () => void foldChat() },
+  { key: 'pin', control: pinControl.value, run: togglePinned },
+])
 
 const { activateCharacter } = useCharacterActivation()
 /**
@@ -546,6 +559,14 @@ function handleArrowKey(event: KeyboardEvent, applyDelta: (delta: WindowDelta) =
 function moveByKeyboard(delta: WindowDelta) {
   return moveTo({ x: window.screenX + delta.deltaX, y: window.screenY + delta.deltaY })
 }
+
+/** The listeners of the grip, in the window island or in the dock: a drag or the arrow keys move the window. */
+const gripListeners = {
+  pointerdown: (event: PointerEvent) => holdPointer(event),
+  pointermove: moveWithHeldPointer,
+  lostpointercapture: releasePointer,
+  keydown: (event: KeyboardEvent) => handleArrowKey(event, moveByKeyboard),
+}
 </script>
 
 <template>
@@ -579,49 +600,19 @@ function moveByKeyboard(delta: WindowDelta) {
               'bg-neutral-50/80 backdrop-blur-[12px] dark:bg-neutral-800/70',
             ]"
           >
-            <Tooltip :label="t('tamagotchi.stage.chat-window.fold')" :side="columnTooltipSide" variant="blurry">
+            <Tooltip v-for="item in islandControls" :key="item.key" :label="item.control.label" :side="columnTooltipSide" variant="blurry">
               <button
                 type="button"
-                :aria-label="t('tamagotchi.stage.chat-window.fold')"
-                :class="[windowButtonClasses, dockItemClasses('blurry')]"
-                @click="foldChat()"
+                :aria-label="item.control.label"
+                :aria-pressed="item.control.pressed"
+                :class="[windowButtonClasses, dockItemClasses('blurry', item.control.pressed)]"
+                @click="item.run"
               >
-                <div class="i-lucide:minimize-2 size-5" />
+                <div :class="[item.control.pressed && item.control.pressedIcon ? item.control.pressedIcon : item.control.icon, 'size-5']" />
               </button>
             </Tooltip>
-            <Tooltip :label="t('tamagotchi.stage.chat-window.pin')" :side="columnTooltipSide" variant="blurry">
-              <button
-                type="button"
-                :aria-label="t('tamagotchi.stage.chat-window.pin')"
-                :aria-pressed="state.pinned"
-                :class="[windowButtonClasses, dockItemClasses('blurry', state.pinned)]"
-                @click="togglePinned"
-              >
-                <div :class="[state.pinned ? 'i-mingcute:pin-2-fill' : 'i-mingcute:pin-2-line', 'size-5']" />
-              </button>
-            </Tooltip>
-            <!--
-              The grip of a free chat sits at the end of the island that faces into the window, as the grip of the
-              Controls Island. Its dots are one step quieter than the icons.
-            -->
-            <Tooltip v-if="freePlacement" :label="t('tamagotchi.stage.chat-window.move')" :side="columnTooltipSide" variant="blurry">
-              <button
-                type="button"
-                :aria-label="t('tamagotchi.stage.chat-window.move')"
-                :class="[
-                  'h-6 w-13 shrink-0 cursor-grab touch-none rounded-b-[18px] rounded-t-[6px]',
-                  'flex items-center justify-center outline-none transition-colors',
-                  'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary-300',
-                  dockItemClasses('blurry'),
-                ]"
-                @pointerdown="holdPointer"
-                @pointermove="moveWithHeldPointer"
-                @lostpointercapture="releasePointer"
-                @keydown="handleArrowKey($event, moveByKeyboard)"
-              >
-                <div class="i-mingcute:dots-vertical-fill size-4 text-neutral-400/70 dark:text-neutral-400" />
-              </button>
-            </Tooltip>
+            <!-- The grip of a free chat sits at the end of the island that faces into the window, as the grip of the Controls Island. -->
+            <ChatMoveGrip v-if="freePlacement" variant="island" :tooltip-side="columnTooltipSide" v-on="gripListeners" />
           </div>
           <!-- A pick puts the character on the stage at once, and the list shows its conversations. -->
           <CharacterRail
@@ -656,9 +647,8 @@ function moveByKeyboard(delta: WindowDelta) {
           >
             <ChatSessionsDrawer
               v-model="listOpen"
-              desktop-mode="inline"
+              desktop-mode="floating"
               desktop
-              islands
               @open-character-settings="characterId => openCharacterPage(`/settings/airi-card/${encodeURIComponent(characterId)}`)"
             />
           </div>
@@ -678,45 +668,11 @@ function moveByKeyboard(delta: WindowDelta) {
             -->
             <div v-if="!danmaku" :class="['flex shrink-0 items-center gap-1.5 p-2 pb-1']">
               <Dock variant="blurry" size="md" :class="['mr-auto min-w-0']">
-                <button
-                  type="button"
-                  :aria-label="conversationsLabel"
-                  :title="conversationsLabel"
-                  :class="[
-                    'h-9 min-w-0 flex items-center gap-2 rounded-full py-0.5 pl-0.5 pr-3.5 text-left outline-none transition-colors',
-                    'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-300',
-                    dockItemClasses('blurry'),
-                  ]"
-                  @click="listOpen = true"
-                >
-                  <!-- Display model previews are portrait. Align them to the top so the circle keeps the head. -->
-                  <Avatar
-                    :src="characterPreviews.get(activeCardId)"
-                    :class="[
-                      'block size-8 shrink-0 rounded-full bg-neutral-200/70 text-neutral-600 dark:bg-neutral-700/70 dark:text-neutral-300',
-                      '[&_[data-avatar-image]]:object-top',
-                    ]"
-                  >
-                    <template #fallback>
-                      <span :class="['text-sm font-semibold']">{{ activeCharacterName.slice(0, 1) }}</span>
-                    </template>
-                  </Avatar>
-                  <span :class="['min-w-0 flex flex-col leading-tight']">
-                    <span :class="['truncate text-sm font-semibold']">{{ activeCharacterName }}</span>
-                    <span :class="['truncate text-xs', activeChatName ? 'text-neutral-500 dark:text-neutral-400' : 'text-neutral-400 dark:text-neutral-500']">
-                      {{ activeSessionTitle }}
-                    </span>
-                  </span>
-                </button>
+                <ChatConversationButton layout="names" @click="listOpen = true" />
               </Dock>
               <Dock variant="blurry" size="md" :class="['shrink-0']">
                 <ChatSpeechMuteButton variant="dock" />
-                <DockButton
-                  icon="i-mingcute:subtitle-line"
-                  :label="t('tamagotchi.stage.chat-window.danmaku')"
-                  :pressed="danmaku"
-                  @click="toggleDanmaku"
-                />
+                <DockButton v-bind="danmakuControl" @click="toggleDanmaku" />
                 <ChatWindowStyleMenu variant="dock" />
               </Dock>
             </div>
@@ -751,77 +707,18 @@ function moveByKeyboard(delta: WindowDelta) {
                   :shadow="!verticalDock"
                   :class="['pointer-events-auto min-w-0', !verticalDock && characterOnLeft ? 'flex-row-reverse' : '']"
                 >
-                  <DockButton icon="i-lucide:minimize-2" :label="t('tamagotchi.stage.chat-window.fold')" @click="foldChat()" />
-                  <Tooltip v-if="freePlacement" :label="t('tamagotchi.stage.chat-window.move')" :side="dockTooltipSide">
-                    <button
-                      :aria-label="t('tamagotchi.stage.chat-window.move')"
-                      :class="[
-                        'h-7 w-5 shrink-0 cursor-grab touch-none rounded-full',
-                        'flex items-center justify-center outline-none transition-colors',
-                        'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-300',
-                        dockItemClasses('blurry'),
-                      ]"
-                      @pointerdown="holdPointer"
-                      @pointermove="moveWithHeldPointer"
-                      @lostpointercapture="releasePointer"
-                      @keydown="handleArrowKey($event, moveByKeyboard)"
-                    >
-                      <div class="i-ph:dots-six-vertical-bold size-4" />
-                    </button>
-                  </Tooltip>
+                  <DockButton v-bind="foldControl" @click="foldChat()" />
+                  <ChatMoveGrip v-if="freePlacement" variant="dock" :tooltip-side="dockTooltipSide" v-on="gripListeners" />
                   <!--
                     The conversation button opens the list of the conversations on the panel, with the window buttons and
-                    the characters beside it. A plain button: GhostButton wraps its slot in a span that cannot shrink, so
-                    a long title could not truncate. The title is the only part of the dock that shrinks. A dock that
-                    stands up shows the avatar only, and the title of the button gives both names.
+                    the characters beside it. Its title is the only part of the dock that shrinks.
                   -->
-                  <button
-                    type="button"
-                    :aria-label="conversationsLabel"
-                    :title="conversationsLabel"
-                    :class="[
-                      'min-w-0 flex items-center gap-1.5 rounded-full outline-none transition-colors',
-                      'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-300',
-                      dockItemClasses('blurry'),
-                      verticalDock ? 'p-0.5' : characterOnLeft ? 'flex-row-reverse py-0.5 pl-2 pr-0.5' : 'py-0.5 pl-0.5 pr-2',
-                    ]"
-                    @click="listOpen = true"
-                  >
-                    <!-- Display model previews are portrait. Align them to the top so the circle keeps the head. -->
-                    <Avatar
-                      :src="characterPreviews.get(activeCardId)"
-                      :class="[
-                        'block size-6 shrink-0 rounded-full bg-neutral-200/70 text-neutral-600 dark:bg-neutral-700/70 dark:text-neutral-300',
-                        '[&_[data-avatar-image]]:object-top',
-                      ]"
-                    >
-                      <template #fallback>
-                        <span :class="['text-xs font-semibold']">{{ activeCharacterName.slice(0, 1) }}</span>
-                      </template>
-                    </Avatar>
-                    <span
-                      v-if="!verticalDock"
-                      :class="['truncate text-sm font-medium', activeChatName ? '' : 'text-neutral-400 dark:text-neutral-500']"
-                    >
-                      {{ activeSessionTitle }}
-                    </span>
-                  </button>
+                  <ChatConversationButton :layout="verticalDock ? 'avatar' : 'title'" :mirrored="characterOnLeft" @click="listOpen = true" />
                   <DockSeparator />
                   <div :class="['flex shrink-0 items-center', verticalDock ? 'flex-col' : characterOnLeft ? 'flex-row-reverse' : '']">
                     <ChatSpeechMuteButton variant="dock" />
-                    <DockButton
-                      icon="i-mingcute:subtitle-line"
-                      :label="t('tamagotchi.stage.chat-window.danmaku')"
-                      :pressed="danmaku"
-                      @click="toggleDanmaku"
-                    />
-                    <DockButton
-                      icon="i-mingcute:pin-2-line"
-                      pressed-icon="i-mingcute:pin-2-fill"
-                      :label="t('tamagotchi.stage.chat-window.pin')"
-                      :pressed="state.pinned"
-                      @click="togglePinned"
-                    />
+                    <DockButton v-bind="danmakuControl" @click="toggleDanmaku" />
+                    <DockButton v-bind="pinControl" @click="togglePinned" />
                     <ChatWindowStyleMenu variant="dock" />
                   </div>
                 </Dock>

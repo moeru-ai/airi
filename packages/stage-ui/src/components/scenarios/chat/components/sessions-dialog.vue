@@ -14,20 +14,20 @@ const props = withDefaults(defineProps<{
   rows: SessionRow[]
   isDesktop: boolean
   isCreatingSession: boolean
-  /** `inline` renders the list in place, without a surface, and ignores `open`. A window that keeps the list beside the chat uses it. */
-  desktopMode?: 'dialog' | 'popover' | 'inline'
+  /**
+   * `inline` renders the list in place, without a surface, and ignores `open`. A window that keeps the list beside the
+   * chat uses it. `floating` renders it in place too, with its actions in islands, for the floating chat.
+   */
+  desktopMode?: 'dialog' | 'popover' | 'inline' | 'floating'
   /** The character of the conversations. The inline list names it in its title. */
   character?: { name: string }
   /** The inline list is on a touch screen, so its rows take swipes and long presses. */
   touch?: boolean
   /** The owner reads stored messages for the search. See `SessionsList`. */
   searching?: boolean
-  /** The inline list of the floating chat, with its actions in islands. See `SessionsList`. */
-  islands?: boolean
 }>(), {
   desktopMode: 'dialog',
   touch: false,
-  islands: false,
 })
 
 const emit = defineEmits<{
@@ -62,7 +62,7 @@ function preserveTriggerFocus(event: Event) {
 </script>
 
 <template>
-  <div v-if="desktopMode === 'inline'" data-testid="sessions-inline" :class="['h-full min-h-0 py-2 pl-2']">
+  <div v-if="desktopMode === 'inline' || desktopMode === 'floating'" data-testid="sessions-inline" :class="['h-full min-h-0 py-2 pl-2']">
     <SessionsList
       v-model:selecting="selecting"
       v-model:place="place"
@@ -70,7 +70,7 @@ function preserveTriggerFocus(event: Event) {
       :searching="searching"
       compact
       fill
-      :islands="islands"
+      :islands="desktopMode === 'floating'"
       :touch="touch"
       :character="character"
       :class="['h-full']"

@@ -27,7 +27,8 @@ import { useConsciousnessStore } from '../../../../stores/modules/consciousness'
 import { formatSessionFullTime, formatSessionRowTime } from './session-time'
 
 const props = withDefaults(defineProps<{
-  desktopMode?: 'dialog' | 'popover' | 'inline'
+  /** Where the list shows. See `SessionsDialog`. */
+  desktopMode?: 'dialog' | 'popover' | 'inline' | 'floating'
   /** The host is a desktop window. A narrow desktop window then keeps the desktop surfaces and never shows the phone drawer. */
   desktop?: boolean
   /** The inline list is on a touch screen, for example in the side drawer of the phone. */
@@ -37,13 +38,10 @@ const props = withDefaults(defineProps<{
    * Without it, the list shows the chats of the character on the stage.
    */
   characterId?: string
-  /** The inline list of the floating chat, with its actions in islands. See `SessionsList`. */
-  islands?: boolean
 }>(), {
   desktopMode: 'dialog',
   desktop: false,
   touch: false,
-  islands: false,
 })
 
 const emit = defineEmits<{
@@ -287,7 +285,6 @@ async function renameSession(payload: { sessionId: string, title: string }) {
     :is-creating-session="isCreatingSession"
     :searching="searchLoading"
     :desktop-mode="props.desktopMode"
-    :islands="props.islands"
     :touch="props.touch"
     :character="currentCharacter"
     @open-character="emit('openCharacterSettings', currentCharacterId)"

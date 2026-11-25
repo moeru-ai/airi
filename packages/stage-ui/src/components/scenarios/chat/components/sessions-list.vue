@@ -31,7 +31,7 @@ const props = withDefaults(defineProps<{
   /**
    * The list of the floating chat. Its actions stand in islands, as the dock of the chat does: Select, the title, and
    * New above the search field, which stays open. Its batch actions rise in an island too. Use it with `compact` and
-   * `fill`.
+   * `fill`. `SessionsDialog` sets it for its `floating` mode.
    */
   islands?: boolean
 }>(), {
