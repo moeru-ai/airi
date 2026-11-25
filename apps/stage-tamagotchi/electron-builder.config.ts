@@ -75,6 +75,7 @@ export default {
   // },
   files: [
     'out/**',
+    '!out/native/**',
     'resources/**',
     'package.json',
     // NOTICE: Exclude npm `electron` package from app payload.
@@ -156,6 +157,8 @@ export default {
   },
   mac: {
     entitlements: 'build/entitlements.mac.plist',
+    extraResources: [{ from: 'out/native/screen-capture', to: 'native/screen-capture' }],
+    binaries: ['Contents/Resources/native/screen-capture'],
     entitlementsInherit: 'build/entitlements.mac.plist',
     // NOTICE: Same channel rule as Windows. Keep `${arch}` here so generated metadata resolves
     // to architecture-specific update feeds on macOS (for example: `latest-x64-mac.yml`, `latest-arm64-mac.yml`).

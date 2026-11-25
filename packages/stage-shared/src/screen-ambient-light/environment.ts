@@ -1,3 +1,35 @@
+/** Surface response shared by the character and diagnostic shapes. */
+export interface AmbientLightMaterialOptions {
+  /** Use matte face relief and restrict sheen to reviewed hair/nose regions. @default true */
+  illustrated: boolean
+  /** Additional hair shadow on the fitted face; zero retains only painted shadows. @default 0.5 */
+  faceShadow: number
+  /** Fitted face yaw in degrees at Iru head X=30, from 0 to 45. Zero keeps neutral directions. @default 45 */
+  faceYaw: number
+  /** Hair reflection roughness in illustrated mode, from 0.15 to 0.9. @default 0.7 */
+  roughness: number
+  /** Local face diffuse response in illustrated mode, from 0 to 1. Zero uses one face-wide direction. @default 0.8 */
+  skinRelief: number
+  /** Strength of reflected highlights. @default 1.65 */
+  sheen: number
+  /** Nose relief for reflection. Zero removes the nose highlight without changing diffuse shading. @default 0.15 */
+  nose: number
+  /** Compress added light into available headroom instead of clipping. @default true */
+  softHighlights: boolean
+}
+
+/** Screen geometry in character-height units; +Z points toward the viewer. */
+export interface AmbientLightScreenGeometry {
+  /** Distance from the character to the flat center. Must be positive. @default 0.11 */
+  gap: number
+  /** Edge curvature in radians per character height. Nonnegative; zero keeps the screen flat. @default 5 */
+  bend: number
+  /** Nonnegative half-width of the flat center, in character heights. @default 0.21 */
+  flatRadius: number
+  /** Cache area-integrated diffuse light and broad highlights by position and normal. @default true */
+  areaLights?: boolean
+}
+
 /** One measured light color. The channels are sRGB, from 0 to 1. */
 export interface AmbientLightSample {
   red: number
@@ -7,8 +39,36 @@ export interface AmbientLightSample {
   luminance: number
 }
 
+// The persisted 'window-gradient' key now selects directional surface lighting.
+// Keeping the key preserves the user's directional/global preference.
 export type ScreenAmbientLightMode = 'window-gradient' | 'global'
 export type ScreenAmbientLightSource = 'screen-capture' | 'forced-color'
+
+/** Independent light emission, camera exposure, and bloom adaptation for the surface-lighting trial. */
+export interface AmbientLightExposureOptions {
+  /** Derive ambient fill from the smoothed full-screen mean in physical mode. @default true */
+  adaptiveBase: boolean
+  /**
+   * Ambient fill under a white screen. It is never applied below the filter
+   * {@link AmbientLightFilterOptions.darkBase}, and the filter
+   * {@link AmbientLightFilterOptions.baseCurve} shapes the rise. @default 1
+   */
+  brightBase: number
+  /** Perceptual color emphasis for dim light. Preserves baseline RGB and lit luminance; zero disables it. Range 0 to 100. @default 94 */
+  responseCurve: number
+  /** Selects the trial; false reproduces the saved surface response. @default true */
+  enabled: boolean
+  /** Assumed display-white luminance in cd/m², relative to a 200-nit reference. @default 450 */
+  screenNits: number
+  /** Camera exposure compensation in stops; +1 doubles linear light. @default -0.2 */
+  compensation: number
+  /** Adjusts bloom sensitivity using recent screen luminance. @default true */
+  adaptiveBloom: boolean
+  /** Time constant toward dark surroundings, in seconds. @default 0.5 */
+  darkSeconds: number
+  /** Time constant toward bright surroundings, in seconds. @default 0.2 */
+  brightSeconds: number
+}
 
 export interface AmbientLightSamplingOptions {
   /**
@@ -17,7 +77,7 @@ export interface AmbientLightSamplingOptions {
    * A desktop is mostly gray, so a plain mean lands near gray and the character
    * shows no color. A weight below 1 lets colored content count for more.
    *
-   * @default 0.35
+   * @default 0.51
    */
   neutralColorWeight: number
 }
@@ -53,7 +113,7 @@ export interface AmbientLightFilterOptions {
    * side more than the far one. At 0 the model takes one level everywhere; at
    * 1 every fragment follows only what is beside it.
    *
-   * @default 0.5
+   * @default 1
    */
   localShare: number
   /**
@@ -109,6 +169,8 @@ export interface AmbientLightFilterOptions {
    * @default 1.6
    */
   backlight: number
+  /** Exterior halo from backlight; zero keeps the original silhouette alpha. @default 1.15 */
+  bloom: number
   /**
    * Width of the light wrap band, as a fraction of the model height. It matches
    * the `Diffuse` control of a compositing light-wrap node.
@@ -117,7 +179,7 @@ export interface AmbientLightFilterOptions {
    * half this width, so the light fades out about one width inside the
    * silhouette and has no inner boundary of its own.
    *
-   * @default 0.03
+   * @default 0.025
    */
   wrapDiffuse: number
   /**
@@ -290,12 +352,29 @@ export function ambientLightMapInteriorLuminance(
   return count > 0 ? total / count : 0
 }
 
+/** Rectangle in the normalized coordinates of its owning surface. */
+export interface NormalizedRectangle {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
 /**
- * Measurements of the screen around and behind the stage window, for one
- * capture frame. Both maps share one grid over the window grown by
- * {@link ambientLightMapMargin}.
+ * One capture's full-display emission and local glow maps. Contact and surround
+ * cover the window grown by {@link ambientLightMapMargin}; screen covers only
+ * the actual display. Glow extrapolation must never become a surface emitter.
  */
 export interface AmbientLightEnvironment {
+  /** Actual display emission for surface lighting. Omitted for synthetic color studies. */
+  screen?: {
+    radiance: AmbientLightMap
+    /** Canvas rectangle in display coordinates; may extend outside the display. */
+    stage: NormalizedRectangle
+    /** Physical canvas width / height, independent of its render resolution. */
+    aspect: number
+  }
+
   /**
    * Perceived screen level around the window, from 0 to 1. Every visible pixel
    * counts, so a dark desktop reads as dark even with no color to sample.
@@ -338,9 +417,9 @@ export interface AmbientLightEnvironment {
 
 /** Default values for the screen ambient-light sampler, renderer, and devtool. */
 export const ambientLightDefaults = Object.freeze({
-  enabled: false,
+  enabled: true,
   source: 'screen-capture' as ScreenAmbientLightSource,
-  forcedColor: '#bf6fff',
+  forcedColor: '#ffdfb0ff',
   mode: 'window-gradient' as ScreenAmbientLightMode,
   /**
    * Overall effect amount. 1 is the designed look. Values up to 3 scale the
@@ -357,6 +436,11 @@ export const ambientLightDefaults = Object.freeze({
    * leaves the eyes open. See `useMotionUpdatePluginLightSquint`.
    */
   squint: 1,
+  /** Surface highlights and the reviewed Iru nose correction. */
+  material: Object.freeze<AmbientLightMaterialOptions>({ illustrated: true, faceShadow: 0.5, faceYaw: 45, roughness: 0.7, skinRelief: 0.8, sheen: 1.65, nose: 0.15, softHighlights: true }),
+  /** Virtual screen shape used by directional Live2D surface lighting. */
+  geometry: Object.freeze<AmbientLightScreenGeometry>({ areaLights: true, gap: 0.11, bend: 5, flatRadius: 0.21 }),
+  exposure: Object.freeze<AmbientLightExposureOptions>({ adaptiveBase: true, brightBase: 1, responseCurve: 94, enabled: true, screenNits: 450, compensation: -0.2, adaptiveBloom: true, darkSeconds: 0.5, brightSeconds: 0.2 }),
   /**
    * Time between screen samples, in milliseconds. It also constrains the
    * capture stream, so the renderer never decodes frames it will not sample.
@@ -387,7 +471,7 @@ export const ambientLightDefaults = Object.freeze({
    */
   responseMs: 50,
   sampling: Object.freeze<AmbientLightSamplingOptions>({
-    neutralColorWeight: 0.35,
+    neutralColorWeight: 0.51,
   }),
   filter: Object.freeze<AmbientLightFilterOptions>({
     darkBase: 0.45,
@@ -399,6 +483,7 @@ export const ambientLightDefaults = Object.freeze({
     wrapSaturation: 1,
     wrapDiffuse: 0.03,
     backlight: 1.6,
+    bloom: 1.15,
     translucentWrap: false,
   }),
 })
