@@ -8,6 +8,18 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 }
 
 /**
+ * Writes the `<|ACT {...}|>` token that {@link tokenAct} reads. Code that adds an action to a reply, for example the
+ * emotion of an emoticon, sends the same token as the model, so the same handlers run it.
+ *
+ * @example
+ * formatAct({ emotion: { name: 'sad', intensity: 0.5 } })
+ * // => '<|ACT {"emotion":{"name":"sad","intensity":0.5}}|>'
+ */
+export function formatAct(payload: Record<string, unknown>): string {
+  return `${actTokenPrefix}${JSON.stringify(payload)}${markerSuffix}`
+}
+
+/**
  * Creates the parser for `<|ACT {...}|>` streaming-control tokens.
  *
  * Use when:
