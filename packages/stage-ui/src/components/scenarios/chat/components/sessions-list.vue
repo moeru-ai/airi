@@ -4,14 +4,15 @@ import type { SessionRow } from './session-row-model'
 
 import { AnimatedHeight, BasicButton, Button, GhostButton, ScrollableArea } from '@proj-airi/ui'
 import { useEventListener, useResizeObserver, watchDebounced } from '@vueuse/core'
-import { computed, ref, shallowRef, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, ref, shallowRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import SettingsSearchField from '../../settings/settings-search-field.vue'
 import SessionRowItem from './session-row.vue'
 import SessionsListHeader from './sessions-list-header.vue'
+import SessionsSearchField from './sessions-search-field.vue'
 
 import { useListReorderMotion } from '../composables/use-list-reorder-motion'
+import { iconButtonClasses, quietIconClasses } from './icon-button-classes'
 
 const props = withDefaults(defineProps<{
   /** Every conversation of the user with the current character, archived ones included. */
@@ -64,11 +65,33 @@ const draftQuery = ref(query.value)
 watchDebounced(draftQuery, (value) => {
   query.value = value
 }, { debounce: 150 })
-// The owner can clear the search, for example when the list closes.
+/** The search field takes the place of the title while it is open. A search that the owner keeps opens it. */
+const searchOpen = shallowRef(query.value !== '')
+const searchField = useTemplateRef<InstanceType<typeof SessionsSearchField>>('searchField')
+const searchButton = useTemplateRef<HTMLButtonElement>('searchButton')
+// The owner can clear the search, for example when the list closes. The field then closes too.
 watch(query, (value) => {
-  if (value !== draftQuery.value)
-    draftQuery.value = value
+  if (value === draftQuery.value)
+    return
+  draftQuery.value = value
+  if (!value)
+    searchOpen.value = false
 })
+
+async function openSearch() {
+  searchOpen.value = true
+  await nextTick()
+  searchField.value?.focus()
+}
+
+/** Ends the search, so the list shows its place again, and gives focus back to the search button. */
+async function closeSearch() {
+  draftQuery.value = ''
+  query.value = ''
+  searchOpen.value = false
+  await nextTick()
+  searchButton.value?.focus()
+}
 // The swipe area that is open belongs to this open list, never to persisted session state.
 const expandedSessionId = shallowRef<string>()
 // Selection mode belongs to the open list owner, so closing the list can end it.
@@ -260,13 +283,6 @@ useEventListener(document, 'focusin', (event) => {
 })
 
 function handleEscape(event: KeyboardEvent) {
-  // The search field has the first Escape, which clears its text and keeps the list open.
-  if (draftQuery.value && event.target instanceof HTMLInputElement && event.target.type === 'search') {
-    draftQuery.value = ''
-    query.value = ''
-    event.stopPropagation()
-    return
-  }
   if (dropConfirmations(null)) {
     event.stopPropagation()
     return
@@ -283,6 +299,15 @@ function handleEscape(event: KeyboardEvent) {
 }
 
 const root = useTemplateRef<HTMLElement>('root')
+
+// Cmd+F or Ctrl+F, the find shortcut of the browser, opens the search while the list is on screen.
+useEventListener(window, 'keydown', (event: KeyboardEvent) => {
+  const command = event.metaKey || event.ctrlKey
+  if (!command || event.altKey || event.shiftKey || event.key.toLowerCase() !== 'f' || !root.value?.isConnected)
+    return
+  event.preventDefault()
+  void openSearch()
+})
 const listBox = useTemplateRef<HTMLElement>('listBox')
 /**
  * The most height that the list can take. The list grows with its rows until its surface, the drawer or the dialog,
@@ -332,7 +357,18 @@ const { holdLeavingItem } = useListReorderMotion({
 <template>
   <div ref="root" :class="['min-h-0 flex flex-col', props.fill ? 'h-full' : '']" @keydown.esc="handleEscape">
     <!-- A list that fills its column keeps its scrollbar at the edge of the column, so each part pads its own right side. -->
+    <SessionsSearchField
+      v-if="searchOpen"
+      ref="searchField"
+      v-model="draftQuery"
+      :placeholder="t('stage.chat.sessions.search')"
+      :close-label="t('stage.chat.sessions.search-close')"
+      :compact="props.compact"
+      :class="[props.compact ? 'mb-0.5' : 'mb-2', props.fill ? 'mr-2' : '']"
+      @close="closeSearch"
+    />
     <SessionsListHeader
+      v-else
       :class="[props.fill ? 'pr-2' : '']"
       :place="place"
       :live-count="liveRows.length"
@@ -341,14 +377,19 @@ const { holdLeavingItem } = useListReorderMotion({
       :character="props.character"
       @select-place="setPlace"
       @open-character="emit('openCharacter')"
-    />
-
-    <SettingsSearchField
-      v-model="draftQuery"
-      size="md"
-      :placeholder="t('stage.chat.sessions.search')"
-      :class="['shrink-0', props.compact ? 'mb-1' : 'mb-2', props.fill ? 'mr-2' : '']"
-    />
+    >
+      <button
+        ref="searchButton"
+        type="button"
+        data-testid="sessions-search-button"
+        :aria-label="t('stage.chat.sessions.search')"
+        :title="t('stage.chat.sessions.search')"
+        :class="[iconButtonClasses, quietIconClasses, props.compact ? 'size-8' : 'size-11']"
+        @click="openSearch"
+      >
+        <span aria-hidden="true" :class="['i-solar:magnifer-linear', props.compact ? 'size-4' : 'size-5']" />
+      </button>
+    </SessionsListHeader>
 
     <div :class="['flex shrink-0 items-center', props.fill ? 'pr-2' : '']">
       <component
