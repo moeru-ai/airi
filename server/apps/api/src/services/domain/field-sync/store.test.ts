@@ -2,7 +2,7 @@ import type { Database } from '../../../libs/db'
 import type { PushedField } from './request'
 import type { FieldSyncHistoryOptions, FieldSyncStore } from './store'
 
-import { createBadRequestError } from '@proj-airi/http-error-shared'
+import { createBadRequestError } from '@proj-airi/http-shared'
 import { eq } from 'drizzle-orm'
 import { foreignKey, index, integer, pgTable, primaryKey, text, timestamp } from 'drizzle-orm/pg-core'
 import { beforeEach, describe, expect, it } from 'vitest'

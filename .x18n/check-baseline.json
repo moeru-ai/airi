@@ -17,6 +17,13 @@
     {
       "path": ".",
       "code": "unused-key",
+      "key": "settings.pages.flux.audit.ttsRequests",
+      "message": "\"settings.pages.flux.audit.ttsRequests\" is not used.",
+      "count": 1
+    },
+    {
+      "path": ".",
+      "code": "unused-key",
       "key": "settings.pages.flux.description",
       "message": "\"settings.pages.flux.description\" is not used.",
       "count": 1
@@ -96,6 +103,13 @@
       "code": "unused-key",
       "key": "stage.chat.call.title",
       "message": "\"stage.chat.call.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": ".",
+      "code": "unused-key",
+      "key": "stage.chat.sessions.cloud-badge",
+      "message": "\"stage.chat.sessions.cloud-badge\" is not used.",
       "count": 1
     },
     {
@@ -671,27 +685,6 @@
     {
       "path": "packages/i18n/src/locales/en/settings.yaml",
       "code": "unused-key",
-      "key": "settings.pages.flux.audit.typeAddition",
-      "message": "\"settings.pages.flux.audit.typeAddition\" is not used.",
-      "count": 1
-    },
-    {
-      "path": "packages/i18n/src/locales/en/settings.yaml",
-      "code": "unused-key",
-      "key": "settings.pages.flux.audit.typeInitial",
-      "message": "\"settings.pages.flux.audit.typeInitial\" is not used.",
-      "count": 1
-    },
-    {
-      "path": "packages/i18n/src/locales/en/settings.yaml",
-      "code": "unused-key",
-      "key": "settings.pages.flux.audit.typePromo",
-      "message": "\"settings.pages.flux.audit.typePromo\" is not used.",
-      "count": 1
-    },
-    {
-      "path": "packages/i18n/src/locales/en/settings.yaml",
-      "code": "unused-key",
       "key": "settings.pages.flux.buy",
       "message": "\"settings.pages.flux.buy\" is not used.",
       "count": 1
@@ -736,6 +729,20 @@
       "code": "unused-key",
       "key": "settings.pages.models.description",
       "message": "\"settings.pages.models.description\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.models.library.description",
+      "message": "\"settings.pages.models.library.description\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.models.library.title",
+      "message": "\"settings.pages.models.library.title\" is not used.",
       "count": 1
     },
     {
@@ -2330,6 +2337,13 @@
     {
       "path": "packages/i18n/src/locales/en/stage.yaml",
       "code": "unused-key",
+      "key": "stage.chat.sessions.rename",
+      "message": "\"stage.chat.sessions.rename\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
       "key": "stage.chat.tool-calls.arguments",
       "message": "\"stage.chat.tool-calls.arguments\" is not used.",
       "count": 1
@@ -3632,13 +3646,6 @@
     {
       "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
       "code": "unused-key",
-      "key": "tamagotchi.stage.chat-window.context-inspector.budget-note",
-      "message": "\"tamagotchi.stage.chat-window.context-inspector.budget-note\" is not used.",
-      "count": 1
-    },
-    {
-      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
-      "code": "unused-key",
       "key": "tamagotchi.stage.chat-window.context-inspector.bytes",
       "message": "\"tamagotchi.stage.chat-window.context-inspector.bytes\" is not used.",
       "count": 1
@@ -3690,13 +3697,6 @@
       "code": "unused-key",
       "key": "tamagotchi.stage.chat-window.context-inspector.provider",
       "message": "\"tamagotchi.stage.chat-window.context-inspector.provider\" is not used.",
-      "count": 1
-    },
-    {
-      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
-      "code": "unused-key",
-      "key": "tamagotchi.stage.chat-window.context-inspector.reported-note",
-      "message": "\"tamagotchi.stage.chat-window.context-inspector.reported-note\" is not used.",
       "count": 1
     },
     {

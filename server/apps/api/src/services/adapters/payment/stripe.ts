@@ -2,7 +2,7 @@ import type Stripe from 'stripe'
 
 import type { PaymentReceiptAdapter } from './types'
 
-import { createServiceUnavailableError } from '@proj-airi/http-error-shared'
+import { createServiceUnavailableError } from '@proj-airi/http-shared'
 import { object, pipe, safeParse, startsWith, string, url } from 'valibot'
 
 const receiptUrlSchema = pipe(string(), url(), startsWith('https://'))

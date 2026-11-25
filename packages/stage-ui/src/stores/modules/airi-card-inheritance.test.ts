@@ -99,14 +99,26 @@ describe('card inheritance with real module stores', () => {
   })
 
   // https://github.com/moeru-ai/airi/pull/2332
-  it('preserves explicit no-speech on the default card', async () => {
+  // ROOT CAUSE:
+  //
+  // Cards from before v0.12.0 stored the unset global speech, `speech-noop`. It overrode the global speech,
+  // so replies sent no speech request.
+  //
+  // We fixed this by giving a card no None for speech. A stored `speech-noop` inherits the global speech.
+  it('speaks with the global speech setting for a card that stores the old no-speech placeholder', async () => {
+    const speech = useSpeechStore()
+    speech.activeSpeechProvider = 'speech-provider'
+    speech.activeSpeechModel = 'global-model'
+    speech.activeSpeechVoiceId = 'global-voice'
     const cards = useAiriCardStore()
-    const muted = card()
-    muted.extensions.airi.modules.speech.provider = 'speech-noop'
-    cards.cards.set('default', muted)
+    const old = card()
+    old.extensions.airi.modules.speech.provider = 'speech-noop'
+    cards.cards.set('default', old)
+
     await cards.initialize()
-    expect(cards.activeCard?.extensions.airi.modules.speech.provider).toBe('speech-noop')
-    expect(useSpeechStore().activeSpeechProvider).toBe('speech-noop')
+
+    expect(cards.getModules('default').speech).toEqual({ provider: 'speech-provider', model: 'global-model', voice_id: 'global-voice' })
+    expect(speech.activeSpeechProvider).toBe('speech-provider')
   })
 
   it('keeps the default artistry instruction on a fresh profile', async () => {
@@ -201,7 +213,7 @@ describe('card inheritance with real module stores', () => {
     await cards.clearProviderSelections('removed-provider')
 
     expect(cards.getCard(id)?.extensions.airi.modules.consciousness).toEqual({ provider: '', model: '' })
-    expect(cards.getCard(id)?.extensions.airi.modules.speech).toEqual({ provider: 'speech-noop', model: '', voice_id: '' })
+    expect(cards.getCard(id)?.extensions.airi.modules.speech).toEqual({ provider: '', model: '', voice_id: '' })
     await cards.activateCard(id)
     expect(useConsciousnessStore().activeProvider).not.toBe('removed-provider')
     expect(useSpeechStore().activeSpeechProvider).toBe('speech-noop')

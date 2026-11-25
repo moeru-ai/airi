@@ -1,6 +1,7 @@
 import type { PaymentReceiptService } from '../../services/domain/payment/receipt'
 import type { HonoEnv } from '../../types/hono'
 
+import { ok, paginated } from '@proj-airi/http-shared'
 import { Hono } from 'hono'
 import { minLength, object, parse, pipe, string } from 'valibot'
 
@@ -19,7 +20,7 @@ export function createPaymentRoutes(receipts: PaymentReceiptService) {
       })
       c.header('Cache-Control', 'no-store')
       const { records, hasMore } = await receipts.listOrders(c.get('user')!.id, limit, offset)
-      return c.json({
+      return paginated(c, {
         records: records.map(record => ({
           ...record,
           creditedAt: record.creditedAt?.toISOString() ?? null,
@@ -31,6 +32,6 @@ export function createPaymentRoutes(receipts: PaymentReceiptService) {
     .get('/:id/receipt', async (c) => {
       const { id } = parse(receiptParamsSchema, c.req.param())
       c.header('Cache-Control', 'no-store')
-      return c.json(await receipts.getReceipt(c.get('user')!.id, id))
+      return ok(c, await receipts.getReceipt(c.get('user')!.id, id))
     })
 }

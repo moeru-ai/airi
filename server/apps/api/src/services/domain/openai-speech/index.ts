@@ -7,7 +7,7 @@ import type { VoicePackService } from '../voice-packs'
 
 import { useLogger } from '@guiiai/logg'
 import { context, SpanStatusCode, trace } from '@opentelemetry/api'
-import { ApiError, createBadRequestError, createPaymentRequiredError } from '@proj-airi/http-error-shared'
+import { ApiError, createBadRequestError, createPaymentRequiredError } from '@proj-airi/http-shared'
 import {
   ATTR_GEN_AI_PROVIDER_NAME,
   ATTR_GEN_AI_REQUEST_MODEL,
@@ -126,11 +126,13 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
     if (requestModel === 'auto')
       requestModel = await deps.configKV.getOrThrow('DEFAULT_TTS_MODEL')
     const routedVoice = voicePackRequest.voice ?? requestVoice
-    await deps.providerCatalogService.assertTtsModelEnabled(requestModel)
+    const ttsModel = await deps.providerCatalogService.assertTtsModelEnabled(requestModel)
     if (!voicePackRequest.voicePackId && routedVoice)
       await deps.providerCatalogService.assertTtsVoiceEnabled(requestModel, routedVoice)
 
-    const billingUnits = Math.ceil(inputText.length * voicePackRequest.costMultiplier)
+    // The catalog model owns the price. A Voice Pack bills at the multiplier of the model that it routes to.
+    const costMultiplier = ttsModel.costMultiplier
+    const billingUnits = Math.ceil(inputText.length * costMultiplier)
 
     logger.withFields({
       requestId,
@@ -222,6 +224,7 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
       const result = await deps.speechBilling.settle({
         userId: input.userId,
         units: billingUnits,
+        costMultiplier,
         requestId,
         model: requestModel,
         turnId: analytics.turnId,
@@ -319,7 +322,6 @@ async function voicePackRequestOptions(
   },
 ): Promise<{
   extraOptions: Record<string, unknown> | undefined
-  costMultiplier: number
   voicePackId?: string
   model?: string
   voice?: string
@@ -340,7 +342,6 @@ async function voicePackRequestOptions(
 
   return {
     extraOptions: Object.keys(extraOptions).length > 0 ? extraOptions : undefined,
-    costMultiplier: voicePack?.costMultiplier ?? 1,
     voicePackId: voicePack?.id,
     model: voicePack?.ttsModelId,
     voice: voicePack?.upstreamVoiceId,
@@ -358,11 +359,6 @@ async function resolveVoicePackRequest(
 ): Promise<Awaited<ReturnType<VoicePackService['findById']>> | null> {
   const packId = voicePackOptions?.pack_id
   const requestedVoice = context.voice?.trim()
-  if (voicePackOptions?.cost_multiplier != null) {
-    throw createBadRequestError('voice_pack.cost_multiplier is server-managed', 'INVALID_VOICE_PACK', {
-      field: 'voice_pack.cost_multiplier',
-    })
-  }
   if (packId != null && (typeof packId !== 'string' || !packId.trim()))
     throw createBadRequestError('voice_pack.pack_id is required when Voice Pack billing metadata is provided', 'INVALID_VOICE_PACK')
 

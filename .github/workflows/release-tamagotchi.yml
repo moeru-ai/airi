@@ -780,6 +780,8 @@ jobs:
 
       - name: Publish the bundle
         working-directory: ./apps/stage-tamagotchi
+        # `shell: bash` adds `-o pipefail`. Without it, `| tee` hides a failure of the CLI and the step passes.
+        shell: bash
         env:
           CHANNEL: ${{ needs.updates.outputs.channel }}
           ERGOSPHERE_IT_SIGNING_KEY: ${{ secrets.ERGOSPHERE_IT_SIGNING_KEY }}
@@ -812,6 +814,8 @@ jobs:
       - name: Register the installers
         if: ${{ needs.updates.outputs.installer-channels != '' }}
         working-directory: ./apps/stage-tamagotchi
+        # `shell: bash` adds `-o pipefail`. Without it, `| tee` hides a failure of the CLI and the step passes.
+        shell: bash
         env:
           INSTALLER_CHANNELS: ${{ needs.updates.outputs.installer-channels }}
           FILES_URL: ${{ needs.updates.outputs.installer-files-url }}
@@ -856,6 +860,8 @@ jobs:
 
       - name: Promote
         working-directory: ./apps/stage-tamagotchi
+        # `shell: bash` adds `-o pipefail`. Without it, `| tee` hides a failure of the CLI and the step passes.
+        shell: bash
         env:
           FROM: ${{ needs.updates.outputs.promote-from }}
           VERSION: ${{ needs.updates.outputs.version }}

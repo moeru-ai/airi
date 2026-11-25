@@ -241,6 +241,7 @@
   - [ ] 协作玩 [Helldivers 2](https://www.playstation.com/en-hk/games/helldivers-2/pc/)（进行中）
   - [x] 在 [Telegram](https://telegram.org) 聊天
   - [x] 在 [Discord](https://discord.com) 聊天
+  - [x] 在 iMessage 聊天（通过 [Photon](https://photon.codes) API）
   - [ ] 记忆
     - [x] 纯浏览器内数据库支持（DuckDB WASM | `pglite`）
     - [ ] Alaya 记忆层（施工中）

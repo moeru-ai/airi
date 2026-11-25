@@ -1,13 +1,21 @@
+import type { SessionSearchMatch } from '../../../../stores/chat/session-search'
 import type { ChatSessionMeta } from '../../../../types/chat-session'
 
 /** A conversation preview that the session owner prepares for the conversation list. */
 export interface SessionRow {
   meta: ChatSessionMeta
   preview: string
+  /** The last message, for the second line of the row. Missing until the messages of the conversation load. */
+  lastMessage?: string
   isActive: boolean
+  /** The time of the last message, or the creation time of an empty conversation, in Unix milliseconds. */
+  activityAt: number
+  /** The short time of the row, for example `9:05 AM` today or `yesterday`. See `formatSessionRowTime`. */
   activityAtLabel: string
+  /** The full date and time, for the tooltip of the row time and the menu of a touch row. */
+  activityAtTitle: string
   /** The name of the character of the conversation. */
   characterName: string
-  /** The preview image of the default model of the character. Without it, the avatar shows its fallback. */
-  characterPreview?: string
+  /** Why the conversation matches the search of the list. Set only while the list searches. */
+  match?: SessionSearchMatch
 }

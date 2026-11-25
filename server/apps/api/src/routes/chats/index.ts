@@ -1,7 +1,7 @@
 import type { ChatService } from '../../services/domain/chats'
 import type { HonoEnv } from '../../types/hono'
 
-import { createBadRequestError } from '@proj-airi/http-error-shared'
+import { createBadRequestError, created, ok } from '@proj-airi/http-shared'
 import { Hono } from 'hono'
 import { safeParse } from 'valibot'
 
@@ -18,17 +18,18 @@ export function createChatRoutes(chatService: ChatService) {
       if (!result.success)
         throw createBadRequestError('Invalid Request', 'INVALID_REQUEST', result.issues)
       const chat = await chatService.createChat(user.id, result.output)
-      return c.json(chat, 201)
+      return created(c, chat)
     })
     .get('/', async (c) => {
       const user = c.get('user')!
       const chats = await chatService.listChats(user.id)
+      // eslint-disable-next-line no-restricted-syntax -- Known deviation in 2026-10-19-http-response-conventions.md: clients read { chats }.
       return c.json({ chats })
     })
     .get('/:id', async (c) => {
       const user = c.get('user')!
       const chat = await chatService.getChat(user.id, c.req.param('id'))
-      return c.json(chat)
+      return ok(c, chat)
     })
     .patch('/:id', async (c) => {
       const user = c.get('user')!
@@ -37,11 +38,12 @@ export function createChatRoutes(chatService: ChatService) {
       if (!result.success)
         throw createBadRequestError('Invalid Request', 'INVALID_REQUEST', result.issues)
       const updated = await chatService.updateChat(user.id, c.req.param('id'), result.output)
-      return c.json(updated)
+      return ok(c, updated)
     })
     .delete('/:id', async (c) => {
       const user = c.get('user')!
       const deleted = await chatService.deleteChat(user.id, c.req.param('id'))
+      // eslint-disable-next-line no-restricted-syntax -- Known deviation in 2026-10-19-http-response-conventions.md: clients read the deleted chat.
       return c.json(deleted)
     })
     .post('/:id/members', async (c) => {
@@ -51,11 +53,11 @@ export function createChatRoutes(chatService: ChatService) {
       if (!result.success)
         throw createBadRequestError('Invalid Request', 'INVALID_REQUEST', result.issues)
       const added = await chatService.addMember(user.id, c.req.param('id'), result.output)
-      return c.json(added)
+      return ok(c, added)
     })
     .delete('/:id/members/:memberId', async (c) => {
       const user = c.get('user')!
       const removed = await chatService.removeMember(user.id, c.req.param('id'), c.req.param('memberId'))
-      return c.json(removed)
+      return ok(c, removed)
     })
 }

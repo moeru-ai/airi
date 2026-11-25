@@ -1,7 +1,7 @@
 import type { Database } from '../../libs/db'
 import type { PushedField } from './field-sync'
 
-import { createBadRequestError } from '@proj-airi/http-error-shared'
+import { createBadRequestError } from '@proj-airi/http-shared'
 
 import * as v from 'valibot'
 

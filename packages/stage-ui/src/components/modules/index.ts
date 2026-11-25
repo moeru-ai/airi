@@ -1,5 +1,6 @@
 export { default as GamingFactorio } from './GamingFactorio.vue'
 export { default as GamingMinecraft } from './GamingMinecraft.vue'
+export { default as MessagingPhoton } from './messaging-photon.vue'
 export { default as MessagingDiscord } from './MessagingDiscord.vue'
 export { default as Stickers } from './stickers.vue'
 export { default as WebSearch } from './web-search.vue'

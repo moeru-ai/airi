@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { FluxBalanceBucket } from '@proj-airi/stage-ui/composables/use-analytics'
 
+import { errorMessageFrom } from '@moeru/std'
 import { useQuery } from '@pinia/colada'
 import { isCapacitorAvailable, isFluxPurchaseDisabled, isStageTamagotchi } from '@proj-airi/stage-shared'
 import { client } from '@proj-airi/stage-ui/composables/api'
@@ -13,16 +14,17 @@ import { until, useEventListener } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRoute, useRouter } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 
 import CapacitorSection from '../../components/capacitor-section.vue'
 import PaymentHistory from './components/payment-history.vue'
 
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 const { credits, isAuthenticated } = storeToRefs(authStore)
+const formattedCredits = computed(() => new Intl.NumberFormat().format(credits.value))
 const {
   trackCheckoutStarted,
   trackPaywallSeen,
@@ -71,14 +73,10 @@ const currencyOptions = computed(() => {
   const available = packages.value
   if (!available?.length)
     return []
-  // Currencies supported by all packages
-  const first = Object.keys(available[0].currencies)
-  return first
-    .filter(c => available.every(p => c in p.currencies))
-    .map(c => ({ label: c.toUpperCase(), value: c }))
+  return Object.keys(available[0].currencies)
+    .filter(currency => available.every(pack => currency in pack.currencies))
+    .map(currency => ({ label: currency.toUpperCase(), value: currency }))
 })
-
-const numberFormat = computed(() => new Intl.NumberFormat(locale.value))
 
 /**
  * Buckets Flux balances so monetization analytics never expose exact balances.
@@ -97,6 +95,21 @@ function fluxBalanceBucket(balance: number | undefined): FluxBalanceBucket {
   return '10000_plus'
 }
 
+const capacity = ref(0)
+
+async function fetchStats() {
+  try {
+    const res = await client.api.v1.flux.stats.$get()
+    if (!res.ok)
+      throw new Error(`Flux stats request failed with status ${res.status}`)
+    const data = await res.json()
+    capacity.value = data.capacity
+  }
+  catch (error) {
+    console.error(errorMessageFrom(error) ?? 'Failed to load Flux stats')
+  }
+}
+
 watch(packages, (available) => {
   if (available?.length)
     selectedCurrency.value = available[0].defaultCurrency
@@ -107,19 +120,12 @@ watch(packagesError, (error) => {
     message.value = { type: 'error', text: t('settings.pages.flux.packagesError') }
 })
 
+/**
+ * Shows a Stripe return banner that background package refreshes must not replace.
+ */
 function showCheckoutReturnMessage(type: 'success' | 'error', text: string) {
   checkoutReturnMessageActive.value = true
   message.value = { type, text }
-}
-
-const capacity = ref(0)
-
-async function fetchStats() {
-  const response = await client.api.v1.flux.stats.$get()
-  if (!response.ok)
-    return
-  const stats = await response.json()
-  capacity.value = stats.capacity
 }
 
 watch(isAuthenticated, async (authenticated) => {
@@ -224,7 +230,7 @@ async function handleBuy(stripePriceId: string) {
 </script>
 
 <template>
-  <div :class="['flex min-h-full flex-col gap-6 p-4']">
+  <div :class="['flex flex-col gap-6 min-h-full p-4']">
     <!-- Message banner -->
     <Alert
       v-if="message"
@@ -261,7 +267,7 @@ async function handleBuy(stripePriceId: string) {
           :class="['shrink-0 text-[13px]', 'text-neutral-500 dark:text-neutral-400']"
         >
           <template #balance>
-            <span :class="['text-lg tabular-nums', 'text-neutral-900 dark:text-neutral-50']">{{ numberFormat.format(credits) }}</span>
+            <span :class="['text-lg tabular-nums', 'text-neutral-900 dark:text-neutral-50']">{{ formattedCredits }}</span>
           </template>
         </i18n-t>
       </div>
@@ -329,25 +335,32 @@ async function handleBuy(stripePriceId: string) {
     <RouterLink
       v-if="isAuthenticated"
       to="/settings/usage"
-      :class="['flex items-center justify-between gap-4 rounded-lg p-3', 'bg-neutral-100/60 text-sm hover:bg-neutral-100 dark:bg-neutral-800/40 dark:hover:bg-neutral-800']"
+      :class="[
+        '-mx-2 flex min-h-10 items-center gap-2 rounded-md px-2 py-1.5',
+        'text-sm text-inherit no-underline',
+        'transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-800/40',
+        'focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2',
+      ]"
     >
-      <span>{{ t('settings.pages.usage.title') }}</span>
-      <span :class="['flex items-center gap-2 text-neutral-500 dark:text-neutral-400']">
-        {{ t('settings.pages.usage.viewDetails') }}
+      <span :class="['text-neutral-500 dark:text-neutral-400']">
+        {{ t('settings.pages.flux.audit.title') }}
+      </span>
+      <span :class="['ml-auto flex items-center gap-1 text-primary-600 dark:text-primary-400']">
+        {{ t('settings.pages.flux.usage.details') }}
         <span aria-hidden="true" :class="['i-solar:alt-arrow-right-linear size-4']" />
       </span>
     </RouterLink>
 
     <PaymentHistory v-if="isAuthenticated" />
 
-    <div v-if="!isAuthenticated" :class="['mt-auto flex flex-wrap items-center justify-center gap-x-5 gap-y-2 pb-2 pt-6 text-xs text-neutral-500']">
-      <a :href="AIRI_TERMS_URL" target="_blank" rel="noreferrer" :class="['hover:text-primary-500']">
+    <div v-if="!isAuthenticated" :class="['flex flex-wrap items-center justify-center gap-x-5 gap-y-2 mt-auto pb-2 pt-6 text-xs text-neutral-500']">
+      <a :class="['hover:text-primary-500']" :href="AIRI_TERMS_URL" target="_blank" rel="noreferrer">
         {{ t('settings.pages.flux.terms') }}
       </a>
-      <a :href="AIRI_PRIVACY_URL" target="_blank" rel="noreferrer" :class="['hover:text-primary-500']">
+      <a :class="['hover:text-primary-500']" :href="AIRI_PRIVACY_URL" target="_blank" rel="noreferrer">
         {{ t('settings.pages.flux.privacy') }}
       </a>
-      <a href="mailto:airi@moeru.ai" :class="['hover:text-primary-500']">
+      <a :class="['hover:text-primary-500']" href="mailto:airi@moeru.ai">
         airi@moeru.ai
       </a>
     </div>
@@ -359,8 +372,5 @@ meta:
   layout: settings
   onboarding: false
   titleKey: settings.pages.flux.pageTitle
-  descriptionKey: settings.pages.billing.description
-  icon: i-solar:bill-list-bold-duotone
-  settingsEntry: true
-  order: 10
+  icon: i-solar:star-bold-duotone
 </route>

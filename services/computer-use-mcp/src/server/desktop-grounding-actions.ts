@@ -1,3 +1,5 @@
+import type { CdpBridge } from '../browser-dom/cdp-bridge'
+import type { DesktopGroundingSnapshot, DesktopTargetCandidate } from '../desktop-grounding-types'
 import type { ExecutorActionResult, ExecutorCallOptions } from '../types'
 import type { ComputerUseServerRuntime } from './runtime'
 
@@ -6,11 +8,14 @@ import { errorMessageFrom } from '@moeru/std'
 import { appNamesMatch } from '../app-aliases'
 import { decideBrowserAction } from '../browser-action-router'
 import { getUnsupportedBrowserDomActions, isBrowserDomActionSupported } from '../browser-dom/capabilities'
-import { resolveSnapByCandidate } from '../snap-resolver'
+import { captureDesktopGrounding } from '../desktop-grounding'
+import { boundsIoU, resolveSnapByCandidate } from '../snap-resolver'
 import { sleep } from '../utils/sleep'
+import { assertApprovedForeground } from './approved-foreground'
 import { decideDesktopExecutionMode } from './desktop-scheduler'
 
 const DESKTOP_CLICK_SNAPSHOT_MAX_AGE_MS = 5000
+const BOUND_REFRESH_MIN_IOU = 0.85
 
 export interface DesktopClickTargetExecution {
   summary: string
@@ -26,14 +31,30 @@ export async function executeDesktopClickTarget(
   },
   executorOptions: ExecutorCallOptions = {},
 ): Promise<DesktopClickTargetExecution> {
-  const { candidateId, clickCount, button } = input
+  const { clickCount, button } = input
+  let candidateId = input.candidateId
   const state = runtime.stateManager.getState()
 
   if (!state.lastGroundingSnapshot) {
     throw new Error('No computer_observe snapshot available. Call computer_observe first to get a list of target candidates.')
   }
 
-  const snapshot = state.lastGroundingSnapshot
+  let snapshot = state.lastGroundingSnapshot
+  const boundGrounding = executorOptions.boundGrounding
+
+  if (boundGrounding) {
+    if (snapshot.snapshotId !== boundGrounding.snapshotId) {
+      throw new Error(`Grounding snapshot changed during approval. Expected "${boundGrounding.snapshotId}", but the current snapshot is "${snapshot.snapshotId}". Call computer_observe and request approval again.`)
+    }
+    if (boundGrounding.candidateId !== candidateId) {
+      throw new Error(`Prepared grounding candidate "${boundGrounding.candidateId}" does not match the requested candidate "${candidateId}".`)
+    }
+    const boundCandidate = snapshot.targetCandidates.find(item => item.id === boundGrounding.candidateId)
+    const boundLabel = boundCandidate?.label?.trim() ?? ''
+    if (!boundCandidate || boundLabel !== boundGrounding.candidateLabel) {
+      throw new Error(`Grounding candidate "${boundGrounding.candidateId}" in snapshot "${boundGrounding.snapshotId}" no longer matches the prepared target "${boundGrounding.candidateLabel}". Call computer_observe and request approval again.`)
+    }
+  }
 
   if (state.lastClickedCandidateId === candidateId) {
     throw new Error(`You already clicked candidate "${candidateId}" without calling computer_observe again. Call computer_observe to refresh the state before clicking the same target.`)
@@ -41,7 +62,14 @@ export async function executeDesktopClickTarget(
 
   const snapshotAge = Date.now() - new Date(snapshot.capturedAt).getTime()
   if (snapshotAge > DESKTOP_CLICK_SNAPSHOT_MAX_AGE_MS) {
-    throw new Error(`Grounding snapshot "${snapshot.snapshotId}" is ${Math.round(snapshotAge / 1000)}s old. Call computer_observe to get a fresh snapshot before clicking.`)
+    if (!boundGrounding) {
+      throw new Error(`Grounding snapshot "${snapshot.snapshotId}" is ${Math.round(snapshotAge / 1000)}s old. Call computer_observe to get a fresh snapshot before clicking.`)
+    }
+    const prepared = snapshot.targetCandidates.find(item => item.id === boundGrounding.candidateId)
+    const refreshed = await refreshBoundGroundingTarget(runtime, boundGrounding.candidateLabel, prepared)
+    snapshot = refreshed.snapshot
+    candidateId = refreshed.candidateId
+    runtime.stateManager.updateGroundingSnapshot(snapshot)
   }
 
   const snap = resolveSnapByCandidate(candidateId, snapshot)
@@ -74,6 +102,7 @@ export async function executeDesktopClickTarget(
   let fallbackForegroundApp: string | undefined
 
   const executeOsClick = async () => {
+    await assertApprovedForeground(runtime, executorOptions.approvedForeground)
     const result = await runtime.executor.click({
       x: snap.snappedPoint.x,
       y: snap.snappedPoint.y,
@@ -247,4 +276,44 @@ export async function executeDesktopClickTarget(
     runtime.stateManager.updatePointerIntent(failedIntent)
     throw error
   }
+}
+
+async function refreshBoundGroundingTarget(
+  runtime: ComputerUseServerRuntime,
+  candidateLabel: string,
+  prepared: DesktopTargetCandidate | undefined,
+): Promise<{ snapshot: DesktopGroundingSnapshot, candidateId: string }> {
+  if (!prepared)
+    throw new Error('The prepared grounding target is no longer in the approved snapshot. Call computer_observe and request approval again.')
+  let cdpBridge: CdpBridge | undefined
+  try {
+    const cdpStatus = runtime.cdpBridgeManager.getStatus()
+    if (cdpStatus.connected) {
+      cdpBridge = await runtime.cdpBridgeManager.ensureBridge(cdpStatus.cdpUrl)
+    }
+    else {
+      const chromeSession = runtime.chromeSessionManager.getSessionInfo()
+      if (chromeSession?.cdpUrl)
+        cdpBridge = await runtime.cdpBridgeManager.ensureBridge(chromeSession.cdpUrl)
+    }
+  }
+  catch {
+    // Keep the same AX-only fallback used by computer_observe when CDP is unavailable.
+  }
+  const snapshot = await captureDesktopGrounding({
+    config: runtime.config,
+    executor: runtime.executor,
+    input: {},
+    extensionBridge: runtime.browserDomBridge,
+    cdpBridge,
+  })
+  const matches = snapshot.targetCandidates.filter(item => item.label.trim() === candidateLabel
+    && item.source === prepared.source
+    && appNamesMatch(item.appName, prepared.appName)
+    && item.role === prepared.role
+    && (prepared.selector === undefined || item.selector === prepared.selector)
+    && boundsIoU(item.bounds, prepared.bounds) >= BOUND_REFRESH_MIN_IOU)
+  if (matches.length !== 1)
+    throw new Error(`The grounded target "${candidateLabel}" moved during approval. Call computer_observe and request approval again.`)
+  return { snapshot, candidateId: matches[0].id }
 }

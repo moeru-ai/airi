@@ -4,7 +4,7 @@ import type { Database } from '../../libs/db'
 import type { EngagementMetrics } from '../../otel'
 
 import { useLogger } from '@guiiai/logg'
-import { createBadRequestError, createConflictError, createForbiddenError, createNotFoundError } from '@proj-airi/http-error-shared'
+import { createBadRequestError, createConflictError, createForbiddenError, createNotFoundError } from '@proj-airi/http-shared'
 import { and, eq, gt, inArray, isNull, sql } from 'drizzle-orm'
 import { groupBy } from 'es-toolkit'
 

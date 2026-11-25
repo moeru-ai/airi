@@ -37,12 +37,12 @@ const chatSessionsSchema = v.strictObject({
       activeSessionId: v.string(),
       sessions: v.record(v.string(), chatSessionMetaSchema),
     })),
-    // An export carries the folders of the conversation list. An export without a folder has no field.
-    folders: v.optional(v.record(v.string(), v.strictObject({
-      id: v.string(),
-      name: v.string(),
-      createdAt: v.number(),
-    }))),
+    // NOTICE:
+    // Exports from 2026-11-20 to 2026-11-24 can carry the folders of the conversation list.
+    // Folders were removed from the list, and a strict index would refuse those files.
+    // Source: the folder feature of airi#3551, removed in this change.
+    // Removal condition: no supported release writes `folders` into an export.
+    folders: v.optional(v.unknown()),
   }),
   sessions: v.record(v.string(), v.strictObject({
     meta: chatSessionMetaSchema,
@@ -68,7 +68,10 @@ export function createChatSessionsImportAdapter(
 
   return {
     decode: decodeJsonFile,
-    validate: async value => v.parse(chatSessionsSchema, value) as ChatSessionsExport,
+    validate: async (value) => {
+      const { format, index: { folders: _folders, ...index }, sessions } = v.parse(chatSessionsSchema, value)
+      return { format, index, sessions } as ChatSessionsExport
+    },
     apply: async (value) => {
       await store.importSessions(value)
       await afterImport?.(value)

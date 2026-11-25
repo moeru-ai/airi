@@ -3,7 +3,7 @@ import type { LlmRouteRequest } from '../../../services/domain/llm-router/types'
 import type { V1RouteDeps } from './types'
 
 import { useLogger } from '@guiiai/logg'
-import { ApiError, createBadRequestError } from '@proj-airi/http-error-shared'
+import { ApiError, createBadRequestError } from '@proj-airi/http-shared'
 
 import { newRouteContext } from './middlewares/telemetry'
 

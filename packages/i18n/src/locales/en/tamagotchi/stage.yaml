@@ -77,42 +77,51 @@ docs:
   danmaku: Message feed
   pin: Keep on top
   fold: Hide chat
-  conversations: Conversations
+  conversations: Chats
   composer:
     show: Show the message box
     hide: Hide the message box
   computer-tools:
     label: Computer tools
     desktop-unavailable: Desktop capture and input are unavailable in this build.
-    approval-active: Full approval is on for this conversation
+    approval-active: Full or Auto approval is on for this chat
     approval-section: Approval
     approval-command: Command
     approval-computer-use: Computer Use
     approval-mode-ask: Ask
     approval-mode-auto: Auto
     approval-mode-full: Full
-    approval-mode-auto-hint: Auto is not available yet.
-    approval-command-full-confirm: Allow Command full access in this conversation?
+    approval-command-auto-confirm: Allow Command auto approval in this chat?
+    approval-command-auto-scope: AIRI approves Shell commands inside {workspace} for 30 minutes under its closed policy. Commands outside that folder, privilege changes, and secrets are refused. The current Consciousness model in Settings receives the first and recent user messages, plus recent tool names and argument summaries. AIRI redacts known credential fields and sensitive paths before review. The review card and rules cannot widen this scope.
+    approval-command-auto-allow: Allow Command auto approval
+    approval-command-full-confirm: Allow Command full access in this chat?
     approval-command-full-scope: AIRI can run local Shell commands with your system privileges. Ask mode requires confirmation before each command.
     approval-command-full-allow: Allow Command full access
-    approval-computer-use-full-confirm: Allow Computer Use full access in this conversation?
+    approval-computer-use-auto-confirm: Allow Computer Use auto approval in this chat?
+    approval-computer-use-auto-scope: AIRI approves changes in {app} for 30 minutes under its closed policy. Other apps, password managers, wallets, the clipboard, and secrets are refused. The current Consciousness model in Settings receives the first and recent user messages, plus recent tool names and argument summaries. AIRI redacts known credential fields and sensitive paths before review. The review card and rules cannot widen this scope.
+    approval-computer-use-auto-allow: Allow Computer Use auto approval
+    approval-computer-use-full-confirm: Allow Computer Use full access in this chat?
     approval-computer-use-full-scope: AIRI can change the desktop, apps, and input through Computer Use. Ask mode requires confirmation before each change.
     approval-computer-use-full-allow: Allow Computer Use full access
     computer-use-confirm: Allow Computer Use to change this device?
     computer-use-scope: AIRI will perform the requested desktop, app, or input action. Each change is shown here before it runs.
     computer-use-allow: Allow this change
     approval-error: Could not change approval.
+    approval-session-unavailable: Select or start a chat before changing approval.
+    approval-command-auto-unavailable: No terminal workspace is available. Start the AIRI terminal and select a workspace, then try again.
+    approval-computer-use-auto-foreground-unavailable: No foreground app is available. Open an allowed app and try again.
+    approval-computer-use-auto-foreground-denied: This app or window cannot use Computer Use Auto. Focus an allowed app and try again.
     cancel: Cancel
   context-inspector:
     open: Show context
     close: Hide context
     title: Context usage
-    empty: This conversation has not sent a model request yet.
+    empty: This chat has not sent a model request yet.
     bytes: Serialized size
-    bytes-note: Category sizes are UTF-8 bytes of the serialized projection, not tokens.
+    bytes-note: The bar shows the size of the data sent to the model.
     text: Text
     images: Images
-    framing: JSON framing
+    framing: JSON structure
     model: Model
     provider: Provider
     window: Context window
@@ -122,13 +131,11 @@ docs:
     window-usage: '{percent}% of the context window, from reported input tokens'
     tokens: tokens
     reported-usage: Latest request, reported by the provider
-    reported-note: Token counts below were reported for the latest completed request. They are not estimated from the bytes above, and they are not a sum of earlier messages.
     input: Input
     output: Output
     total: Total
-    usage-unavailable: No provider-reported token usage for this request.
+    usage-unavailable: The provider did not report token usage for this request.
     budget: Compaction threshold
-    budget-note: A serialized-byte threshold for scheduling compaction. It is not how full the context window is.
     expand: Show content
     collapse: Hide content
     kind:

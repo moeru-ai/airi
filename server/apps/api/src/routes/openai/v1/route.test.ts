@@ -11,7 +11,7 @@ import type { RequestLogService } from '../../../services/domain/request-log'
 import type { VoicePackService } from '../../../services/domain/voice-packs'
 import type { HonoEnv } from '../../../types/hono'
 
-import { ApiError } from '@proj-airi/http-error-shared'
+import { ApiError } from '@proj-airi/http-shared'
 import { Hono } from 'hono'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -306,6 +306,8 @@ function createMockProviderCatalogService(impl?: Partial<ProviderCatalogService>
         routerModelId,
         provider: model.provider,
         displayName: routerModelId,
+        description: null,
+        costMultiplier: 1,
         enabled: true,
         displayOrder: index,
         lastSyncedAt: new Date(),
@@ -321,6 +323,8 @@ function createMockProviderCatalogService(impl?: Partial<ProviderCatalogService>
       routerModelId,
       provider: 'azure',
       displayName: routerModelId,
+      description: null,
+      costMultiplier: 1,
       enabled: true,
       displayOrder: 0,
       lastSyncedAt: null,
@@ -1353,7 +1357,6 @@ describe('v1CompletionsRoutes', () => {
             upstreamVoiceId: 'en-US-AvaMultilingualNeural',
             ttsModelId: 'microsoft/v1',
             params: { pitch: 20, volume: 5, rate: 1.2 },
-            costMultiplier: 1.5,
             enabled: true,
             createdAt: new Date(),
             updatedAt: new Date(),
@@ -1415,7 +1418,7 @@ describe('v1CompletionsRoutes', () => {
      * @example
      * POST /api/v1/audio/speech { "input": "hello", "voice": "alloy" }
      */
-    it('uses Voice Pack cost multiplier for affordability and billing units', async () => {
+    it('bills a Voice Pack at the cost multiplier of its catalog model', async () => {
       globalThis.fetch = vi.fn(async () => new Response(new Uint8Array([1]), {
         status: 200,
         headers: { 'Content-Type': 'audio/mpeg' },
@@ -1433,7 +1436,6 @@ describe('v1CompletionsRoutes', () => {
           upstreamVoiceId: 'upstream-alloy',
           ttsModelId: 'tts-1',
           params: {},
-          costMultiplier: 2,
           enabled: true,
           createdAt: new Date(),
           updatedAt: new Date(),
@@ -1449,6 +1451,21 @@ describe('v1CompletionsRoutes', () => {
         createMockLlmTracing(),
         createMockProductEventService(),
         voicePackService,
+        createMockProviderCatalogService({
+          assertTtsModelEnabled: vi.fn(async routerModelId => ({
+            id: 'tts-model-premium',
+            routerModelId,
+            provider: 'azure',
+            displayName: routerModelId,
+            description: null,
+            costMultiplier: 2,
+            enabled: true,
+            displayOrder: 0,
+            lastSyncedAt: null,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          })),
+        }),
       )
 
       await app.fetch(
@@ -1465,7 +1482,7 @@ describe('v1CompletionsRoutes', () => {
       )
 
       expect(speechBilling.assertCanAfford).toHaveBeenCalledWith('user-1', 10)
-      expect(speechBilling.settle).toHaveBeenCalledWith(expect.objectContaining({ units: 10, model: expect.any(String) }))
+      expect(speechBilling.settle).toHaveBeenCalledWith(expect.objectContaining({ units: 10, costMultiplier: 2, model: 'tts-1' }))
     })
 
     /**
@@ -1491,7 +1508,6 @@ describe('v1CompletionsRoutes', () => {
           upstreamVoiceId: 'upstream-alloy',
           ttsModelId: 'tts-1',
           params: {},
-          costMultiplier: 2,
           enabled: true,
           createdAt: new Date(),
           updatedAt: new Date(),
@@ -1859,6 +1875,8 @@ describe('v1CompletionsRoutes', () => {
             routerModelId: 'alibaba/cosyvoice-v2',
             provider: 'dashscope-cosyvoice',
             displayName: 'alibaba/cosyvoice-v2',
+            description: null,
+            costMultiplier: 1,
             enabled: true,
             displayOrder: 0,
             lastSyncedAt: null,
@@ -1870,6 +1888,8 @@ describe('v1CompletionsRoutes', () => {
             routerModelId: 'microsoft/v1',
             provider: 'azure',
             displayName: 'microsoft/v1',
+            description: 'Faster first audio',
+            costMultiplier: 5,
             enabled: true,
             displayOrder: 1,
             lastSyncedAt: null,
@@ -1919,6 +1939,10 @@ describe('v1CompletionsRoutes', () => {
         name: 'Voice Pack',
         description: 'Server-curated voices',
       })
+      // A 1x model keeps its plain name. Another price is named next to the operator description.
+      expect(data.models[1]).not.toHaveProperty('description')
+      expect(data.models[1]).toMatchObject({ costMultiplier: 1 })
+      expect(data.models[2]).toMatchObject({ description: 'Faster first audio · Flux cost: 5x', costMultiplier: 5 })
       expect(data.default).toBe('microsoft/v1')
       expect(providerCatalogService.syncTtsModelsFromRouterConfig).not.toHaveBeenCalled()
     })
@@ -2165,7 +2189,20 @@ describe('v1CompletionsRoutes', () => {
             upstreamVoiceId: 'en-US-AvaMultilingualNeural',
             ttsModelId: 'microsoft/v1',
             params: {},
-            costMultiplier: 2,
+            enabled: true,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+          {
+            id: 'vp-hidden',
+            name: 'Hidden model pack',
+            description: null,
+            provider: 'fishaudio',
+            model: 's2.1-pro',
+            voiceId: 'hidden-model-alias',
+            upstreamVoiceId: 'upstream-hidden',
+            ttsModelId: 'fish',
+            params: {},
             enabled: true,
             createdAt: new Date(),
             updatedAt: new Date(),
@@ -2180,7 +2217,6 @@ describe('v1CompletionsRoutes', () => {
             upstreamVoiceId: 'longxiaochun',
             ttsModelId: 'alibaba/cosyvoice-v1',
             params: {},
-            costMultiplier: 1,
             enabled: true,
             createdAt: new Date(),
             updatedAt: new Date(),
@@ -2197,6 +2233,12 @@ describe('v1CompletionsRoutes', () => {
         createMockLlmTracing(),
         createMockProductEventService(),
         voicePackService,
+        createMockProviderCatalogService({
+          listEnabledTtsModels: vi.fn(async () => [
+            { id: 'tts-model-azure', routerModelId: 'microsoft/v1', provider: 'azure', displayName: 'Azure', description: null, costMultiplier: 2, enabled: true, displayOrder: 0, lastSyncedAt: null, createdAt: new Date(), updatedAt: new Date() },
+            { id: 'tts-model-cosyvoice', routerModelId: 'alibaba/cosyvoice-v1', provider: 'dashscope-cosyvoice', displayName: 'CosyVoice', description: null, costMultiplier: 1, enabled: true, displayOrder: 1, lastSyncedAt: null, createdAt: new Date(), updatedAt: new Date() },
+          ]),
+        }),
       )
 
       const res = await app.fetch(
@@ -2213,7 +2255,9 @@ describe('v1CompletionsRoutes', () => {
       })
       expect(data.voices[0]).not.toHaveProperty('upstreamVoiceId')
       expect(data.voices[0]).not.toHaveProperty('ttsModelId')
-      expect(data.voices[1]).toMatchObject({ id: 'other-model-alias' })
+      // A pack whose model is disabled in the catalog cannot be requested, so the list leaves it out.
+      expect(data.voices.map(voice => voice.id)).toEqual(['narrator-alias', 'other-model-alias'])
+      expect(data.voices[1]).toMatchObject({ id: 'other-model-alias', description: 'Flux cost: 1x' })
       expect(llmRouter.listTtsVoices).not.toHaveBeenCalled()
     })
 
@@ -2234,7 +2278,6 @@ describe('v1CompletionsRoutes', () => {
           upstreamVoiceId: 'en-US-AvaMultilingualNeural',
           ttsModelId: 'microsoft/v1',
           params: {},
-          costMultiplier: 2,
           enabled: true,
           createdAt: new Date(),
           updatedAt: new Date(),

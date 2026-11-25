@@ -34,6 +34,7 @@ export function buildApprovalResponse(
       status: 'approval_required',
       pendingActionId: pending.id,
       preparedTerminal: pending.preparedTerminal,
+      preparedGrounding: pending.preparedGrounding,
       toolName: pending.toolName,
       action: pending.action,
       policy: decision,

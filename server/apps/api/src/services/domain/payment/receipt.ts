@@ -2,7 +2,7 @@ import type Stripe from 'stripe'
 
 import type { Database } from '../../../libs/db'
 
-import { ApiError, createNotFoundError } from '@proj-airi/http-error-shared'
+import { ApiError, createNotFoundError } from '@proj-airi/http-shared'
 import { and, desc, eq, isNull, sql } from 'drizzle-orm'
 import { number, object, pipe, regex, safeParse, string, toUpperCase } from 'valibot'
 

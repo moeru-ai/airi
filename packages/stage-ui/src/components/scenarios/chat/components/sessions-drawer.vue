@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import type { ChatSessionFolder, ChatSessionMeta } from '../../../../types/chat-session'
+import type { ChatHistoryItem } from '../../../../types/chat'
+import type { ChatSessionMeta, ChatSessionSummary } from '../../../../types/chat-session'
 import type { SessionRow } from './session-row-model'
 
 import { errorMessageFrom } from '@moeru/std'
 import { useNow } from '@vueuse/core'
-import { compareAsc, compareDesc, intlFormatDistance, max } from 'date-fns'
+import { compareDesc, max } from 'date-fns'
 import { storeToRefs } from 'pinia'
-import { computed, ref, watch } from 'vue'
+import { computed, ref, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 
@@ -14,25 +15,35 @@ import SessionsDialog from './sessions-dialog.vue'
 
 import { useAnalytics } from '../../../../composables/use-analytics'
 import { useBreakpoints } from '../../../../composables/use-breakpoints'
-import { useCharacterPreviews } from '../../../../composables/use-character-previews'
-import { extractMessageText } from '../../../../libs/chat-sync'
+import { chatSessionsRepo } from '../../../../database/repos/chat-sessions.repo'
 import { useAuthStore } from '../../../../stores/auth'
 import { useChatStore } from '../../../../stores/chat'
+import { normalizeSessionQuery, searchSessions } from '../../../../stores/chat/session-search'
 import { useChatSessionStore } from '../../../../stores/chat/session-store'
+import { summarizeSessionMessages } from '../../../../stores/chat/session-summary'
 import { useChatSessionsViewStore } from '../../../../stores/chat/sessions-view-store'
 import { useAiriCardStore } from '../../../../stores/modules/airi-card'
 import { useConsciousnessStore } from '../../../../stores/modules/consciousness'
+import { formatSessionFullTime, formatSessionRowTime } from './session-time'
 
 const props = withDefaults(defineProps<{
-  desktopMode?: 'dialog' | 'popover'
+  desktopMode?: 'dialog' | 'popover' | 'inline'
+  /** The host is a desktop window. A narrow desktop window then keeps the desktop surfaces and never shows the phone drawer. */
+  desktop?: boolean
+  /** The inline list is on a touch screen, for example in the side drawer of the phone. */
+  touch?: boolean
 }>(), {
   desktopMode: 'dialog',
+  desktop: false,
+  touch: false,
 })
 
-const showDialog = defineModel({ type: Boolean, default: false, required: false })
+const emit = defineEmits<{
+  /** The user asked for the settings of the character. The host opens them, because each app opens settings its own way. */
+  openCharacterSettings: [characterId: string]
+}>()
 
-/** The folders of a user without folders. One frozen value, so the list sees no change while there are none. */
-const NO_FOLDERS: readonly ChatSessionFolder[] = Object.freeze([])
+const showDialog = defineModel({ type: Boolean, default: false, required: false })
 
 const { isDesktop } = useBreakpoints()
 const { t, locale } = useI18n()
@@ -40,11 +51,10 @@ const now = useNow({ interval: 60_000 })
 
 const chatSession = useChatSessionStore()
 const chat = useChatStore()
-const { sessionMetas, sessionMessages, activeSessionId, index } = storeToRefs(chatSession)
+const { sessionMetas, sessionMessages, activeSessionId } = storeToRefs(chatSession)
 const { activeCardId, cards } = storeToRefs(useAiriCardStore())
-// The list keeps its place and filter in memory, so a closed and reopened list shows them again.
-const { place: listPlace, characterId: listCharacterId } = storeToRefs(useChatSessionsViewStore())
-const characterPreviews = useCharacterPreviews()
+// The list keeps its place in memory, so a closed and reopened list shows it again.
+const { place: listPlace } = storeToRefs(useChatSessionsViewStore())
 const { userId } = storeToRefs(useAuthStore())
 const { activeModel } = storeToRefs(useConsciousnessStore())
 const { trackChatSessionSelected, trackChatSessionStarted, trackConversationRenamed } = useAnalytics()
@@ -55,77 +65,134 @@ const isCreatingSession = ref(false)
 
 const effectiveUserId = computed(() => userId.value || 'local')
 
+const currentCharacterId = computed(() => activeCardId.value || 'default')
+/** The current character, for the title of a list that stands beside the chat. */
+const currentCharacter = computed(() => {
+  const card = cards.value.get(currentCharacterId.value)
+  return card ? { name: card.name } : undefined
+})
+
+// The list shows the conversations of the current character only. The user changes the character to see the others.
 // Keep another account's sessions hidden while an account swap rehydrates.
 // Background recipe sessions are hidden too. Their results reach the conversation as notices.
 const ownedSessions = computed(() => Object.values(sessionMetas.value)
-  .filter(meta => meta.userId === effectiveUserId.value && !meta.hidden))
+  .filter(meta => meta.userId === effectiveUserId.value && !meta.hidden && chatSession.characterMembersOf(meta.sessionId).includes(currentCharacterId.value)))
 
 /**
- * Normalizes a session into its one-line drawer preview.
+ * The summary of a conversation for its row. Loaded messages give the newest summary, for example while a reply
+ * streams in. A conversation that is not loaded uses the summary that its metadata stores, so the list needs no
+ * message records.
+ */
+function summaryFor(meta: ChatSessionMeta): ChatSessionSummary {
+  const loaded = sessionMessages.value[meta.sessionId]
+  return loaded?.length ? summarizeSessionMessages(loaded) : meta.summary ?? {}
+}
+
+/**
+ * The title of a row: the title of the conversation, else its first message.
  *
  * @example
- * previewFor({ title: 'Moon notes', ...meta })
+ * previewFor({ title: 'Moon notes', ...meta }, {})
  * // => 'Moon notes'
  */
-function previewFor(meta: ChatSessionMeta): string {
-  if (meta.title)
-    return meta.title
-
-  const messages = sessionMessages.value[meta.sessionId] ?? []
-  for (const message of messages) {
-    if (message.role === 'system')
-      continue
-    const trimmed = extractMessageText(message).replace(/\s+/g, ' ').trim()
-    if (trimmed)
-      return trimmed.length > 80 ? `${trimmed.slice(0, 80)}…` : trimmed
-  }
-
-  return t('stage.chat.sessions.new-chat-fallback')
+function previewFor(meta: ChatSessionMeta, summary: ChatSessionSummary): string {
+  return meta.title || summary.firstText || t('stage.chat.sessions.new-chat-fallback')
 }
 
-function activityAtFor(meta: ChatSessionMeta): number {
-  let lastMessageAt: number | undefined
-  for (const message of sessionMessages.value[meta.sessionId] ?? []) {
-    if (message.role !== 'user' && message.role !== 'assistant')
-      continue
-    const timestamp = message.createdAt
-    if (timestamp == null || !Number.isFinite(new Date(timestamp).getTime()))
-      continue
-    lastMessageAt = lastMessageAt == null ? timestamp : Math.max(lastMessageAt, timestamp)
-  }
-  return lastMessageAt ?? meta.createdAt
+/** The second line of a row. The words of the user carry a prefix, as in a messenger. */
+function lastMessageFor(summary: ChatSessionSummary): string | undefined {
+  if (!summary.lastText)
+    return undefined
+  return summary.lastFromUser ? t('stage.chat.sessions.last-message-you', { text: summary.lastText }) : summary.lastText
 }
 
 /**
- * Folders in the order of their creation, so a new folder appears last. While an account swap rehydrates, the index
- * can still belong to the other account, so its folders stay hidden, like its sessions.
+ * The search of the list. The list sets it when the typing pauses, and the rows below show only the conversations that
+ * match it.
  */
-const folders = computed<readonly ChatSessionFolder[]>(() => {
-  const owned = index.value?.userId === effectiveUserId.value ? index.value.folders : undefined
-  if (!owned)
-    return NO_FOLDERS
-  return Object.values(owned).sort((first, second) => compareAsc(first.createdAt, second.createdAt))
+const searchQuery = ref('')
+const searchActive = computed(() => normalizeSessionQuery(searchQuery.value) !== '')
+
+/**
+ * The stored messages of conversations that are not loaded, read for the search. Each entry keeps the `updatedAt` of
+ * the metadata that it was read with, so a conversation that changed since then is read again. The cache lives while
+ * the search does, and an empty search drops it.
+ */
+const storedMessages = shallowRef(new Map<string, { updatedAt: number, messages?: ChatHistoryItem[] }>())
+const searchLoading = shallowRef(false)
+// Each read of the stored messages has a number. A read that a newer read or an empty search replaced is dropped.
+let searchRead = 0
+
+watch([searchActive, ownedSessions], async ([active, metas]) => {
+  const read = ++searchRead
+  if (!active) {
+    storedMessages.value = new Map()
+    searchLoading.value = false
+    return
+  }
+  const missing = metas.filter(meta => !sessionMessages.value[meta.sessionId]?.length
+    && storedMessages.value.get(meta.sessionId)?.updatedAt !== meta.updatedAt)
+  if (missing.length === 0)
+    return
+  searchLoading.value = true
+  try {
+    const records = await Promise.all(missing.map(async meta => ({
+      meta,
+      messages: await chatSessionsRepo.getSessionMessages(meta.sessionId),
+    })))
+    if (read !== searchRead)
+      return
+    const next = new Map(storedMessages.value)
+    for (const { meta, messages } of records)
+      next.set(meta.sessionId, { updatedAt: meta.updatedAt, messages })
+    storedMessages.value = next
+  }
+  catch (error) {
+    // The search still matches titles and loaded conversations, so a failed read only narrows the results.
+    toast.error(t('stage.chat.sessions.search-failed'), { description: errorMessageFrom(error) })
+  }
+  finally {
+    if (read === searchRead)
+      searchLoading.value = false
+  }
+}, { immediate: true })
+
+/** The conversations that match the search, with the reason of each match. Loaded messages win over stored ones. */
+const searchMatches = computed(() => {
+  if (!searchActive.value)
+    return undefined
+  return searchSessions(searchQuery.value, ownedSessions.value.map((meta) => {
+    const loaded = sessionMessages.value[meta.sessionId]
+    return {
+      sessionId: meta.sessionId,
+      title: previewFor(meta, summaryFor(meta)),
+      messages: loaded?.length ? loaded : storedMessages.value.get(meta.sessionId)?.messages,
+    }
+  }))
 })
 
 const rows = computed<SessionRow[]>(() => {
   const referenceTime = max([now.value, Date.now()])
-  const folderIds = new Set(folders.value.map(folder => folder.id))
+  const matches = searchMatches.value
   return ownedSessions.value
-    .map(meta => ({ meta, activityAt: activityAtFor(meta) }))
+    .filter(meta => !matches || matches.has(meta.sessionId))
+    .map((meta) => {
+      const summary = summaryFor(meta)
+      return { meta, summary, activityAt: summary.lastAt ?? meta.createdAt }
+    })
     .sort((first, second) => compareDesc(first.activityAt, second.activityAt))
-    .map(({ meta, activityAt }) => ({
-      // A conversation is in a folder only while the folder exists. A deleted folder can stay on its record.
-      meta: meta.folderId === undefined || folderIds.has(meta.folderId) ? meta : { ...meta, folderId: undefined },
-      preview: previewFor(meta),
+    .map(({ meta, summary, activityAt }) => ({
+      meta,
+      preview: previewFor(meta, summary),
+      lastMessage: lastMessageFor(summary),
       isActive: meta.sessionId === activeSessionId.value,
-      activityAtLabel: intlFormatDistance(activityAt, referenceTime, { locale: locale.value }),
+      activityAt,
+      activityAtLabel: formatSessionRowTime(activityAt, referenceTime, locale.value),
+      activityAtTitle: formatSessionFullTime(activityAt, locale.value),
       characterName: cards.value.get(meta.characterId)?.name ?? t('stage.chat.sessions.unknown-character'),
-      characterPreview: characterPreviews.value.get(meta.characterId),
+      match: matches?.get(meta.sessionId),
     }))
 })
-
-/** Every character card, so the filter can pick a character that has no conversation yet. */
-const characters = computed(() => [...cards.value].map(([id, card]) => ({ id, name: card.name, preview: characterPreviews.value.get(id) })))
 
 /**
  * Runs an action of the list and explains a failure with a toast, as the other chat controls do. The list keeps its
@@ -153,22 +220,25 @@ async function selectSession(sessionId: string) {
   showDialog.value = false
 }
 
+// A list that closes ends its search, so the next open shows every conversation again.
+watch(showDialog, (open) => {
+  if (!open)
+    searchQuery.value = ''
+})
+
 /**
- * Creates a conversation and opens it. Without a character ID, it belongs to the active character.
- * A folder ID puts the conversation into that folder.
+ * Creates a conversation with the current character and opens it.
  */
-async function startNewSession(payload: { folderId?: string, characterId?: string }) {
+async function startNewSession() {
   if (isCreatingSession.value)
     return
   isCreatingSession.value = true
   try {
-    const characterId = payload.characterId ?? (activeCardId.value || 'default')
+    const characterId = currentCharacterId.value
     const selectionBeforeCreation = activeSessionId.value
     // Creation runs in the synchronized leader, while navigation belongs to
     // this window. Activating inside createSession would navigate the leader.
     const sessionId = await chatSession.createSession(characterId, { setActive: false })
-    if (payload.folderId)
-      await chatSession.moveSessionsToFolder([sessionId], payload.folderId)
     // Rows remain interactive while creation is persisted in the leader. Do
     // not let that stale continuation replace a newer local user selection.
     if (activeSessionId.value === selectionBeforeCreation)
@@ -207,69 +277,28 @@ async function renameSession(payload: { sessionId: string, title: string }) {
     source: 'sessions_drawer',
   })
 }
-
-/**
- * Creates a folder, then moves the conversations into it. With `open`, the list then shows the new folder. A place
- * that the user chose while the folder saved stays.
- */
-async function createFolder(payload: { name: string, sessionIds: string[], open: boolean }) {
-  const placeBeforeCreation = listPlace.value
-  const folderId = await chatSession.createFolder(payload.name)
-  if (!folderId)
-    return
-  if (payload.sessionIds.length > 0)
-    await chatSession.moveSessionsToFolder(payload.sessionIds, folderId)
-  if (payload.open && listPlace.value === placeBeforeCreation)
-    listPlace.value = { kind: 'folder', folderId }
-}
-
-// Per-open generation counter. The batch loadSession loop checks this before
-// each batch so closing the drawer mid-load aborts cleanly instead of
-// continuing to hydrate sessions the user has navigated away from. Without
-// this, a session deleted from outside while the batch was running could be
-// re-added to `loadedSessions` as a phantom entry.
-let openGeneration = 0
-
-watch(showDialog, async (open) => {
-  if (!open)
-    return
-  openGeneration += 1
-  const myGeneration = openGeneration
-  const knownSessionIds = ownedSessions.value.map(meta => meta.sessionId)
-  // Bounded concurrency keeps a long history list from spawning a hundred
-  // simultaneous IndexedDB transactions; 4 in flight is plenty for a list
-  // that the user is about to scroll.
-  const batchSize = 4
-  for (let i = 0; i < knownSessionIds.length; i += batchSize) {
-    if (myGeneration !== openGeneration || !showDialog.value)
-      return
-    await Promise.all(knownSessionIds.slice(i, i + batchSize).map(id => chatSession.loadSession(id)))
-  }
-})
 </script>
 
 <template>
   <SessionsDialog
     v-model:open="showDialog"
     v-model:place="listPlace"
-    v-model:character-id="listCharacterId"
+    v-model:query="searchQuery"
     :rows="rows"
-    :characters="characters"
-    :folders="folders"
-    :is-desktop="isDesktop"
+    :is-desktop="props.desktop || isDesktop"
     :is-creating-session="isCreatingSession"
+    :searching="searchLoading"
     :desktop-mode="props.desktopMode"
-    @new-session="payload => reportFailure(() => startNewSession(payload))"
+    :touch="props.touch"
+    :character="currentCharacter"
+    @open-character="emit('openCharacterSettings', currentCharacterId)"
+    @new-session="reportFailure(startNewSession)"
     @select-session="selectSession"
     @delete-session="sessionId => reportFailure(() => chat.deleteSession(sessionId))"
     @delete-sessions="sessionIds => reportFailure(() => chat.deleteSessions(sessionIds))"
     @rename-session="payload => reportFailure(() => renameSession(payload))"
     @pin-session="payload => reportFailure(() => chatSession.setSessionPinned(payload.sessionId, payload.pinned))"
     @archive-sessions="payload => reportFailure(() => archiveSessions(payload))"
-    @move-sessions="payload => reportFailure(() => chatSession.moveSessionsToFolder(payload.sessionIds, payload.folderId))"
-    @create-folder="payload => reportFailure(() => createFolder(payload))"
-    @rename-folder="payload => reportFailure(() => chatSession.renameFolder(payload.folderId, payload.name))"
-    @delete-folder="folderId => reportFailure(() => chatSession.deleteFolder(folderId))"
   >
     <template #trigger>
       <slot name="trigger" />

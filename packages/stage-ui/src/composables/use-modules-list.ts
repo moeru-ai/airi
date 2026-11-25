@@ -14,6 +14,7 @@ import { useFactorioStore } from '../stores/modules/gaming-factorio'
 import { useMinecraftStore } from '../stores/modules/gaming-minecraft'
 import { useHearingStore } from '../stores/modules/hearing'
 import { useHomeAssistantStore } from '../stores/modules/home-assistant'
+import { usePhotonStore } from '../stores/modules/photon'
 import { useSpeechStore } from '../stores/modules/speech'
 import { useStickersStore } from '../stores/modules/stickers'
 import { useTwitterStore } from '../stores/modules/twitter'
@@ -43,6 +44,7 @@ export function useModulesList() {
   const hearingStore = useHearingStore()
   const visionStore = useVisionStore()
   const discordStore = useDiscordStore()
+  const photonStore = usePhotonStore()
   const twitterStore = useTwitterStore()
   const webSearchStore = useWebSearchStore()
   const minecraftStore = useMinecraftStore()
@@ -154,6 +156,15 @@ export function useModulesList() {
       icon: 'i-simple-icons:discord',
       to: '/settings/modules/messaging-discord',
       configured: discordStore.configured,
+      category: 'messaging',
+    },
+    {
+      id: 'messaging-photon',
+      name: t('settings.pages.modules.messaging-photon.title'),
+      description: t('settings.pages.modules.messaging-photon.description'),
+      icon: 'i-simple-icons:imessage',
+      to: '/settings/modules/messaging-photon',
+      configured: photonStore.configured,
       category: 'messaging',
     },
     {

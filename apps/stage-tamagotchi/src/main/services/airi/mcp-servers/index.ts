@@ -15,12 +15,13 @@ import type {
   ElectronMcpToolDescriptor,
 } from '../../../../shared/eventa'
 import type { InvocationAttribution } from '../computer-use/attribution'
+import type { GroundingSnapshotLike } from '../computer-use/auto-policy'
 import type { TerminalApprovalOptions } from './terminal-approval'
 
 import { randomBytes } from 'node:crypto'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { env, execPath, platform } from 'node:process'
+import { execPath, platform } from 'node:process'
 
 import { useLogg } from '@guiiai/logg'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
@@ -45,6 +46,8 @@ import { isHttpServerConfig, parseElectronMcpConfigText } from '../../../../shar
 import { onAppBeforeQuit } from '../../../libs/bootkit/lifecycle'
 import { requireMainFrameSender } from '../../../libs/electron/window-context'
 import { validateAttribution } from '../computer-use/attribution'
+import { decideComputerUseAuto, foregroundMatchesComputerCard, groundingMatchesComputerCard } from '../computer-use/auto-policy'
+import { consultAuto } from '../computer-use/auto-review'
 import { McpClient } from './client'
 import { bindTerminalApproval } from './terminal-approval'
 import { defaultBundledToolExposure } from './tool-exposure'
@@ -104,6 +107,12 @@ export interface McpManager {
   readConfigText: () => Promise<ElectronMcpConfigText>
   writeConfigText: (text: string) => Promise<ElectronMcpConfigText>
   testServer: (payload: ElectronMcpTestPayload) => Promise<ElectronMcpTestResult>
+  /** Reads the bundled Terminal runner directory. Missing service or an unreadable state returns undefined. */
+  readBundledTerminalCwd: () => Promise<string | undefined>
+  /** Reads the bundled Desktop foreground application for Computer Use Auto. */
+  readBundledForeground: () => Promise<{ appName: string, windowTitle?: string } | undefined>
+  /** Reads one grounding target and its snapshot identity for a desktop click target id. */
+  readGroundingCandidate: (candidateId: string) => Promise<{ label: string, snapshotId: string } | undefined>
 }
 
 const toolNameSeparator = '::'
@@ -138,6 +147,23 @@ function normalizeCallToolResult(result: { content?: unknown, structuredContent?
   if ('toolResult' in result)
     normalized.toolResult = result.toolResult
   return normalized
+}
+
+function parsePreparedGrounding(value: unknown): { snapshotId: string, candidateId: string, candidateLabel: string } | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value))
+    return undefined
+  const record = value as Record<string, unknown>
+  if (typeof record.snapshotId !== 'string' || !record.snapshotId.trim())
+    return undefined
+  if (typeof record.candidateId !== 'string' || !record.candidateId.trim())
+    return undefined
+  if (typeof record.candidateLabel !== 'string' || !record.candidateLabel.trim())
+    return undefined
+  return {
+    snapshotId: record.snapshotId,
+    candidateId: record.candidateId,
+    candidateLabel: record.candidateLabel.trim(),
+  }
 }
 
 function failedBeforeDispatchResult(error: unknown): ElectronMcpCallToolResult {
@@ -265,7 +291,6 @@ export function createMcpManager(terminalApproval?: TerminalApprovalOptions): Mc
     }
     catch {
       const defaultMcpConfig: ElectronMcpConfigFile = {
-        ...(app.isPackaged && env.AIRI_DISTRIBUTION === 'terminal-beta' ? { terminalEnabled: true } : {}),
         mcpServers: {},
       }
       await writeFile(path, `${JSON.stringify(defaultMcpConfig, null, 2)}\n`)
@@ -553,8 +578,10 @@ export function createMcpManager(terminalApproval?: TerminalApprovalOptions): Mc
       if (computerUseApprovals.has(pendingActionId))
         throw new Error('The Computer Use approval is already bound to another Chat request.')
       computerUseApprovals.set(pendingActionId, owner)
-      const turboSignal = terminalApproval.actions.computerUseTurboSignal(attribution.sessionId, senderWebContentsId)
-      const authorizationSignal = combineSignals(callSignal, turboSignal)
+      const mode = terminalApproval.actions.grantMode('computer_use', attribution.sessionId, senderWebContentsId)
+      const fullSignal = mode === 'full' ? terminalApproval.actions.computerUseTurboSignal(attribution.sessionId, senderWebContentsId) : undefined
+      const autoGrant = mode === 'auto' ? terminalApproval.actions.autoGrant('computer_use', attribution.sessionId, senderWebContentsId) : undefined
+      const authorizationSignal = combineSignals(callSignal, fullSignal, autoGrant?.signal)
       let privateRequestSent = false
       // Rejection and execution share `privateRequestSent`, but only execution can
       // reach the desktop. Any failure after dispatch leaves the outcome open:
@@ -570,7 +597,91 @@ export function createMcpManager(terminalApproval?: TerminalApprovalOptions): Mc
         })
       }
       try {
-        if (!turboSignal) {
+        if (mode === 'auto') {
+          const contextRecord = normalized.structuredContent.context
+          const context = contextRecord && typeof contextRecord === 'object' && !Array.isArray(contextRecord) ? contextRecord as Record<string, unknown> : undefined
+          const actionRecord = declaredAction && typeof declaredAction === 'object' && !Array.isArray(declaredAction) ? declaredAction as Record<string, unknown> : undefined
+          const actionInput = actionRecord?.input && typeof actionRecord.input === 'object' && !Array.isArray(actionRecord.input)
+            ? actionRecord.input as Record<string, unknown>
+            : undefined
+          const preparedGrounding = parsePreparedGrounding(normalized.structuredContent.preparedGrounding)
+          let targetLabel: string | undefined
+          let groundingSnapshotId: string | undefined
+          if (actionKind === 'desktop_click_target') {
+            const requestedCandidateId = typeof actionInput?.candidateId === 'string' ? actionInput.candidateId : ''
+            if (!preparedGrounding || preparedGrounding.candidateId !== requestedCandidateId) {
+              const rejected = await reject()
+              if (!rejected)
+                throw new Error('The Computer Use approval was already dispatched.')
+              const normalizedRejection = normalizeCallToolResult(rejected)
+              return {
+                ...normalizedRejection,
+                isError: true,
+                content: [{ type: 'text', text: 'Computer Use Auto refused the desktop click because prepared grounding is missing.' }, ...(normalizedRejection.content ?? [])],
+                structuredContent: { ...normalizedRejection.structuredContent, status: 'rejected', approval: 'auto', reason: 'Desktop click approval is missing prepared grounding.' },
+              }
+            }
+            targetLabel = preparedGrounding.candidateLabel
+            groundingSnapshotId = preparedGrounding.snapshotId
+          }
+          const decision = decideComputerUseAuto({
+            frozenAppName: autoGrant?.frozenAppName ?? '',
+            actionKind,
+            appName: typeof context?.appName === 'string' ? context.appName : undefined,
+            windowTitle: typeof context?.windowTitle === 'string' ? context.windowTitle : undefined,
+            contextAvailable: context?.available === true,
+            targetLabel,
+            groundingSnapshotId,
+            action: actionRecord ? { kind: actionKind, input: actionInput } : undefined,
+          })
+          const verdict = await consultAuto({
+            decision,
+            signal: autoGrant?.signal ?? AbortSignal.abort(),
+            sessionId: attribution.sessionId,
+            cacheScope: `${attribution.turnId ?? ''}\0${pendingActionId}`,
+            timeoutMs: terminalApproval.reviewTimeoutMs,
+            cacheGet: key => terminalApproval.actions.cachedReview('computer_use', attribution.sessionId, senderWebContentsId, key),
+            cacheSet: (key, value) => terminalApproval.actions.rememberReview('computer_use', attribution.sessionId, senderWebContentsId, key, value),
+            review: terminalApproval.reviewAuto,
+          })
+          if (verdict.proceed && decision.outcome === 'review') {
+            const foreground = await readBundledForeground()
+            const groundingSnapshot = await readLastGroundingSnapshot()
+            const foregroundOk = Boolean(foreground && foregroundMatchesComputerCard(decision.card, { available: true, appName: foreground.appName, windowTitle: foreground.windowTitle }))
+            const groundingOk = groundingMatchesComputerCard(decision.card, groundingSnapshot)
+            if (!foregroundOk || !groundingOk) {
+              const rejected = await reject()
+              if (!rejected)
+                throw new Error('The Computer Use approval was already dispatched.')
+              const normalizedRejection = normalizeCallToolResult(rejected)
+              const reason = !foregroundOk
+                ? 'The foreground window changed before dispatch.'
+                : 'The grounding snapshot changed before dispatch.'
+              const userText = !foregroundOk
+                ? 'Computer Use Auto refused the action because the foreground window changed.'
+                : 'Computer Use Auto refused the action because the grounding snapshot changed.'
+              return {
+                ...normalizedRejection,
+                isError: true,
+                content: [{ type: 'text', text: userText }, ...(normalizedRejection.content ?? [])],
+                structuredContent: { ...normalizedRejection.structuredContent, status: 'rejected', approval: 'auto', reason },
+              }
+            }
+          }
+          if (!verdict.proceed) {
+            const rejected = await reject()
+            if (!rejected)
+              throw new Error('The Computer Use approval was already dispatched.')
+            const normalizedRejection = normalizeCallToolResult(rejected)
+            return {
+              ...normalizedRejection,
+              isError: true,
+              content: [{ type: 'text', text: verdict.reason }, ...(normalizedRejection.content ?? [])],
+              structuredContent: { ...normalizedRejection.structuredContent, status: 'rejected', approval: 'auto', reason: verdict.reason },
+            }
+          }
+        }
+        else if (mode !== 'full') {
           const transparency = normalized.structuredContent.transparency
           const summary = transparency && typeof transparency === 'object' && !Array.isArray(transparency)
             ? Object.values(transparency as Record<string, unknown>).filter((value): value is string => typeof value === 'string' && value.trim().length > 0).join('\n')
@@ -731,6 +842,105 @@ export function createMcpManager(terminalApproval?: TerminalApprovalOptions): Mc
     }
   }
 
+  async function readBundledTerminalCwd(): Promise<string | undefined> {
+    const session = sessions.get(bundledTerminalServerName)
+    if (!session)
+      return undefined
+    try {
+      const result = await session.client.callTool({ name: 'terminal_get_state', arguments: {} }, undefined, {
+        timeout: mcpRequestTimeoutMsec,
+        maxTotalTimeout: mcpRequestTimeoutMsec,
+      })
+      const state = normalizeCallToolResult(result).structuredContent?.terminalState
+      if (!state || typeof state !== 'object' || Array.isArray(state))
+        return undefined
+      const cwd = (state as { effectiveCwd?: unknown }).effectiveCwd
+      return typeof cwd === 'string' && cwd.trim().length > 0 ? cwd : undefined
+    }
+    catch {
+      return undefined
+    }
+  }
+
+  async function readDesktopRunState(): Promise<Record<string, unknown> | undefined> {
+    const session = sessions.get(bundledTerminalServerName)
+    if (!session)
+      return undefined
+    try {
+      const result = await session.client.callTool({ name: 'desktop_get_state', arguments: {} }, undefined, {
+        timeout: mcpRequestTimeoutMsec,
+        maxTotalTimeout: mcpRequestTimeoutMsec,
+      })
+      const runState = normalizeCallToolResult(result).structuredContent?.runState
+      return runState && typeof runState === 'object' && !Array.isArray(runState)
+        ? runState as Record<string, unknown>
+        : undefined
+    }
+    catch {
+      return undefined
+    }
+  }
+
+  async function readBundledForeground(): Promise<{ appName: string, windowTitle?: string } | undefined> {
+    const runState = await readDesktopRunState()
+    const context = runState?.foregroundContext
+    if (!context || typeof context !== 'object' || Array.isArray(context))
+      return undefined
+    const record = context as Record<string, unknown>
+    if (record.available !== true || typeof record.appName !== 'string' || !record.appName.trim())
+      return undefined
+    return {
+      appName: record.appName,
+      windowTitle: typeof record.windowTitle === 'string' ? record.windowTitle : undefined,
+    }
+  }
+
+  async function readLastGroundingSnapshot(): Promise<GroundingSnapshotLike | undefined> {
+    const runState = await readDesktopRunState()
+    const snapshot = runState?.lastGroundingSnapshot
+    if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot))
+      return undefined
+    const snapshotRecord = snapshot as Record<string, unknown>
+    if (typeof snapshotRecord.snapshotId !== 'string' || !snapshotRecord.snapshotId.trim())
+      return undefined
+    const candidates = snapshotRecord.targetCandidates
+    if (!Array.isArray(candidates))
+      return undefined
+    const targetCandidates: GroundingSnapshotLike['targetCandidates'] = []
+    for (const candidate of candidates) {
+      if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate))
+        continue
+      const record = candidate as Record<string, unknown>
+      if (typeof record.id !== 'string' || !record.id)
+        continue
+      targetCandidates.push({
+        id: record.id,
+        label: typeof record.label === 'string' ? record.label : undefined,
+      })
+    }
+    return { snapshotId: snapshotRecord.snapshotId, targetCandidates }
+  }
+
+  async function readGroundingCandidate(candidateId: string): Promise<{ label: string, snapshotId: string } | undefined> {
+    const runState = await readDesktopRunState()
+    const snapshot = runState?.lastGroundingSnapshot
+    if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot))
+      return undefined
+    const snapshotRecord = snapshot as Record<string, unknown>
+    const candidates = snapshotRecord.targetCandidates
+    const snapshotId = typeof snapshotRecord.snapshotId === 'string' ? snapshotRecord.snapshotId : ''
+    if (!snapshotId.trim() || !Array.isArray(candidates))
+      return undefined
+    for (const candidate of candidates) {
+      if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate))
+        continue
+      const record = candidate as Record<string, unknown>
+      if (record.id === candidateId && typeof record.label === 'string' && record.label.trim().length > 0)
+        return { label: record.label, snapshotId }
+    }
+    return undefined
+  }
+
   return {
     ensureConfigFile,
     openConfigFile,
@@ -742,6 +952,9 @@ export function createMcpManager(terminalApproval?: TerminalApprovalOptions): Mc
     readConfigText,
     writeConfigText,
     testServer,
+    readBundledTerminalCwd,
+    readBundledForeground,
+    readGroundingCandidate,
   }
 }
 

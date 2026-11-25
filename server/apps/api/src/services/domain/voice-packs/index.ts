@@ -14,11 +14,6 @@ export const VoicePackParamsSchema = object({
   rate: optional(pipe(number(), minValue(0.01, 'rate must be positive'))),
 })
 
-export const VoicePackCostMultiplierSchema = pipe(
-  number(),
-  minValue(0, 'costMultiplier must not be negative'),
-)
-
 export const CreateVoicePackInputSchema = object({
   name: pipe(string(), nonEmpty('name is required'), maxLength(120)),
   description: optional(pipe(string(), maxLength(500))),
@@ -28,7 +23,6 @@ export const CreateVoicePackInputSchema = object({
   upstreamVoiceId: pipe(string(), nonEmpty('upstreamVoiceId is required'), maxLength(200)),
   ttsModelId: pipe(string(), nonEmpty('ttsModelId is required'), maxLength(200)),
   params: optional(VoicePackParamsSchema, {}),
-  costMultiplier: VoicePackCostMultiplierSchema,
   enabled: optional(boolean(), true),
 })
 
@@ -41,7 +35,6 @@ export const UpdateVoicePackInputSchema = object({
   upstreamVoiceId: optional(pipe(string(), nonEmpty('upstreamVoiceId must not be empty'), maxLength(200))),
   ttsModelId: optional(pipe(string(), nonEmpty('ttsModelId must not be empty'), maxLength(200))),
   params: optional(VoicePackParamsSchema),
-  costMultiplier: optional(VoicePackCostMultiplierSchema),
   enabled: optional(boolean()),
 })
 
@@ -80,7 +73,6 @@ export function createVoicePackService(db: Database) {
         upstreamVoiceId: input.upstreamVoiceId,
         ttsModelId: input.ttsModelId,
         params: input.params,
-        costMultiplier: input.costMultiplier,
         enabled: input.enabled,
       }).returning()
 

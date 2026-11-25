@@ -1,15 +1,11 @@
-# Separate Flux usage from billing and receipts
+# Show Flux top-up receipts in Subscription
 
 Status: accepted.
 
 ## Decision
 
-Usage moves the existing Flux transaction history to `/settings/usage`.
-Its fields, record types, amount formatting, speech grouping, pagination, and loading behavior remain unchanged.
-It keeps the existing `GET /api/v1/flux/history` contract, including credits and debits.
-
-The Subscription page keeps the current Capacitor subscription and Flux purchase controls at `/settings/flux`.
-A separate receipt table reads `GET /api/v1/payments?limit=20&offset=0`.
+The Subscription page shows Flux top-up receipts below its subscription and purchase controls at `/settings/flux`.
+The receipt list reads `GET /api/v1/payments?limit=20&offset=0`.
 The response contains `{ records, hasMore }` for paid, live orders owned by the signed-in account.
 Each record contains `id`, `processor`, `status`, `amount`, `currency`, `fluxAmount`, `creditedAt`, and `createdAt`.
 The API returns amounts in major currency units and uses uppercase currency codes.
@@ -17,12 +13,11 @@ Each receipt adapter converts amounts from its channel's units.
 Unavailable amounts use null. The page formats the amount for the selected language.
 The display date uses `creditedAt`, or `createdAt` for an order without a credit timestamp.
 Ordering uses that same date, then the order ID, descending. Listing never calls a payment processor.
-Wallet history remains independent of payment orders.
+The Transaction History link opens `/settings/usage`, which reads the wallet ledger through `GET /api/v1/flux/history`.
 
 Each page loads only its own list. The receipt query cache scopes reads to the account and session.
 The public package catalog stays fresh for five minutes. The receipt list stays fresh for one minute.
-Receipt refresh and pagination load on request. The receipt list does not poll or refetch on window focus.
-The existing Capacitor loading, balance refresh, and quota analytics remain unchanged.
+The list loads when the account session is verified. Pagination and retries run on request.
 
 `GET /api/v1/payments/:id/receipt` checks account ownership before resolving the original processor.
 Stripe retrieves the Checkout Session with its invoice and latest charge expanded.
@@ -36,7 +31,7 @@ Each adapter owns that channel's amount conversion and receipt destination.
 
 ## Scope and non-goals
 
-This change adds an authenticated order list, separate settings entries, and independent usage and receipt tables.
+This change adds an authenticated order list to the existing Subscription page.
 It requires no migration, settlement change, invoice creation, refund flow, or subscription billing integration.
 Subscription controls and their management link remain in their existing section.
 RevenueCat Billing's customer portal lists subscription payments and provides downloadable receipts and invoices.
@@ -64,7 +59,7 @@ flowchart LR
 
 ```text
 packages/
-  stage-pages/src/pages/settings/{flux.vue,usage.vue}
+  stage-pages/src/pages/settings/{flux.vue,flux.browser.test.ts}
   stage-pages/src/pages/settings/components/{payment-history.vue,payment-receipt-button.vue}
   stage-ui/src/stores/{auth.ts,auth.test.ts}
   i18n/src/locales/{en,zh-Hans}/settings.yaml
@@ -116,7 +111,7 @@ sequenceDiagram
 - Check authentication, invoice precedence, charge receipts, missing receipts, and processor failures.
 - Check Apple orders with purchases disabled and rejection before provider access for inaccessible orders.
 - Check desktop and mobile pages, public packs, subscription states, receipt retries, and keyboard activation with browser scenarios.
-- Check original usage fields, credit and debit records, speech grouping, and pagination after moving the entry.
+- Follow the Transaction History link and check credits, debits, and pagination.
 - Check request counts, receipt cache reuse, pagination, and account changes.
 - Run affected tests, workspace and root typechecks, locale checks, and repository lint.
 

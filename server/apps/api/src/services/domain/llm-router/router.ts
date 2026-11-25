@@ -14,7 +14,7 @@ import { Buffer as NodeBuffer } from 'node:buffer'
 
 import { useLogger } from '@guiiai/logg'
 import { trace } from '@opentelemetry/api'
-import { ApiError, createServiceUnavailableError } from '@proj-airi/http-error-shared'
+import { ApiError, createServiceUnavailableError } from '@proj-airi/http-shared'
 import { optional, parse } from 'valibot'
 
 import { generationProtocolSchema } from '../../../schemas/generation-protocol'
@@ -202,6 +202,9 @@ const TTS_VOICES_CACHE_TTL_S_BY_PROVIDER: Record<string, number> = {
   'dashscope-cosyvoice': 86_400,
   'volcengine': 86_400,
 }
+
+/** TTS providers whose voice catalog call needs the upstream key. */
+const TTS_LIVE_CATALOG_PROVIDERS = new Set(['azure', 'fishaudio'])
 
 function ttsVoicesCacheTtl(provider: string): number {
   return TTS_VOICES_CACHE_TTL_S_BY_PROVIDER[provider] ?? 21_600
@@ -1165,16 +1168,14 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
     const load = (async () => {
       const unspeechBaseURL = (await options.configKV.getOrThrow('UNSPEECH_UPSTREAM')).restBaseURL
 
-      // Live providers (Azure) need the decrypted Azure subscription key + region;
-      // static-catalog providers (alibaba, volcengine) ignore both. The router
-      // decrypts unconditionally so the adapter doesn't have to know which
-      // category it's in — adapters that don't need creds just won't read them.
+      // Live-catalog providers need the decrypted key: Azure for its voice list, Fish Audio for the
+      // account's own voices (`voiceSelf`). Static-catalog providers get no key.
       const region = typeof upstream.adapterParams?.region === 'string'
         ? upstream.adapterParams.region
         : undefined
 
       const keyEntry = upstream.keys[0]
-      const plaintext = slice.model.provider === 'azure'
+      const plaintext = TTS_LIVE_CATALOG_PROVIDERS.has(slice.model.provider)
         ? options.envelopeCrypto.decryptKey(keyEntry.ciphertext, { modelName, keyEntryId: keyEntry.id })
         : undefined
 

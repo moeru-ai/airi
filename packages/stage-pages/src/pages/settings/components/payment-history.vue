@@ -2,7 +2,7 @@
 import { useInfiniteQuery } from '@pinia/colada'
 import { client } from '@proj-airi/stage-ui/composables/api'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
-import { Alert, Button, GhostButton, Skeleton, Table, TableCell, TableHead } from '@proj-airi/ui'
+import { Alert, Button, Skeleton, Table, TableCell, TableHead } from '@proj-airi/ui'
 import { intlFormat, parseISO } from 'date-fns'
 import { storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
@@ -56,12 +56,9 @@ function formatDate(iso: string) {
 
 <template>
   <section data-testid="payment-history" :class="['flex flex-col gap-3']" :aria-busy="isLoading || !verifiedSession">
-    <div :class="['flex items-center justify-between gap-3']">
-      <h2 :class="['text-lg font-semibold']">
-        {{ t('settings.pages.billing.receipts') }}
-      </h2>
-      <GhostButton size="sm" icon="i-solar:refresh-linear" :label="t('settings.pages.billing.refresh')" :loading="isLoading" :disabled="!verifiedSession" @click="refetch()" />
-    </div>
+    <h2 :class="['text-lg font-semibold']">
+      {{ t('settings.pages.billing.receipts') }}
+    </h2>
     <p :class="['text-xs text-neutral-500 dark:text-neutral-400']">
       {{ t('settings.pages.billing.receiptsHint') }}
     </p>
