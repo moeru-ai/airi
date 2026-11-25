@@ -295,6 +295,7 @@ chat:
     selected: '{count} selected'
     empty-archive: No archived chats. Archived chats stay here.
     search: Search chats
+    search-close: Close search
     search-empty: 'No chats contain "{query}"'
     searching: Searching chats…
     search-failed: Some chats could not be searched

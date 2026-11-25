@@ -97,5 +97,9 @@ const menuCheckClasses = ['i-mingcute:check-line size-4 shrink-0 text-primary-50
         </MenuItem>
       </template>
     </DropdownMenu>
+    <!-- Actions of the whole list, for example its search, stand at the end of the title. -->
+    <div :class="['ml-auto flex shrink-0 items-center']">
+      <slot />
+    </div>
   </div>
 </template>
