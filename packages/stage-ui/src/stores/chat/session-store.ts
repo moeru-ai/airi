@@ -1579,10 +1579,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   /**
    * Ship a single message up to the cloud (eventually).
    *
-   * Local-first contract: this method ALWAYS persists the send and image
-   * references to the IDB outbox first, then attempts to drain the outbox.
-   * Failures (offline, WS dropped, server 5xx) leave the entry in the outbox;
-   * the next `drainOutbox` (fired on every reconcile / WS-open) retries it.
+   * For signed-in users, persist the message and image references in the outbox before delivery.
+   * Reconcile or a WebSocket reconnect retries failed sends.
    *
    * Use when:
    * - The chat orchestrator has just appended a user / assistant turn
