@@ -4,14 +4,15 @@ import type { SessionRow } from './session-row-model'
 
 import { AnimatedHeight, BasicButton, Button, GhostButton, ScrollableArea } from '@proj-airi/ui'
 import { useEventListener, useResizeObserver, watchDebounced } from '@vueuse/core'
-import { computed, ref, shallowRef, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, ref, shallowRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import SettingsSearchField from '../../settings/settings-search-field.vue'
 import SessionRowItem from './session-row.vue'
 import SessionsListHeader from './sessions-list-header.vue'
+import SessionsSearchField from './sessions-search-field.vue'
 
 import { useListReorderMotion } from '../composables/use-list-reorder-motion'
+import { iconButtonClasses, quietIconClasses } from './icon-button-classes'
 
 const props = withDefaults(defineProps<{
   /** Every conversation of the user with the current character, archived ones included. */
@@ -64,11 +65,33 @@ const draftQuery = ref(query.value)
 watchDebounced(draftQuery, (value) => {
   query.value = value
 }, { debounce: 150 })
-// The owner can clear the search, for example when the list closes.
+/** The search field takes the place of the title while it is open. A search that the owner keeps opens it. */
+const searchOpen = shallowRef(query.value !== '')
+const searchField = useTemplateRef<InstanceType<typeof SessionsSearchField>>('searchField')
+const searchButton = useTemplateRef<HTMLButtonElement>('searchButton')
+// The owner can clear the search, for example when the list closes. The field then closes too.
 watch(query, (value) => {
-  if (value !== draftQuery.value)
-    draftQuery.value = value
+  if (value === draftQuery.value)
+    return
+  draftQuery.value = value
+  if (!value)
+    searchOpen.value = false
 })
+
+async function openSearch() {
+  searchOpen.value = true
+  await nextTick()
+  searchField.value?.focus()
+}
+
+/** Ends the search, so the list shows its place again, and gives focus back to the search button. */
+async function closeSearch() {
+  draftQuery.value = ''
+  query.value = ''
+  searchOpen.value = false
+  await nextTick()
+  searchButton.value?.focus()
+}
 // The swipe area that is open belongs to this open list, never to persisted session state.
 const expandedSessionId = shallowRef<string>()
 // Selection mode belongs to the open list owner, so closing the list can end it.
@@ -96,32 +119,16 @@ const visibleRows = computed(() => {
 const selectedRows = computed(() => visibleRows.value.filter(row => selectedIds.value.has(row.meta.sessionId)))
 const allSelected = computed(() => visibleRows.value.length > 0 && selectedRows.value.length === visibleRows.value.length)
 
-/** The primary action creates a conversation, or deletes the selection while selecting. */
-const primaryAction = computed(() => {
-  if (!selecting.value) {
-    return {
-      key: 'new',
-      icon: props.compact ? 'i-mingcute:add-circle-line' : 'i-mingcute:edit-line',
-      label: t('stage.chat.sessions.new'),
-    }
-  }
-  if (confirmingBatchDelete.value) {
-    return {
-      key: 'confirm-delete',
-      icon: 'i-mingcute:delete-2-fill',
-      label: t('stage.chat.sessions.confirm-delete-selected', selectedRows.value.length),
-    }
-  }
-  return {
-    key: 'delete',
-    icon: 'i-mingcute:delete-2-line',
-    label: t('stage.chat.sessions.delete-selected', selectedRows.value.length),
-  }
+/** The state of the select-all control: every row, some rows, or no row of the list is selected. */
+const selectionState = computed(() => {
+  if (allSelected.value)
+    return 'all'
+  return selectedRows.value.length > 0 ? 'some' : 'none'
 })
 
 /**
  * The buttons of the action row. The popover shows plain buttons that fill on hover, and the drawer and the dialog show
- * filled buttons. The primary action turns red while selecting, and solid while it waits for the second press.
+ * filled buttons.
  */
 const actionButtons = computed(() => {
   if (props.compact) {
@@ -130,9 +137,7 @@ const actionButtons = computed(() => {
       primaryProps: {
         class: [
           'session-primary-action session-primary-action--start h-9 min-w-0 flex-1 rounded-lg px-2 text-sm outline-none',
-          selecting.value
-            ? ['text-red-500 hover:bg-red-500/10 dark:text-red-400', confirmingBatchDelete.value ? 'bg-red-500/10' : '']
-            : 'text-primary-600 hover:bg-primary-50 dark:text-primary-300 dark:hover:bg-primary-950/70',
+          'text-primary-600 hover:bg-primary-50 dark:text-primary-300 dark:hover:bg-primary-950/70',
           'focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-[-2px]',
         ],
       },
@@ -144,8 +149,8 @@ const actionButtons = computed(() => {
   return {
     primary: Button,
     primaryProps: {
-      color: selecting.value ? 'red' : 'primary',
-      variant: confirmingBatchDelete.value ? 'primary' : 'secondary',
+      color: 'primary',
+      variant: 'secondary',
       class: ['session-primary-action min-h-12 min-w-0 flex-1 rounded-2xl px-4 py-3'],
     },
     secondary: Button,
@@ -154,11 +159,18 @@ const actionButtons = computed(() => {
   }
 })
 
+/** The buttons of the batch actions at the bottom: two equal halves, an icon and a label each. */
+const batchButtonClasses = computed(() => [
+  'min-w-0 flex-1 rounded-lg outline-none [&_.basic-button-content]:gap-1.5',
+  props.compact ? 'h-9 text-sm' : 'h-11 text-base',
+  'focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-[-2px]',
+])
+
 const emptyState = computed(() => {
   if (searchActive.value && props.searching)
-    return { icon: 'i-solar:magnifer-linear', text: t('stage.chat.sessions.searching') }
+    return { icon: 'i-mingcute:search-line', text: t('stage.chat.sessions.searching') }
   if (searchActive.value)
-    return { icon: 'i-solar:magnifer-linear', text: t('stage.chat.sessions.search-empty', { query: query.value.trim() }) }
+    return { icon: 'i-mingcute:search-line', text: t('stage.chat.sessions.search-empty', { query: query.value.trim() }) }
   if (place.value.kind === 'archive')
     return { icon: 'i-mingcute:archive-line', text: t('stage.chat.sessions.empty-archive') }
   return { icon: 'i-mingcute:chat-1-line', text: t('stage.chat.sessions.empty') }
@@ -204,11 +216,8 @@ function toggleAllSelected() {
   selectedIds.value = next
 }
 
-function runPrimaryAction() {
-  if (!selecting.value) {
-    emit('newSession')
-    return
-  }
+/** Deletes the selection. The first press only asks for confirmation, like the delete of one row. */
+function deleteSelected() {
   const sessionIds = selectedRows.value.map(row => row.meta.sessionId)
   if (sessionIds.length === 0)
     return
@@ -260,13 +269,6 @@ useEventListener(document, 'focusin', (event) => {
 })
 
 function handleEscape(event: KeyboardEvent) {
-  // The search field has the first Escape, which clears its text and keeps the list open.
-  if (draftQuery.value && event.target instanceof HTMLInputElement && event.target.type === 'search') {
-    draftQuery.value = ''
-    query.value = ''
-    event.stopPropagation()
-    return
-  }
   if (dropConfirmations(null)) {
     event.stopPropagation()
     return
@@ -283,6 +285,15 @@ function handleEscape(event: KeyboardEvent) {
 }
 
 const root = useTemplateRef<HTMLElement>('root')
+
+// Cmd+F or Ctrl+F, the find shortcut of the browser, opens the search while the list is on screen.
+useEventListener(window, 'keydown', (event: KeyboardEvent) => {
+  const command = event.metaKey || event.ctrlKey
+  if (!command || event.altKey || event.shiftKey || event.key.toLowerCase() !== 'f' || !root.value?.isConnected)
+    return
+  event.preventDefault()
+  void openSearch()
+})
 const listBox = useTemplateRef<HTMLElement>('listBox')
 /**
  * The most height that the list can take. The list grows with its rows until its surface, the drawer or the dialog,
@@ -332,7 +343,18 @@ const { holdLeavingItem } = useListReorderMotion({
 <template>
   <div ref="root" :class="['min-h-0 flex flex-col', props.fill ? 'h-full' : '']" @keydown.esc="handleEscape">
     <!-- A list that fills its column keeps its scrollbar at the edge of the column, so each part pads its own right side. -->
+    <SessionsSearchField
+      v-if="searchOpen"
+      ref="searchField"
+      v-model="draftQuery"
+      :placeholder="t('stage.chat.sessions.search')"
+      :close-label="t('stage.chat.sessions.search-close')"
+      :compact="props.compact"
+      :class="[props.compact ? 'mb-0.5' : 'mb-2', props.fill ? 'mr-2' : '']"
+      @close="closeSearch"
+    />
     <SessionsListHeader
+      v-else
       :class="[props.fill ? 'pr-2' : '']"
       :place="place"
       :live-count="liveRows.length"
@@ -341,63 +363,98 @@ const { holdLeavingItem } = useListReorderMotion({
       :character="props.character"
       @select-place="setPlace"
       @open-character="emit('openCharacter')"
-    />
-
-    <SettingsSearchField
-      v-model="draftQuery"
-      size="md"
-      :placeholder="t('stage.chat.sessions.search')"
-      :class="['shrink-0', props.compact ? 'mb-1' : 'mb-2', props.fill ? 'mr-2' : '']"
-    />
-
-    <div :class="['flex shrink-0 items-center', props.fill ? 'pr-2' : '']">
-      <component
-        :is="actionButtons.primary"
-        v-bind="actionButtons.primaryProps"
-        block
-        size="unset"
-        :data-session-confirm="selecting ? 'batch' : undefined"
-        :disabled="selecting && selectedRows.length === 0"
-        :loading="!selecting && isCreatingSession"
-        @click="runPrimaryAction"
+    >
+      <button
+        ref="searchButton"
+        type="button"
+        data-testid="sessions-search-button"
+        :aria-label="t('stage.chat.sessions.search')"
+        :title="t('stage.chat.sessions.search')"
+        :class="[iconButtonClasses, quietIconClasses, props.compact ? 'size-8' : 'size-11']"
+        @click="openSearch"
       >
-        <Transition name="session-action-swap" mode="out-in">
-          <span :key="primaryAction.key" :class="['min-w-0 max-w-full inline-flex items-center gap-2']">
-            <span aria-hidden="true" :class="[primaryAction.icon, actionButtons.iconSize, 'shrink-0']" />
-            <span :class="['truncate']">{{ primaryAction.label }}</span>
-          </span>
-        </Transition>
-      </component>
-      <Transition name="session-action-slot">
-        <div v-if="selecting" :class="['shrink-0 overflow-hidden max-w-40', props.compact ? 'ml-0.5' : 'ml-2']">
+        <span aria-hidden="true" :class="['i-mingcute:search-line', props.compact ? 'size-4' : 'size-5']" />
+      </button>
+    </SessionsListHeader>
+
+    <!--
+      Outside selection, the row creates a conversation and starts selection. While selecting, it shows the select-all
+      control with the count, in the column of the row checks, and Done. The actions on the selection are at the bottom.
+    -->
+    <div :class="['flex shrink-0 items-center', props.compact ? 'min-h-9' : 'min-h-12', props.fill ? 'pr-2' : '']">
+      <Transition name="session-action-swap" mode="out-in">
+        <div v-if="!selecting" key="actions" :class="['min-w-0 flex flex-1 items-center']">
+          <component
+            :is="actionButtons.primary"
+            v-bind="actionButtons.primaryProps"
+            block
+            size="unset"
+            :loading="isCreatingSession"
+            @click="emit('newSession')"
+          >
+            <span :class="['min-w-0 max-w-full inline-flex items-center gap-2']">
+              <span aria-hidden="true" :class="[props.compact ? 'i-mingcute:add-circle-line' : 'i-mingcute:edit-line', actionButtons.iconSize, 'shrink-0']" />
+              <span :class="['truncate']">{{ t('stage.chat.sessions.new') }}</span>
+            </span>
+          </component>
           <component
             :is="actionButtons.secondary"
             v-bind="actionButtons.secondaryProps"
             size="unset"
+            :aria-label="t('stage.chat.sessions.select')"
+            :title="t('stage.chat.sessions.select')"
             :class="props.compact
-              ? ['h-9 whitespace-nowrap rounded-lg px-2 text-sm', 'focus-visible:outline-2 focus-visible:outline-primary-500']
-              : ['h-12 whitespace-nowrap rounded-2xl px-4']"
-            @click="toggleAllSelected"
+              ? ['ml-0.5 size-9 shrink-0 rounded-lg text-neutral-400 hover:bg-neutral-500/10 hover:text-neutral-600 dark:hover:text-neutral-200', 'focus-visible:outline-2 focus-visible:outline-primary-500']
+              : ['ml-2 size-12 shrink-0 rounded-2xl']"
+            @click="selecting = true"
           >
-            {{ allSelected ? t('stage.chat.sessions.clear-selection') : t('stage.chat.sessions.select-all') }}
+            <span aria-hidden="true" :class="['i-mingcute:list-check-3-line', actionButtons.iconSize]" />
           </component>
         </div>
+        <div v-else key="selection" :class="['min-w-0 flex flex-1 items-center gap-1']">
+          <BasicButton
+            size="unset"
+            :aria-pressed="selectionState === 'all'"
+            :aria-label="selectionState === 'all' ? t('stage.chat.sessions.clear-selection') : t('stage.chat.sessions.select-all')"
+            :title="selectionState === 'all' ? t('stage.chat.sessions.clear-selection') : t('stage.chat.sessions.select-all')"
+            :disabled="visibleRows.length === 0"
+            :class="[
+              'session-primary-action session-primary-action--start active:scale-100! min-w-0 flex-1 rounded-lg outline-none',
+              'text-neutral-700 hover:bg-neutral-500/10 dark:text-neutral-200 [&_.basic-button-content]:gap-2.5',
+              'focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-[-2px]',
+              // The check stands in the column of the row checks.
+              props.compact ? 'h-9 pl-2.5 pr-2 text-sm' : 'h-12 pl-4 pr-3 text-base',
+            ]"
+            @click="toggleAllSelected"
+          >
+            <span
+              aria-hidden="true"
+              :class="[
+                'shrink-0',
+                props.compact ? 'size-4' : 'size-5',
+                selectionState === 'all'
+                  ? 'i-mingcute:check-circle-fill text-primary-500'
+                  : selectionState === 'some'
+                    ? 'i-mingcute:minus-circle-fill text-primary-500'
+                    : 'border-2 border-solid border-neutral-300 rounded-full dark:border-neutral-600',
+              ]"
+            />
+            <span :class="['truncate']">{{ t('stage.chat.sessions.selected', { count: selectedRows.length }) }}</span>
+          </BasicButton>
+          <BasicButton
+            size="unset"
+            :class="[
+              'shrink-0 rounded-lg font-medium outline-none',
+              'text-primary-600 hover:bg-primary-50 dark:text-primary-300 dark:hover:bg-primary-950/70',
+              'focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-[-2px]',
+              props.compact ? 'h-9 px-2.5 text-sm' : 'h-12 px-4 text-base',
+            ]"
+            @click="selecting = false"
+          >
+            {{ t('stage.chat.sessions.done-selecting') }}
+          </BasicButton>
+        </div>
       </Transition>
-      <component
-        :is="actionButtons.secondary"
-        v-bind="actionButtons.secondaryProps"
-        size="unset"
-        :aria-label="selecting ? t('stage.chat.sessions.done-selecting') : t('stage.chat.sessions.select')"
-        :title="selecting ? t('stage.chat.sessions.done-selecting') : t('stage.chat.sessions.select')"
-        :class="props.compact
-          ? ['ml-0.5 size-9 shrink-0 rounded-lg text-neutral-400 hover:bg-neutral-500/10 hover:text-neutral-600 dark:hover:text-neutral-200', 'focus-visible:outline-2 focus-visible:outline-primary-500']
-          : ['ml-2 size-12 shrink-0 rounded-2xl']"
-        @click="selecting = !selecting"
-      >
-        <Transition name="session-action-swap" mode="out-in">
-          <span :key="String(selecting)" aria-hidden="true" :class="[selecting ? 'i-mingcute:close-line' : 'i-mingcute:list-check-3-line', actionButtons.iconSize]" />
-        </Transition>
-      </component>
     </div>
 
     <div v-if="props.compact" :class="['mb-1 mt-1.5 h-px shrink-0 bg-neutral-200/70 dark:bg-neutral-700/70', props.fill ? 'mr-2' : '']" />
@@ -456,9 +513,13 @@ const { holdLeavingItem } = useListReorderMotion({
       </ScrollableArea>
     </div>
 
-    <!-- The batch actions rise from the bottom while selecting, so the controls above keep their places. -->
+    <!--
+      The batch actions rise from the bottom while selecting, so the controls above keep their places. Outside selection
+      the collapsed bar stays mounted for its animation, so it leaves the accessibility tree too.
+    -->
     <div
       :inert="!selecting"
+      :aria-hidden="selecting ? undefined : 'true'"
       :class="[
         'grid shrink-0 transition-[grid-template-rows,opacity] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none',
         props.fill ? 'pr-2' : '',
@@ -468,20 +529,38 @@ const { holdLeavingItem } = useListReorderMotion({
       <div :class="['min-h-0 overflow-hidden']">
         <div
           :class="[
-            'flex items-center gap-1 border-t border-neutral-200/70 text-neutral-500 dark:border-neutral-700/70 dark:text-neutral-400',
-            props.compact ? 'mt-1 min-h-9 px-1 pt-1 text-xs' : 'mt-2 min-h-11 px-1 pt-2 text-sm',
+            'flex items-center gap-1 border-t border-neutral-200/70 dark:border-neutral-700/70',
+            props.compact ? 'mt-1 pt-1' : 'mt-2 pt-2',
           ]"
         >
-          <span :class="['flex-1']">{{ t('stage.chat.sessions.selected', { count: selectedRows.length }) }}</span>
-          <GhostButton
+          <BasicButton
             size="unset"
             :disabled="selectedRows.length === 0"
-            :class="['h-8 inline-flex items-center gap-1.5 rounded-lg px-2 text-neutral-700 hover:bg-neutral-500/10 dark:text-neutral-200', 'focus-visible:outline-2 focus-visible:outline-primary-500']"
+            :class="[batchButtonClasses, 'text-neutral-700 hover:bg-neutral-500/10 dark:text-neutral-200']"
             @click="archiveSelected"
           >
             <span aria-hidden="true" :class="[place.kind === 'archive' ? 'i-mingcute:unarchive-line' : 'i-mingcute:archive-line', 'size-4 shrink-0']" />
             {{ place.kind === 'archive' ? t('stage.chat.sessions.unarchive') : t('stage.chat.sessions.archive') }}
-          </GhostButton>
+          </BasicButton>
+          <!-- The confirmation keeps the fill, as in the row menu. Bold text and a filled icon mark it. -->
+          <BasicButton
+            size="unset"
+            data-session-confirm="batch"
+            :disabled="selectedRows.length === 0"
+            :class="[batchButtonClasses, 'text-red-500 hover:bg-neutral-500/10 dark:text-red-400', confirmingBatchDelete ? 'font-semibold' : '']"
+            @click="deleteSelected"
+          >
+            <span aria-hidden="true" :class="[confirmingBatchDelete ? 'i-mingcute:delete-2-fill' : 'i-mingcute:delete-2-line', 'size-4 shrink-0']" />
+            <!-- With nothing selected, the label leaves out the count: "Delete 0" reads as an action on zero chats. -->
+            <template v-if="selectedRows.length === 0">
+              {{ t('stage.chat.sessions.delete-short') }}
+            </template>
+            <template v-else>
+              {{ confirmingBatchDelete
+                ? t('stage.chat.sessions.confirm-delete-selected', selectedRows.length)
+                : t('stage.chat.sessions.delete-selected', selectedRows.length) }}
+            </template>
+          </BasicButton>
         </div>
       </div>
     </div>
@@ -508,18 +587,6 @@ const { holdLeavingItem } = useListReorderMotion({
 .session-action-swap-leave-to {
   opacity: 0;
   transform: translateY(-4px);
-}
-
-/* The slot grows from zero width, so the primary action shrinks beside it instead of jumping. */
-.session-action-slot-enter-active,
-.session-action-slot-leave-active {
-  transition: max-width 220ms ease, margin 220ms ease, opacity 160ms ease;
-}
-.session-action-slot-enter-from,
-.session-action-slot-leave-to {
-  max-width: 0;
-  margin-left: 0;
-  opacity: 0;
 }
 
 /*
@@ -550,9 +617,7 @@ const { holdLeavingItem } = useListReorderMotion({
   .session-item-enter-active,
   .session-item-leave-active,
   .session-action-swap-enter-active,
-  .session-action-swap-leave-active,
-  .session-action-slot-enter-active,
-  .session-action-slot-leave-active {
+  .session-action-swap-leave-active {
     transition: none;
   }
 }
