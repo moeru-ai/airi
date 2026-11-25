@@ -16,6 +16,7 @@ import { useI18n } from 'vue-i18n'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 
 import CapacitorSection from '../../components/capacitor-section.vue'
+import PaymentHistory from './components/payment-history.vue'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -357,6 +358,8 @@ async function handleBuy(stripePriceId: string) {
         <span aria-hidden="true" :class="['i-solar:alt-arrow-right-linear size-4']" />
       </span>
     </RouterLink>
+
+    <PaymentHistory v-if="isAuthenticated" />
 
     <div v-if="!isAuthenticated" :class="['flex flex-wrap items-center justify-center gap-x-5 gap-y-2 mt-auto pb-2 pt-6 text-xs text-neutral-500']">
       <a :class="['hover:text-primary-500']" :href="AIRI_TERMS_URL" target="_blank" rel="noreferrer">
