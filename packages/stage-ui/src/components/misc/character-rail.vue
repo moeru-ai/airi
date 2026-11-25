@@ -125,8 +125,9 @@ function avatarRingClasses(onStage: boolean) {
       : island
         ? [
           // The surface of a blurry `Dock`. The island is a rounded rectangle, because the avatars need room around them. It
-          // meets the edge of the floating chat window, which would cut a shadow, so it has none.
-          'w-14 flex shrink-0 flex-col items-center gap-1 overflow-x-hidden overflow-y-auto rounded-[20px] p-2 [scrollbar-width:none]',
+          // meets the edge of the floating chat window, which would cut a shadow, so it has none. Its avatars scroll inside
+          // it, and Manage stays at its end.
+          'w-14 flex shrink-0 flex-col items-center gap-1 overflow-hidden rounded-[20px] py-1.5',
           'bg-neutral-50/80 backdrop-blur-[12px] dark:bg-neutral-800/70',
         ]
         : [
@@ -140,59 +141,69 @@ function avatarRingClasses(onStage: boolean) {
     @focusin="trackFocus"
     @focusout="trackBlur"
   >
-    <Tooltip
-      v-for="entry in entries"
-      :key="entry.id"
-      :label="labelOf(entry)"
-      :side="props.tooltipSide"
-      :disabled="floating"
+    <!--
+      Only the island scrolls its avatars apart from Manage. It pads the scroll area, so the focus rings of the rows are
+      not cut, and the rows stay 8px inside the island. The other rails lay the rows out in the rail itself.
+    -->
+    <div
+      :class="island
+        ? ['min-h-0 w-full flex flex-1 flex-col items-center gap-1 overflow-x-hidden overflow-y-auto px-2 py-0.5 [scrollbar-width:none]']
+        : ['contents']"
     >
-      <!--
-        The fill of the row marks the picked character, in the open rail and in the docked rail. A ring marks the
-        character on the stage, except in the open rail, where its name is bold. The island picks the character on the
-        stage, so its ring is its only mark.
-      -->
-      <BasicButton
-        size="unset"
-        data-testid="character-rail-item"
-        :aria-label="labelOf(entry)"
-        :aria-pressed="entry.id === selectedId"
-        :title="floating && !open ? labelOf(entry) : undefined"
-        :class="island
-          ? islandRowClasses
-          : [
-            rowClasses,
-            open || variant === 'docked' ? 'hover:bg-neutral-500/10' : '',
-            (open || variant === 'docked') && entry.id === selectedId ? 'bg-neutral-500/15' : '',
-          ]"
-        @click="emit('select', entry.id)"
+      <Tooltip
+        v-for="entry in entries"
+        :key="entry.id"
+        :label="labelOf(entry)"
+        :side="props.tooltipSide"
+        :disabled="floating"
       >
-        <!-- Display model previews are portrait. Align them to the top so the circle keeps the head. -->
-        <Avatar
-          :src="entry.preview"
-          :class="[
-            // The avatar root is an inline element. It takes a size only as a block.
-            'block size-8 shrink-0 rounded-full bg-neutral-200/70 text-neutral-600 dark:bg-neutral-700/70 dark:text-neutral-300',
-            '[&_[data-avatar-image]]:object-top',
-            avatarRingClasses(entry.onStage),
-          ]"
+        <!--
+          The fill of the row marks the picked character, in the open rail and in the docked rail. A ring marks the
+          character on the stage, except in the open rail, where its name is bold. The island picks the character on the
+          stage, so its ring is its only mark.
+        -->
+        <BasicButton
+          size="unset"
+          data-testid="character-rail-item"
+          :aria-label="labelOf(entry)"
+          :aria-pressed="entry.id === selectedId"
+          :title="floating && !open ? labelOf(entry) : undefined"
+          :class="island
+            ? islandRowClasses
+            : [
+              rowClasses,
+              open || variant === 'docked' ? 'hover:bg-neutral-500/10' : '',
+              (open || variant === 'docked') && entry.id === selectedId ? 'bg-neutral-500/15' : '',
+            ]"
+          @click="emit('select', entry.id)"
         >
-          <template #fallback>
-            <span :class="['text-sm font-semibold']">{{ entry.name.slice(0, 1) }}</span>
-          </template>
-        </Avatar>
-        <span
-          v-if="floating"
-          aria-hidden="true"
-          :class="[
-            labelClasses,
-            entry.onStage ? 'font-semibold text-neutral-900 dark:text-neutral-50' : 'font-medium text-neutral-600 dark:text-neutral-300',
-          ]"
-        >
-          {{ entry.name }}
-        </span>
-      </BasicButton>
-    </Tooltip>
+          <!-- Display model previews are portrait. Align them to the top so the circle keeps the head. -->
+          <Avatar
+            :src="entry.preview"
+            :class="[
+              // The avatar root is an inline element. It takes a size only as a block.
+              'block size-8 shrink-0 rounded-full bg-neutral-200/70 text-neutral-600 dark:bg-neutral-700/70 dark:text-neutral-300',
+              '[&_[data-avatar-image]]:object-top',
+              avatarRingClasses(entry.onStage),
+            ]"
+          >
+            <template #fallback>
+              <span :class="['text-sm font-semibold']">{{ entry.name.slice(0, 1) }}</span>
+            </template>
+          </Avatar>
+          <span
+            v-if="floating"
+            aria-hidden="true"
+            :class="[
+              labelClasses,
+              entry.onStage ? 'font-semibold text-neutral-900 dark:text-neutral-50' : 'font-medium text-neutral-600 dark:text-neutral-300',
+            ]"
+          >
+            {{ entry.name }}
+          </span>
+        </BasicButton>
+      </Tooltip>
+    </div>
     <!-- The line has no fixed width, so it spans the closed rail and the open rail. The island keeps Manage at its end. -->
     <span v-if="!island" aria-hidden="true" :class="['mx-2 my-1 h-px shrink-0 bg-neutral-400/30']" />
     <Tooltip :label="t('stage.character-switcher.manage')" :side="props.tooltipSide" :disabled="!island">
@@ -202,7 +213,7 @@ function avatarRingClasses(onStage: boolean) {
         :aria-label="t('stage.character-switcher.manage')"
         :title="open || island ? undefined : t('stage.character-switcher.manage')"
         :class="island
-          ? [islandRowClasses, 'mt-auto text-neutral-600 hover:bg-neutral-500/10 dark:text-neutral-300']
+          ? [islandRowClasses, 'mb-0.5 text-neutral-600 hover:bg-neutral-500/10 dark:text-neutral-300']
           : [rowClasses, 'text-neutral-600 dark:text-neutral-300', 'hover:bg-neutral-500/10']"
         @click="emit('manage')"
       >
