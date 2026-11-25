@@ -54,7 +54,7 @@ defineExpose({ focus })
     <span
       aria-hidden="true"
       :class="[
-        'i-solar:magnifer-linear pointer-events-none absolute top-1/2 -translate-y-1/2 text-neutral-400 dark:text-neutral-500',
+        'i-mingcute:search-line pointer-events-none absolute top-1/2 -translate-y-1/2 text-neutral-400 dark:text-neutral-500',
         props.compact ? 'left-2.5 size-4' : 'left-3 size-5',
       ]"
     />
