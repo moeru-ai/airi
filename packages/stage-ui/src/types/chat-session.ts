@@ -56,27 +56,34 @@ export interface ChatSessionMeta {
   cloudMaxSeq?: number
   /** When the owner pinned the conversation. The conversation list shows pinned conversations first. This device only. */
   pinnedAt?: number
+  /**
+   * The text of the conversation for its row in the list. The session store writes it with each save of the messages,
+   * so the list needs no message records. This device only.
+   */
+  summary?: ChatSessionSummary
   /** When the owner archived the conversation. The conversation list moves it to its archive. This device only. */
   archivedAt?: number
-  /** The folder of the conversation, a key of {@link ChatSessionsIndex.folders}. This device only. */
-  folderId?: string
-}
-
-/** A folder that groups conversations of any character in the conversation list. */
-export interface ChatSessionFolder {
-  id: string
-  name: string
-  createdAt: number
 }
 
 /**
  * Where the conversation list looks. The title of the list switches it.
  *
  * - `all`: every conversation that is not archived.
- * - `folder`: the conversations of one folder.
  * - `archive`: the archived conversations.
  */
-export type ChatSessionsPlace = { kind: 'all' } | { kind: 'folder', folderId: string } | { kind: 'archive' }
+export type ChatSessionsPlace = { kind: 'all' } | { kind: 'archive' }
+
+/** What the row of a conversation shows. See {@link ChatSessionMeta.summary}. */
+export interface ChatSessionSummary {
+  /** The first message with text. An untitled conversation shows it as its title. */
+  firstText?: string
+  /** The last message with text. */
+  lastText?: string
+  /** Whether the user wrote the last message with text. */
+  lastFromUser?: boolean
+  /** The time of the last message of the user or the character. */
+  lastAt?: number
+}
 
 export interface ChatSessionRecord {
   meta: ChatSessionMeta
@@ -91,8 +98,6 @@ export interface ChatCharacterSessionsIndex {
 export interface ChatSessionsIndex {
   userId: string
   characters: Record<string, ChatCharacterSessionsIndex>
-  /** Folders of the conversation list, by ID. A folder holds conversations of every character, so the index of the user owns it. */
-  folders?: Record<string, ChatSessionFolder>
 }
 
 export interface ChatSessionsExport {

@@ -200,8 +200,8 @@ it.each(['leader-only', 'follower-only'] as const)('clears unavailable module pr
 // https://github.com/moeru-ai/airi/issues/3154
 // ROOT CAUSE:
 // Clearing every selection also removes usable local providers. Clear only providers that need removed settings.
-// An unavailable explicit override becomes None instead of inheriting a different voice.
-it('preserves usable local selections and disables unavailable card overrides (Issue #3154)', async () => {
+// An unavailable explicit override inherits the global speech setting. A card has no None for speech.
+it('preserves usable local selections and clears unavailable card overrides (Issue #3154)', async () => {
   localStorage.clear()
   vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({ voices: [], models: [], data: [] })))
   const { pinia, runtime, maintenance } = mountMaintenance(`maintenance:${crypto.randomUUID()}`, 'leader-only')
@@ -225,7 +225,8 @@ it('preserves usable local selections and disables unavailable card overrides (I
   expect(speech.activeSpeechVoiceId).toBe('af_heart')
   expect(hearing.activeTranscriptionProvider).toBe('browser-web-speech-api')
   expect(hearing.activeTranscriptionModel).toBe('web-speech-api')
-  expect(cards.getModules(unavailableId)?.speech).toEqual({ provider: 'speech-noop', model: '', voice_id: '' })
+  expect(cards.getCard(unavailableId)?.extensions.airi.modules.speech).toMatchObject({ provider: '', model: '', voice_id: '' })
+  expect(cards.getModules(unavailableId)?.speech).toEqual({ provider: 'kokoro-local', model: 'fp32', voice_id: 'af_heart' })
   const snapshot = structuredClone(toRaw(cards.cards))
   await maintenance.resetProvidersSettings()
   await nextTick()

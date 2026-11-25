@@ -32,8 +32,11 @@ import { attachedChatOffset, chooseAttachedChatLayout, keepChatOnDisplay, prefer
 
 type EventaContext = ReturnType<typeof createContext>['context']
 
-/** Smallest floating chat that still shows the composer above one short bubble. */
-const minimumSize = { width: 300, height: 260 }
+/**
+ * Smallest floating chat that still shows the composer above one short bubble, with the 72px character rail beside
+ * the panel. A size that the config saved before the rail grows to it.
+ */
+const minimumSize = { width: 440, height: 360 }
 
 /** Floating chat bounds that the chat window config persists. */
 interface FloatingChatBounds {
@@ -418,11 +421,11 @@ export function setupFloatingChatWindow(params: {
 
   async function createWindow() {
     const saved = params.getBounds()
-    size = { width: saved.width, height: saved.height }
+    size = { width: Math.max(saved.width, minimumSize.width), height: Math.max(saved.height, minimumSize.height) }
     const target = new BrowserWindow({
       title: 'Chat',
-      width: saved.width,
-      height: saved.height,
+      width: size.width,
+      height: size.height,
       show: false,
       icon,
       // The edges in the renderer own resizing. Transparent windows do not

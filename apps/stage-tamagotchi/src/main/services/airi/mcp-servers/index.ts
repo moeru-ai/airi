@@ -21,7 +21,7 @@ import type { TerminalApprovalOptions } from './terminal-approval'
 import { randomBytes } from 'node:crypto'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { env, execPath, platform } from 'node:process'
+import { execPath, platform } from 'node:process'
 
 import { useLogg } from '@guiiai/logg'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
@@ -291,7 +291,6 @@ export function createMcpManager(terminalApproval?: TerminalApprovalOptions): Mc
     }
     catch {
       const defaultMcpConfig: ElectronMcpConfigFile = {
-        ...(app.isPackaged && env.AIRI_DISTRIBUTION === 'terminal-beta' ? { terminalEnabled: true } : {}),
         mcpServers: {},
       }
       await writeFile(path, `${JSON.stringify(defaultMcpConfig, null, 2)}\n`)

@@ -35,7 +35,7 @@ const startVoiceCall = useStartVoiceCall(route => router.push(route), () => !voi
 
 const imageInput = useTemplateRef<HTMLInputElement>('imageInput')
 const chatSession = useChatSessionStore()
-const { addFiles, selectFiles, error: imageError, pending: pendingImages } = useChatImages(props.composer, () => chatSession.activeSessionId)
+const { accept: imageAccept, addFiles, selectFiles, error: imageError, pending: pendingImages } = useChatImages(props.composer, () => chatSession.activeSessionId)
 const { attachments, removeAttachment } = props.composer
 
 const messageInput = props.composer.draft
@@ -206,7 +206,7 @@ watch(replyTarget, async (target) => {
 
       <div ref="voiceAttachment" :class="['px-2 pt-2 empty:hidden']" />
 
-      <input ref="imageInput" type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple :class="['hidden']" @change="selectFiles">
+      <input ref="imageInput" type="file" :accept="imageAccept" multiple :class="['hidden']" @change="selectFiles">
       <BasicTextarea
         v-model="messageInput"
         :submit-on-enter="false"

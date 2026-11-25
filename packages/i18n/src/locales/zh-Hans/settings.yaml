@@ -574,6 +574,7 @@ pages:
     drop_here: 松手以上传文件
     create_card: 创建新角色
     edit_card: 编辑角色
+    edit_model: 编辑模型
     saved: 角色已保存
     unsaved:
       badge: 未保存
@@ -748,6 +749,14 @@ pages:
       desktop_window_centered: 桌面窗口已移至屏幕中央。
       desktop_reset: 桌面数据重置。
   models:
+    library:
+      loading: 正在加载模型…
+      title: 模型库
+      description: 导入、重命名和删除角色用到的模型。
+      hint: 角色用哪个模型，在角色的设置里选。这里只管理模型本身。
+      used-by: '使用中：{names}'
+      unused: 没有角色在用这个模型
+      edit: 调整这个模型
     editor:
       model:
         all-models: 全部模型

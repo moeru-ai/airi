@@ -189,7 +189,14 @@ describe('airi-card store', () => {
     expect(visionStore.activeModel).toBe('auto')
   })
 
-  it('preserves ambiguous old default speech settings', async () => {
+  // https://github.com/moeru-ai/airi/pull/2332
+  // ROOT CAUSE:
+  //
+  // Versions before v0.12.0 copied the unset global speech, `speech-noop`, into the card.
+  // The store kept it as None, so the card stayed silent.
+  //
+  // We fixed this by reading a stored `speech-noop` as inheritance.
+  it('stores an old no-speech placeholder of a card as inheritance', async () => {
     const cardStore = useAiriCardStore()
     cardStore.cards.set('default', {
       name: 'Iru',
@@ -211,7 +218,7 @@ describe('airi-card store', () => {
     await cardStore.initialize()
 
     expect(cardStore.activeCard?.extensions.airi.modules.speech).toMatchObject({
-      provider: 'speech-noop',
+      provider: '',
       model: '',
       voice_id: '',
     })

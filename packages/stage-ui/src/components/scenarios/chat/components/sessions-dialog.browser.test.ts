@@ -1,7 +1,7 @@
 import type { ChatSessionMeta } from '../../../../types/chat-session'
 
 import { SwipeActionButton, SwipeActionsContent, SwipeActionsItem, SwipeActionsList, SwipeActionsRoot } from '@proj-airi/ui'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-vue'
 import { page, userEvent } from 'vitest/browser'
 import { defineComponent, ref } from 'vue'
@@ -31,10 +31,11 @@ function createTestI18n() {
               'confirm-delete-short': 'Confirm delete',
               'more-actions': 'More actions',
               'archive': 'Archive',
+              'pin': 'Pin',
+              'rename-short': 'Rename',
               'current': 'Current',
               'cancel': 'Cancel',
               'confirm-delete': 'Delete this conversation and its messages?',
-              'cloud-badge': 'Cloud synced',
               'rename': 'Rename conversation',
               'rename-input': 'Conversation name',
               'rename-placeholder': 'Enter a conversation name',
@@ -59,8 +60,8 @@ function sessionMeta(sessionId: string, updatedAt: number): ChatSessionMeta {
 }
 
 function createHarness(rows = [
-  { meta: sessionMeta('session-one', 2), preview: 'First chat', isActive: true, activityAtLabel: 'now', characterName: 'Airi' },
-  { meta: sessionMeta('session-two', 1), preview: 'Second chat', isActive: false, activityAtLabel: 'yesterday', characterName: 'Airi' },
+  { meta: sessionMeta('session-one', 2), preview: 'First chat', isActive: true, activityAt: 2, activityAtLabel: 'now', activityAtTitle: 'Nov 24, 2026, 6:00 PM', characterName: 'Airi' },
+  { meta: sessionMeta('session-two', 1), preview: 'Second chat', isActive: false, activityAt: 1, activityAtLabel: 'yesterday', activityAtTitle: 'Nov 23, 2026, 6:00 PM', characterName: 'Airi' },
 ], isDesktop = false) {
   return defineComponent({
     name: 'SessionsDialogHarness',
@@ -84,7 +85,6 @@ function createHarness(rows = [
       <SessionsDialog
         :open="true"
         :rows="rows"
-        :folders="[]"
         :is-desktop="isDesktop"
         :is-creating-session="false"
         @new-session="created += 1"
@@ -100,9 +100,88 @@ function createHarness(rows = [
 }
 
 describe('sessions dialog actions', () => {
+  it('renders the list in place beside the chat in the inline mode', async () => {
+    const rows = [
+      { meta: sessionMeta('session-one', 2), preview: 'First chat', isActive: true, activityAt: 2, activityAtLabel: 'now', activityAtTitle: 'Nov 24, 2026, 6:00 PM', characterName: 'Airi' },
+    ]
+    const screen = await render(defineComponent({
+      components: { SessionsDialog },
+      setup() {
+        return { rows, selected: ref('none') }
+      },
+      template: `
+        <SessionsDialog
+          :open="false"
+          :rows="rows"
+          :folders="[]"
+          :is-desktop="false"
+          :is-creating-session="false"
+          desktop-mode="inline"
+          @select-session="selected = $event"
+        />
+        <output aria-label="selected-session-id">{{ selected }}</output>
+      `,
+    }), { global: { plugins: [createTestI18n()] } })
+
+    // A closed state and a narrow width still show the list: the window keeps it as a column.
+    await expect.element(screen.getByTestId('sessions-inline')).toBeVisible()
+    expect(document.querySelector('[role="dialog"]')).toBeNull()
+    await screen.getByRole('button', { name: /^First chat/ }).click()
+    await expect.element(screen.getByLabelText('selected-session-id')).toHaveTextContent('session-one')
+  })
+
+  it('opens the menu of a touch row with a long press, not the conversation', async () => {
+    const rows = [
+      { meta: sessionMeta('session-one', 2), preview: 'First chat', isActive: true, activityAt: 2, activityAtLabel: 'now', activityAtTitle: 'Nov 24, 2026, 6:00 PM', characterName: 'Airi' },
+      { meta: sessionMeta('session-two', 1), preview: 'Second chat', isActive: false, activityAt: 1, activityAtLabel: 'yesterday', activityAtTitle: 'Nov 23, 2026, 6:00 PM', characterName: 'Airi' },
+    ]
+    const screen = await render(defineComponent({
+      components: { SessionsDialog },
+      setup() {
+        return { rows, selected: ref('none') }
+      },
+      template: `
+        <SessionsDialog
+          :open="true"
+          :rows="rows"
+          :is-desktop="false"
+          :is-creating-session="false"
+          desktop-mode="inline"
+          touch
+          @select-session="selected = $event"
+        />
+        <output aria-label="selected-session-id">{{ selected }}</output>
+      `,
+    }), { global: { plugins: [createTestI18n()] } })
+
+    // The touch row shows no buttons. Its actions are the swipe and the menu.
+    await expect.element(screen.getByRole('button', { name: /^Second chat/ })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Archive: Second chat' }).query()).toBeNull()
+
+    const row = screen.getByRole('button', { name: /^Second chat/ }).element()
+    // A synthetic press has no active pointer, so the swipe area of the row cannot capture it.
+    const capture = vi.spyOn(Element.prototype, 'setPointerCapture').mockImplementation(() => {})
+    const release = vi.spyOn(Element.prototype, 'releasePointerCapture').mockImplementation(() => {})
+    try {
+      row.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerType: 'touch', clientX: 40, clientY: 40 }))
+      await new Promise(resolve => setTimeout(resolve, 650))
+      row.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerType: 'touch', clientX: 40, clientY: 40 }))
+      row.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    }
+    finally {
+      capture.mockRestore()
+      release.mockRestore()
+    }
+
+    await expect.element(screen.getByRole('menuitem', { name: 'Archive' })).toBeVisible()
+    // The row shows the short time. The menu tells its full date, because a touch row has no tooltip.
+    await expect.element(screen.getByText('Nov 23, 2026, 6:00 PM')).toBeVisible()
+    await expect.element(screen.getByLabelText('selected-session-id')).toHaveTextContent('none')
+  })
+
   it('opens the compact desktop list from its conversation trigger', async () => {
     const rows = [
-      { meta: sessionMeta('session-one', 2), preview: 'First chat', isActive: true, activityAtLabel: 'now', characterName: 'Airi' },
+      { meta: sessionMeta('session-one', 2), preview: 'First chat', isActive: true, activityAt: 2, activityAtLabel: 'now', activityAtTitle: 'Nov 24, 2026, 6:00 PM', characterName: 'Airi' },
     ]
     const screen = await render(defineComponent({
       components: { SessionsDialog },
@@ -113,7 +192,6 @@ describe('sessions dialog actions', () => {
         <SessionsDialog
           v-model:open="open"
           :rows="rows"
-          :folders="[]"
           :is-desktop="true"
           :is-creating-session="false"
           desktop-mode="popover"
@@ -138,8 +216,8 @@ describe('sessions dialog actions', () => {
           deleted: ref('none'),
           open: ref(false),
           rows: [
-            { meta: sessionMeta('session-one', 2), preview: 'First chat', isActive: true, activityAtLabel: 'now', characterName: 'Airi' },
-            { meta: sessionMeta('session-two', 1), preview: 'Second chat', isActive: false, activityAtLabel: 'yesterday', characterName: 'Airi' },
+            { meta: sessionMeta('session-one', 2), preview: 'First chat', isActive: true, activityAt: 2, activityAtLabel: 'now', activityAtTitle: 'Nov 24, 2026, 6:00 PM', characterName: 'Airi' },
+            { meta: sessionMeta('session-two', 1), preview: 'Second chat', isActive: false, activityAt: 1, activityAtLabel: 'yesterday', activityAtTitle: 'Nov 23, 2026, 6:00 PM', characterName: 'Airi' },
           ],
         }
       },
@@ -147,7 +225,6 @@ describe('sessions dialog actions', () => {
         <SessionsDialog
           v-model:open="open"
           :rows="rows"
-          :folders="[]"
           :is-desktop="true"
           :is-creating-session="false"
           desktop-mode="popover"
@@ -160,12 +237,17 @@ describe('sessions dialog actions', () => {
     }), { global: { plugins: [createTestI18n()] } })
 
     await screen.getByRole('button', { name: 'Current chat' }).click()
-    await screen.getByRole('button', { name: 'Delete conversation: Second chat' }).click()
+    // Archive stays on the compact row and shows on hover. Delete is in the menu of the row.
+    await screen.getByText('Second chat').hover()
+    await expect.element(screen.getByRole('button', { name: 'Archive: Second chat' })).toBeVisible()
+    await screen.getByRole('button', { name: 'More actions: Second chat' }).click()
+    // The first press turns the item into its confirmation and keeps the menu open.
+    await screen.getByRole('menuitem', { name: 'Delete' }).click()
 
-    await expect.element(screen.getByRole('button', { name: 'Confirm delete: Second chat' })).toBeVisible()
+    await expect.element(screen.getByRole('menuitem', { name: 'Confirm delete' })).toBeVisible()
     await expect.element(screen.getByLabelText('deleted-session-id')).toHaveTextContent('none')
 
-    await screen.getByRole('button', { name: 'Confirm delete: Second chat' }).click()
+    await screen.getByRole('menuitem', { name: 'Confirm delete' }).click()
     await expect.element(screen.getByLabelText('deleted-session-id')).toHaveTextContent('session-two')
   })
 
@@ -673,7 +755,9 @@ describe('sessions dialog actions', () => {
       meta: sessionMeta(`session-${index}`, 30 - index),
       preview: `Chat ${index}`,
       isActive: index === 0,
+      activityAt: 2,
       activityAtLabel: 'now',
+      activityAtTitle: 'Nov 24, 2026, 6:00 PM',
       characterName: 'Airi',
     }))
 
