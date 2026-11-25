@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import type { BeatSyncStyleName } from '@proj-airi/stage-ui-live2d'
 
+import { signalBeatSyncBeat } from '@proj-airi/stage-shared/beat-sync'
 import { createBeatSyncController } from '@proj-airi/stage-ui-live2d'
 import { Section } from '@proj-airi/stage-ui/components'
 import { Button, Callout, FieldCheckbox, FieldCombobox, FieldRange } from '@proj-airi/ui'
-import { useRafFn } from '@vueuse/core'
+import { useIntervalFn, useRafFn } from '@vueuse/core'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 
 interface TrailPoint { x: number, y: number, t: number }
@@ -199,6 +200,21 @@ function hitBeat() {
   controller.scheduleBeat(performance.now())
 }
 
+const characterBpm = ref(120)
+const formatBpm = (value: number) => `${value} BPM`
+
+/** Sends one beat to the character, as a detected beat does, and plays it in the preview too. */
+function sendBeatToCharacter() {
+  signalBeatSyncBeat({ energy: 1, interval: 60 / characterBpm.value })
+  controller.scheduleBeat(performance.now())
+}
+
+const {
+  isActive: characterBeatsActive,
+  pause: stopCharacterBeats,
+  resume: startCharacterBeats,
+} = useIntervalFn(sendBeatToCharacter, () => 60_000 / characterBpm.value, { immediate: false })
+
 function hitVSequence() {
   const now = performance.now()
   const spacing = 180
@@ -231,6 +247,26 @@ function hitVSequence() {
           description="Switch styles based on detected tempo"
         />
       </div>
+
+      <div class="flex flex-wrap items-center gap-3">
+        <Button label="Send beat to character" icon="i-mingcute:music-2-line" size="sm" @click="sendBeatToCharacter" />
+        <Button
+          :label="characterBeatsActive ? 'Stop beats' : 'Start beats'"
+          :icon="characterBeatsActive ? 'i-mingcute:stop-circle-line' : 'i-mingcute:play-line'"
+          size="sm"
+          @click="characterBeatsActive ? stopCharacterBeats() : startCharacterBeats()"
+        />
+      </div>
+
+      <FieldRange
+        v-model="characterBpm"
+        label="Character beats"
+        description="Tempo of the beats that Start beats sends to the character, through the same channel as detected beats"
+        :min="60"
+        :max="200"
+        :step="1"
+        :format-value="formatBpm"
+      />
 
       <div class="grid gap-4 md:grid-cols-2">
         <FieldCombobox
