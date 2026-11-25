@@ -17,18 +17,20 @@ function rowOf(sessionId: string, title: string, details: Partial<ChatSessionMet
     meta: { sessionId, userId: 'local', characterId: 'airi', title, createdAt: CREATED_AT, updatedAt: CREATED_AT, ...meta },
     preview: title,
     isActive,
+    activityAt: CREATED_AT,
     activityAtLabel: label,
+    activityAtTitle: `Nov 24, 2026, ${label}`,
     characterName: 'AIRI',
   }
 }
 
 const rows: SessionRow[] = [
-  rowOf('weekend', 'Weekend trip ideas', { label: '2 minutes ago', isActive: true }),
-  rowOf('book', 'Notes on the new book', { label: '1 hour ago', pinnedAt: CREATED_AT }),
-  rowOf('review', 'Review a pull request', { label: '3 hours ago' }),
-  rowOf('bug', 'Draft a bug report', { label: 'yesterday' }),
-  rowOf('groceries', 'Grocery list for the week', { label: '2 days ago' }),
-  rowOf('intro', 'Practice a self-introduction', { label: 'last week', archivedAt: CREATED_AT }),
+  rowOf('weekend', 'Weekend trip ideas', { label: '18:02', isActive: true }),
+  rowOf('book', 'Notes on the new book', { label: '17:10', pinnedAt: CREATED_AT }),
+  rowOf('review', 'Review a pull request', { label: '15:24' }),
+  rowOf('bug', 'Draft a bug report', { label: 'Yesterday' }),
+  rowOf('groceries', 'Grocery list for the week', { label: 'Sun' }),
+  rowOf('intro', 'Practice a self-introduction', { label: 'Nov 17', archivedAt: CREATED_AT }),
 ]
 
 const popoverPlace = ref<ChatSessionsPlace>({ kind: 'all' })

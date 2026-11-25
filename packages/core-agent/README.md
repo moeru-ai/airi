@@ -45,6 +45,13 @@ Pending, failed and opaque rounds stay intact. If context cannot be compacted, t
 An ineffective summary suppresses its exact prefix. Newly eligible observations can start a different snapshot without retrying the failed job.
 The estimate does not certify the provider's token window or the factual accuracy of a model summary.
 
+`contextCompaction` records the compression status, the summarized rounds, and the model-decision and tool-call identities that remain.
+It stores no authorization and no execution state.
+Compact does not mark an unverified task complete.
+It does not grant execution permission.
+A delivered input or a zero exit code stays unverified after compression.
+A real-model run has not shown that Compact keeps the goal and the unverified work.
+
 The chat orchestrator forwards a send's `resolveStep`. It appends that send's system prompt supplement, including sticker instructions, to each resolved prompt.
 
 To cap each request's output, set `StreamOptions.maxTokens`. Chat sends `max_tokens`, and Responses sends `max_output_tokens`.

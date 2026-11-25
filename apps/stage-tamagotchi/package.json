@@ -26,7 +26,6 @@
     "build:unpack": "pnpm run build && electron-builder --dir",
     "build:flatpak": "pnpm run build:unpack && flatpak-builder --user --install-deps-from=flathub ./flatpak ai.moeru.airi.flatpak.yml --force-clean",
     "build:win": "pnpm run build && electron-builder --win",
-    "build:terminal-beta": "tsx scripts/build-terminal-beta.ts",
     "build:mac": "pnpm run build && electron-builder --mac",
     "build:linux": "pnpm run build && electron-builder --linux",
     "rename-artifacts": "mkdir -p bundle && tsx scripts/rename-artifacts.ts",
@@ -238,6 +237,7 @@
     "zod": "catalog:"
   },
   "build": {
+    "appId": "ai.moeru.airi",
     "extends": "electron-builder.config.ts"
   }
 }

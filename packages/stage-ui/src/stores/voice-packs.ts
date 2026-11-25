@@ -15,7 +15,6 @@ export interface VoicePackListItem {
     volume?: number
     rate?: number
   }
-  costMultiplier: number
   enabled: boolean
   createdAt: string
   updatedAt: string

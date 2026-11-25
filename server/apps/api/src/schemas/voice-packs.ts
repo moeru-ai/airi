@@ -1,6 +1,6 @@
 import type { InferInsertModel, InferSelectModel } from 'drizzle-orm'
 
-import { boolean, jsonb, pgTable, real, text, timestamp } from 'drizzle-orm/pg-core'
+import { boolean, jsonb, pgTable, text, timestamp } from 'drizzle-orm/pg-core'
 
 import { nanoid } from '../utils/id'
 
@@ -23,7 +23,6 @@ export const voicePacks = pgTable(
     upstreamVoiceId: text('upstream_voice_id').notNull(),
     ttsModelId: text('tts_model_id').notNull(),
     params: jsonb('params').notNull().$type<VoicePackParams>().default({}),
-    costMultiplier: real('cost_multiplier').notNull().default(1),
     enabled: boolean('enabled').notNull().default(true),
 
     createdAt: timestamp('created_at').defaultNow().notNull(),

@@ -31,14 +31,14 @@ export class SpeechBilling {
   }
 
   /** Posts the final character fee once per request. PostgreSQL owns accumulation, debit, and idempotency. */
-  async settle(input: { userId: string, requestId: string, units: number, model: string, provider?: string, turnId?: string }) {
+  async settle(input: { userId: string, requestId: string, units: number, costMultiplier?: number, model: string, provider?: string, turnId?: string }) {
     const pricing = await this.pricing()
     const costMicroFlux = priceSpeechUsage(input.units, pricing)
     const result = await this.billing.postFluxUsage({
       userId: input.userId,
       source: { type: 'tts', id: input.requestId },
       amountMicroFlux: costMicroFlux,
-      detail: { units: input.units, model: input.model, provider: input.provider, turnId: input.turnId, pricing },
+      detail: { units: input.units, costMultiplier: input.costMultiplier, model: input.model, provider: input.provider, turnId: input.turnId, pricing },
     })
     if (!result.replay)
       this.metrics?.ttsChars.add(input.units, { meter: 'tts', model: input.model })
