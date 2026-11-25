@@ -1,124 +1,77 @@
 import type { ModelInfo } from '../../../types'
 
-import { errorMessageFrom } from '@moeru/std'
 import { createOpenAI } from '@xsai-ext/providers/create'
+import { array, number, object, optional, parse, string } from 'valibot'
 import { z } from 'zod'
 
 import { ProviderValidationCheck } from '../../../types'
 import { createOpenAICompatibleValidators } from '../../../validators'
 import { defineProvider } from '../../registry'
 
-const OPENCODE_GO_DEFAULT_BASE_URL = 'https://opencode.ai/zen/go/v1/'
-const OPENCODE_GO_MODEL_PREFIX = 'opencode-go/'
-/** An impossible model id keeps credential validation from starting generation. */
-const OPENCODE_GO_CREDENTIAL_CHECK_MODEL_ID = 'airi-credential-check-model-does-not-exist'
+/** Default OpenAI-compatible Chat Completions endpoint for OpenCode Go. */
+const DEFAULT_BASE_URL = 'https://opencode.ai/inference/go/openai/v1/'
 
-const opencodeGoConfigSchema = z.object({
+const configSchema = z.object({
   apiKey: z
     .string('API Key'),
   baseUrl: z
     .string('Base URL')
     .optional()
-    .default(OPENCODE_GO_DEFAULT_BASE_URL),
+    .default(DEFAULT_BASE_URL),
 })
 
-type OpenCodeGoConfig = z.input<typeof opencodeGoConfigSchema>
+type Config = z.input<typeof configSchema>
 
-// NOTICE:
-// OpenCode Go mixes Chat Completions, Responses, and Messages models.
-// AIRI currently sends Chat Completions requests for every model in one provider definition.
-// Source: https://opencode.ai/docs/go/#endpoints
-// Add the other models when AIRI can select a request protocol for each model.
-const chatCompletionModels = [
-  { id: 'grok-4.5', name: 'Grok 4.5' },
-  { id: 'glm-5.2', name: 'GLM-5.2' },
-  { id: 'glm-5.1', name: 'GLM-5.1' },
-  { id: 'kimi-k3', name: 'Kimi K3' },
-  { id: 'kimi-k2.7-code', name: 'Kimi K2.7 Code' },
-  { id: 'kimi-k2.6', name: 'Kimi K2.6' },
-  { id: 'deepseek-v4-pro', name: 'DeepSeek V4 Pro' },
-  { id: 'deepseek-v4-flash', name: 'DeepSeek V4 Flash' },
-  { id: 'mimo-v2.5', name: 'MiMo-V2.5' },
-  { id: 'mimo-v2.5-pro', name: 'MiMo-V2.5-Pro' },
-  { id: 'hy3', name: 'Hy3' },
-]
+const modelSchema = object({
+  id: string(),
+  name: optional(string()),
+  type: optional(string()),
+  description: optional(string()),
+  modalities: optional(object({
+    input: optional(array(string())),
+  })),
+  limit: optional(object({
+    context: optional(number()),
+  })),
+})
+
+const modelListResponseSchema = object({
+  data: optional(array(modelSchema)),
+})
+
+type CatalogModel = ReturnType<typeof parse<typeof modelSchema>>
 
 /**
- * Removes the catalog namespace before sending a model to the direct API.
+ * Keeps chat models from the OpenCode Go catalog and normalizes input MIME types.
+ *
+ * OpenCode Go `/models` also lists decision and embedding models.
+ * It reports input modalities as MIME types, for example `image/png`, while `use-chat-vision` checks for `image` and `metadata.abilities.vision`.
  *
  * @example
- * stripModelPrefix('opencode-go/example-model')
- * // => 'example-model'
+ * toChatModels([{ id: 'kimi-k3', type: 'chat', modalities: { input: ['text', 'image/png'] } }])
+ * // => [{ id: 'kimi-k3', name: 'kimi-k3', provider: 'opencode-go', inputModalities: ['text', 'image'], metadata: { abilities: { vision: true } } }]
  */
-function stripModelPrefix(modelId: string) {
-  return modelId.startsWith(OPENCODE_GO_MODEL_PREFIX)
-    ? modelId.slice(OPENCODE_GO_MODEL_PREFIX.length)
-    : modelId
-}
+function toChatModels(models: CatalogModel[]): ModelInfo[] {
+  return models
+    .filter(model => model.type === 'chat')
+    .map((model) => {
+      const inputModalities = model.modalities?.input
+        ? [...new Set(model.modalities.input.map(type => type.split('/')[0]))]
+        : undefined
 
-// NOTICE:
-// OpenCode Go does not expose a non-billable credential endpoint, and its model list is public.
-// A valid chat payload with a nonexistent model reaches credential validation
-// but cannot start model generation.
-// Source: https://opencode.ai/docs/go/#models
-// Remove this probe when OpenCode Go exposes an authenticated account or usage endpoint.
-async function validateOpenCodeGoCredentials(config: OpenCodeGoConfig) {
-  const baseUrl = config.baseUrl?.trim() || OPENCODE_GO_DEFAULT_BASE_URL
-  const normalizedBaseUrl = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`
-  const credentialCheckUrl = new URL('chat/completions', normalizedBaseUrl)
-  const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), 10_000)
-
-  try {
-    const response = await fetch(credentialCheckUrl, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${config.apiKey.trim()}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: OPENCODE_GO_CREDENTIAL_CHECK_MODEL_ID,
-        messages: [{ role: 'user', content: 'credential check' }],
-        max_tokens: 1,
-        stream: false,
-      }),
-      signal: controller.signal,
+      return {
+        id: model.id,
+        name: model.name || model.id,
+        provider: 'opencode-go',
+        description: model.description,
+        inputModalities,
+        contextLength: model.limit?.context,
+        ...(inputModalities?.includes('image') && { metadata: { abilities: { vision: true } } }),
+      }
     })
-    const valid = response.ok || response.status === 400 || response.status === 422
-    let reason = ''
-    if (!valid) {
-      reason = [401, 403].includes(response.status)
-        ? `OpenCode Go rejected the API key (HTTP ${response.status}).`
-        : `OpenCode Go credential check failed (HTTP ${response.status}).`
-    }
-
-    return {
-      errors: valid ? [] : [{ error: new Error(reason) }],
-      reason,
-      reasonKey: '',
-      valid,
-    }
-  }
-  catch (error) {
-    const reason = `OpenCode Go credential check failed: ${errorMessageFrom(error) ?? 'Unknown error.'}`
-    return {
-      errors: [{ error }],
-      reason,
-      reasonKey: '',
-      valid: false,
-    }
-  }
-  finally {
-    clearTimeout(timeout)
-  }
 }
 
-const openCodeGoValidators = createOpenAICompatibleValidators<OpenCodeGoConfig>({
-  checks: [ProviderValidationCheck.ModelList, ProviderValidationCheck.ChatCompletions],
-  normalizeModelId: stripModelPrefix,
-}) ?? {}
-
-export const providerOpenCodeGo = defineProvider<OpenCodeGoConfig, 'opencode-go'>({
+export const providerOpenCodeGo = defineProvider<Config, 'opencode-go'>({
   id: 'opencode-go',
   name: 'OpenCode Go',
   nameLocalize: ({ t }) => t('settings.pages.providers.provider.opencode-go.title'),
@@ -127,50 +80,71 @@ export const providerOpenCodeGo = defineProvider<OpenCodeGoConfig, 'opencode-go'
   tasks: ['chat'],
   icon: 'i-lobe-icons:opencode',
 
-  createProviderConfig: ({ t }) => opencodeGoConfigSchema.extend({
-    apiKey: opencodeGoConfigSchema.shape.apiKey.meta({
+  createProviderConfig: ({ t }) => configSchema.extend({
+    apiKey: configSchema.shape.apiKey.meta({
       labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.label'),
       descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.description'),
       placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.placeholder'),
       type: 'password',
     }),
-    baseUrl: opencodeGoConfigSchema.shape.baseUrl.meta({
+    baseUrl: configSchema.shape.baseUrl.meta({
       labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.label'),
       descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.description'),
       placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.placeholder'),
     }),
   }),
   createProvider(config) {
-    const provider = createOpenAI(config.apiKey, config.baseUrl)
-    const originalChat = provider.chat.bind(provider)
+    const provider = createOpenAI(config.apiKey.trim(), config.baseUrl?.trim() || DEFAULT_BASE_URL)
+    // NOTICE:
+    // Chat requests need a per-instance `x-opencode-session` header, while `/models` requests cannot send it.
+    // OpenCode Go returns HTTP 400 `MissingSessionID` on `/chat/completions` without this header, and `/models` CORS preflight rejects the header.
+    // Source/context: https://opencode.ai/docs/console/harnesses/#sessions and `packages/provider-inference/src/validators/openai-compatible.ts`.
+    // Removal condition: OpenCode Go makes `x-opencode-session` optional on `/chat/completions`, or `@xsai-ext/providers` accepts chat-only headers.
+    const sessionId = `ses_${crypto.randomUUID()}`
 
     return {
       ...provider,
       chat(model: string) {
-        return originalChat(stripModelPrefix(model))
+        return {
+          ...provider.chat(model),
+          fetch: (input: RequestInfo | URL, init?: RequestInit) => {
+            const headers = new Headers(input instanceof Request ? input.headers : undefined)
+            if (init?.headers) {
+              for (const [key, value] of new Headers(init.headers).entries())
+                headers.set(key, value)
+            }
+            if (!headers.has('x-opencode-session'))
+              headers.set('x-opencode-session', sessionId)
+            return globalThis.fetch(input, { ...init, headers })
+          },
+        }
       },
     }
   },
 
   extraMethods: {
-    listModels: async () => chatCompletionModels.map(model => ({
-      ...model,
-      id: `${OPENCODE_GO_MODEL_PREFIX}${model.id}`,
-      provider: 'opencode-go',
-    } satisfies ModelInfo)),
+    async listModels(config) {
+      const baseUrl = (config.baseUrl?.trim() || DEFAULT_BASE_URL).replace(/\/?$/, '/')
+      const response = await fetch(`${baseUrl}models`, {
+        headers: { Authorization: `Bearer ${config.apiKey.trim()}` },
+      })
+      if (!response.ok)
+        throw new Error(`Failed to list OpenCode Go models: ${response.status} ${response.statusText}`)
+
+      const body = parse(modelListResponseSchema, await response.json())
+      if (!body.data)
+        return []
+
+      return toChatModels(body.data)
+    },
   },
+
   validationRequiredWhen(config) {
     return !!config.apiKey?.trim()
   },
   validators: {
-    ...openCodeGoValidators,
-    validateProvider: [
-      ...(openCodeGoValidators.validateProvider ?? []),
-      ({ t }) => ({
-        id: 'opencode-go:check-credentials',
-        name: t('settings.pages.providers.catalog.edit.validators.openai-compatible.check-config.title'),
-        validator: validateOpenCodeGoCredentials,
-      }),
-    ],
+    ...createOpenAICompatibleValidators({
+      checks: [ProviderValidationCheck.Connectivity, ProviderValidationCheck.ModelList],
+    }),
   },
 })

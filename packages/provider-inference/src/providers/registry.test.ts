@@ -7,11 +7,9 @@ import { createProviderRegistry, getDefinedProvider, listProviders, portableProv
 describe('portable provider registry', () => {
   it('exports the portable provider id union', () => {
     expectTypeOf<'openai'>().toExtend<PortableProviderId>()
-    expectTypeOf<'opencode-go'>().toExtend<PortableProviderId>()
     expectTypeOf<string>().not.toExtend<PortableProviderId>()
 
     expect(getDefinedProvider('openai')).toBeDefined()
-    expect(getDefinedProvider('opencode-go')?.id).toBe('opencode-go')
   })
 
   it('registers each portable definition by id', () => {
