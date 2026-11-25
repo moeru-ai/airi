@@ -208,10 +208,13 @@ function openCharacterPage(route: string) {
   void openSettings({ route })
 }
 
-/** The buttons of the island of the window: 52px squares 2px inside it, 2px less round than the island. */
+/**
+ * The buttons of the island of the window: 52px squares 2px inside it, 2px less round than the island. The island meets
+ * the window edge, which would cut a focus ring around a button, so the ring lies inside the button.
+ */
 const windowButtonClasses = [
   'size-13 shrink-0 flex items-center justify-center rounded-[18px] outline-none transition-colors',
-  'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-300',
+  'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary-300',
 ]
 
 const { activateCharacter } = useCharacterActivation()
@@ -608,7 +611,7 @@ function moveByKeyboard(delta: WindowDelta) {
                 :class="[
                   'h-6 w-13 shrink-0 cursor-grab touch-none rounded-b-[18px] rounded-t-[6px]',
                   'flex items-center justify-center outline-none transition-colors',
-                  'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-300',
+                  'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary-300',
                   dockItemClasses('blurry'),
                 ]"
                 @pointerdown="holdPointer"

@@ -65,6 +65,8 @@ const archiveOnlySwipe = computed(() => props.compact && !props.touch)
 // Remove these classes when the button has a compact size.
 const compactActionSurface = computed(() => props.compact ? 'min-h-0!' : '')
 const compactActionButton = computed(() => props.compact ? 'py-1!' : '')
+/** The row clips its content for the swipe, which would cut a focus ring around its buttons, so the ring lies inside them. */
+const insetFocusRing = 'focus-visible:outline-offset-[-2px]'
 
 const mainButton = useTemplateRef<InstanceType<typeof BasicButton>>('mainButton')
 // The press that opened the menu ends with a click on the row. That click must not open the conversation.
@@ -265,6 +267,7 @@ function runSwipeAction(value: string) {
               // A long press opens the menu of the row, not the text selection or the link menu of the system.
               props.touch ? 'select-none [-webkit-touch-callout:none]' : '',
               'focus-visible:outline-2 focus-visible:outline-primary-500',
+              insetFocusRing,
             ]"
             @click="selectRow"
             @contextmenu="preventTouchMenu"
@@ -283,7 +286,7 @@ function runSwipeAction(value: string) {
                 type="button"
                 :aria-label="`${archived ? t('stage.chat.sessions.unarchive') : t('stage.chat.sessions.archive')}: ${props.row.preview}`"
                 :title="archived ? t('stage.chat.sessions.unarchive') : t('stage.chat.sessions.archive')"
-                :class="[iconButtonClasses, quietIconClasses, 'size-8 hidden group-hover:inline-flex group-focus-within:inline-flex']"
+                :class="[iconButtonClasses, insetFocusRing, quietIconClasses, 'size-8 hidden group-hover:inline-flex group-focus-within:inline-flex']"
                 @click="emit('archive', !archived)"
               >
                 <span aria-hidden="true" :class="[archived ? 'i-mingcute:unarchive-line' : 'i-mingcute:archive-line', 'size-4']" />
@@ -296,7 +299,7 @@ function runSwipeAction(value: string) {
               :title="t('stage.chat.sessions.delete')"
               :aria-expanded="open"
               :tabindex="open ? -1 : 0"
-              :class="[iconButtonClasses, 'size-11 text-neutral-400 hover:text-red-500 dark:text-neutral-500 dark:hover:text-red-400']"
+              :class="[iconButtonClasses, insetFocusRing, 'size-11 text-neutral-400 hover:text-red-500 dark:text-neutral-500 dark:hover:text-red-400']"
               :style="{ opacity: 'calc(1 - var(--swipe-progress, 0))' }"
               @click="toggle()"
             >
@@ -319,6 +322,7 @@ function runSwipeAction(value: string) {
                   :tabindex="open ? -1 : 0"
                   :class="[
                     iconButtonClasses,
+                    insetFocusRing,
                     menuOpen ? 'text-primary-500 dark:text-primary-400' : quietIconClasses,
                     // The touch row opens its menu with a long press. Its trigger stays for the keyboard and the screen reader,
                     // and it gives the menu its place at the end of the row.
