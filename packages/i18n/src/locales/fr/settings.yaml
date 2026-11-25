@@ -1626,6 +1626,18 @@ pages:
               label: Intensité d’expression émotionnelle
         callout_origin_title: Accéder au moteur depuis un navigateur
         callout_origin: Le navigateur accède uniquement à un moteur sur cet appareil. Pour un moteur distant, utilisez l’application de bureau. Le moteur doit autoriser ce site dans sa page de paramètres, sur le port 10101.
+      minimax-transcription:
+        description: minimax.io
+        fields:
+          field:
+            language:
+              description: Une balise BCP-47 indiquant la langue parlée. Laissez vide pour reconnaître des langues mixtes.
+              label: Langue
+              placeholder: Vide pour détection automatique
+            model:
+              description: La version du modèle de transcription utilisée pour cette requête.
+              label: Modèle
+        title: MiniMax Transcription
       speech-noop:
         title: Aucun
         description: Aucune sortie vocale.
