@@ -17,6 +17,8 @@ const TRUSTED_EXACT_ORIGINS = [
   'https://server-dev.airi-server-auth.pages.dev', // Server-dev standalone auth UI
 ]
 
+const ELECTRON_TRANSCRIPTION_PATH = '/api/v1/audio/transcriptions/stream'
+
 /**
  * Returns `origin` when it matches built-in trust rules or `additionalTrustedOrigins`.
  *
@@ -40,6 +42,26 @@ export function getTrustedOrigin(origin: string, additionalTrustedOrigins: reado
   if (matchesTrustedOriginRule(origin))
     return origin
   return ''
+}
+
+/**
+ * Resolves the CORS origin for API routes.
+ *
+ * The packaged Electron renderer has the opaque `null` origin. It is allowed
+ * only for the authenticated streaming transcription route, while all other
+ * origins use the normal trusted-origin policy.
+ *
+ * @param path The request pathname used to scope the opaque-origin exception.
+ * @returns The reflected origin when trusted, otherwise an empty string.
+ */
+export function getTrustedCorsOrigin(
+  origin: string,
+  path: string,
+  additionalTrustedOrigins: readonly string[] = [],
+): string {
+  if (origin === 'null' && path === ELECTRON_TRANSCRIPTION_PATH)
+    return origin
+  return getTrustedOrigin(origin, additionalTrustedOrigins)
 }
 
 /**
