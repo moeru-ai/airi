@@ -29,7 +29,7 @@ Facts that limit the design:
 - The active character stays in the code. Its meaning changes: it is the character of the chat that the user selected last, in any window.
 - When a window selects a session, the character of that session becomes the active character.
 - The stage, the ACT prompt, the background, the window titles, and the settings pages continue to read the active character. They need no change, because the active character is now the character of the selected chat.
-- "New" creates a chat with the active character. That is the character of the current chat of the window.
+- "New" creates a chat with the character of the list. That is the active character, unless the docked character rail beside the list picked another one. The new chat opens, so its character becomes the active character.
 - The display model stays one synchronized value. The desktop app has one stage, so one value is correct there.
 
 This gives the result of a stage that follows the chat without a second model selection.
@@ -39,7 +39,9 @@ This gives the result of a stage that follows the chat without a second model se
 - A change of the active character moves a window to the index session of that character, as before.
 - The window that already shows a chat of that character keeps its chat. Its user selected that chat.
 - So every window shows a chat of the active character. Two windows do not show chats of two characters.
-- A character switcher continues to activate a character. Every window then moves to the index session of that character.
+- A character switcher over the stage activates a character. Every window then moves to the index session of that character.
+- The rail beside the floating chat also activates a character, with or without a chat. The floating chat then shows the list of the conversations of that character.
+- The docked rail in the sidebar of the classic chat window and of the phone drawer only picks the chats that the list shows. The stage keeps its character until the user opens or starts a chat of the picked character. The pick ends when the stage changes its character.
 
 ### The leader window
 

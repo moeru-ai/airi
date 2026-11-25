@@ -20,7 +20,7 @@ import { useAuthStore } from '../../../../stores/auth'
 import { useChatStore } from '../../../../stores/chat'
 import { normalizeSessionQuery, searchSessions } from '../../../../stores/chat/session-search'
 import { useChatSessionStore } from '../../../../stores/chat/session-store'
-import { summarizeSessionMessages } from '../../../../stores/chat/session-summary'
+import { chatNameOf, chatSummaryOf } from '../../../../stores/chat/session-summary'
 import { useChatSessionsViewStore } from '../../../../stores/chat/sessions-view-store'
 import { useAiriCardStore } from '../../../../stores/modules/airi-card'
 import { useConsciousnessStore } from '../../../../stores/modules/consciousness'
@@ -32,10 +32,18 @@ const props = withDefaults(defineProps<{
   desktop?: boolean
   /** The inline list is on a touch screen, for example in the side drawer of the phone. */
   touch?: boolean
+  /**
+   * The character whose chats the list shows. A list beside a character rail shows the character that the rail picks.
+   * Without it, the list shows the chats of the character on the stage.
+   */
+  characterId?: string
+  /** The inline list of the floating chat, with its actions in islands. See `SessionsList`. */
+  islands?: boolean
 }>(), {
   desktopMode: 'dialog',
   desktop: false,
   touch: false,
+  islands: false,
 })
 
 const emit = defineEmits<{
@@ -65,38 +73,27 @@ const isCreatingSession = ref(false)
 
 const effectiveUserId = computed(() => userId.value || 'local')
 
-const currentCharacterId = computed(() => activeCardId.value || 'default')
-/** The current character, for the title of a list that stands beside the chat. */
+const currentCharacterId = computed(() => props.characterId ?? (activeCardId.value || 'default'))
+/** The character of the list, for its title, its new-chat button, and its empty state. */
 const currentCharacter = computed(() => {
   const card = cards.value.get(currentCharacterId.value)
   return card ? { name: card.name } : undefined
 })
 
-// The list shows the conversations of the current character only. The user changes the character to see the others.
+// The list shows the conversations of one character only. A character rail beside the list picks the others.
 // Keep another account's sessions hidden while an account swap rehydrates.
 // Background recipe sessions are hidden too. Their results reach the conversation as notices.
 const ownedSessions = computed(() => Object.values(sessionMetas.value)
   .filter(meta => meta.userId === effectiveUserId.value && !meta.hidden && chatSession.characterMembersOf(meta.sessionId).includes(currentCharacterId.value)))
 
-/**
- * The summary of a conversation for its row. Loaded messages give the newest summary, for example while a reply
- * streams in. A conversation that is not loaded uses the summary that its metadata stores, so the list needs no
- * message records.
- */
+/** The summary of a conversation for its row. The list reads stored summaries, so it needs no message records. */
 function summaryFor(meta: ChatSessionMeta): ChatSessionSummary {
-  const loaded = sessionMessages.value[meta.sessionId]
-  return loaded?.length ? summarizeSessionMessages(loaded) : meta.summary ?? {}
+  return chatSummaryOf(meta, sessionMessages.value[meta.sessionId])
 }
 
-/**
- * The title of a row: the title of the conversation, else its first message.
- *
- * @example
- * previewFor({ title: 'Moon notes', ...meta }, {})
- * // => 'Moon notes'
- */
+/** The title of a row: the name of the conversation, else the fallback for a conversation without one. */
 function previewFor(meta: ChatSessionMeta, summary: ChatSessionSummary): string {
-  return meta.title || summary.firstText || t('stage.chat.sessions.new-chat-fallback')
+  return chatNameOf(meta, summary) ?? t('stage.chat.sessions.new-chat-fallback')
 }
 
 /** The second line of a row. The words of the user carry a prefix, as in a messenger. */
@@ -227,7 +224,8 @@ watch(showDialog, (open) => {
 })
 
 /**
- * Creates a conversation with the current character and opens it.
+ * Creates a conversation with the character of the list and opens it. Opening it makes that character the active
+ * character, as opening any of its conversations does.
  */
 async function startNewSession() {
   if (isCreatingSession.value)
@@ -289,6 +287,7 @@ async function renameSession(payload: { sessionId: string, title: string }) {
     :is-creating-session="isCreatingSession"
     :searching="searchLoading"
     :desktop-mode="props.desktopMode"
+    :islands="props.islands"
     :touch="props.touch"
     :character="currentCharacter"
     @open-character="emit('openCharacterSettings', currentCharacterId)"

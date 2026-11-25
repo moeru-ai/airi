@@ -22,9 +22,12 @@ const props = withDefaults(defineProps<{
   touch?: boolean
   /** The owner reads stored messages for the search. See `SessionsList`. */
   searching?: boolean
+  /** The inline list of the floating chat, with its actions in islands. See `SessionsList`. */
+  islands?: boolean
 }>(), {
   desktopMode: 'dialog',
   touch: false,
+  islands: false,
 })
 
 const emit = defineEmits<{
@@ -67,6 +70,7 @@ function preserveTriggerFocus(event: Event) {
       :searching="searching"
       compact
       fill
+      :islands="islands"
       :touch="touch"
       :character="character"
       :class="['h-full']"

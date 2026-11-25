@@ -41,7 +41,7 @@ const label = computed(() => speechMuted.value ? t('stage.speech-output.unmute')
     :aria-pressed="speechMuted"
     @click="toggleSpeechMuted"
   >
-    <div v-if="speechMuted" class="i-solar:volume-cross-bold-duotone" />
-    <div v-else class="i-solar:volume-loud-bold-duotone" />
+    <div v-if="speechMuted" class="i-mingcute:volume-off-line" />
+    <div v-else class="i-mingcute:volume-line" />
   </button>
 </template>

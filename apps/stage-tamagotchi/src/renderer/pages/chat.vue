@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { isElectronWindow } from '@proj-airi/stage-shared'
-import { CharacterRail, ChatSessionsDrawer } from '@proj-airi/stage-ui/components'
+import { ChatSidebar } from '@proj-airi/stage-ui/components'
 import { useBackdropSurface } from '@proj-airi/stage-ui/composables/backdrop-surface'
-import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
-import { storeToRefs } from 'pinia'
+import { useActiveChatName } from '@proj-airi/stage-ui/composables/use-active-chat-name'
 import { useTemplateRef } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import ChatSpeechMuteButton from '../components/chat-window/chat-speech-mute-button.vue'
 import ChatWindowStyleMenu from '../components/chat-window/chat-window-style-menu.vue'
@@ -16,7 +16,9 @@ import ChatPageShell from './chat-page-shell.vue'
 import { electronOpenSettings } from '../../shared/eventa'
 import { useChatDraftHandover } from '../composables/use-chat-draft-handover'
 
-const { activeCard } = storeToRefs(useAiriCardStore())
+const { t } = useI18n()
+/** The title bar names the open chat, as a messenger names the channel above the messages. The column names the character. */
+const activeChatName = useActiveChatName()
 const hasNativeControls = isElectronWindow(window) && window.platform === 'darwin'
 // Only the macOS chat window is transparent, and only the side columns show its glass.
 const transparentWindow = hasNativeControls
@@ -30,9 +32,10 @@ useChatDraftHandover(interactiveArea)
 <template>
   <ChatPageShell :glass="false">
     <WindowTitleBar
-      :title="activeCard?.name || 'AIRI'"
+      :title="activeChatName ?? t('stage.chat.sessions.new-chat-fallback')"
+      :title-muted="!activeChatName"
       :class="{ 'pl-20!': hasNativeControls }"
-      icon="i-solar:chat-line-bold"
+      icon="i-mingcute:chat-2-line"
     >
       <template #actions>
         <ChatSpeechMuteButton />
@@ -40,24 +43,19 @@ useChatDraftHandover(interactiveArea)
       </template>
     </WindowTitleBar>
     <!--
-      The layout of a messenger: characters, then the conversations of the current character, then the chat. The
-      conversations stay at every window width, like the channel list of Discord. Only the two side columns show the
-      window glass, like a sidebar on macOS. The chat paints a solid surface, so it reads as the main content.
+      The layout of a messenger: characters, then the chats of the picked character, then the chat. The chats stay at
+      every window width, like the channel list of Discord. Only the side columns show the window glass, like a sidebar
+      on macOS. The fills separate the columns: the rail is the darkest, and the chat paints a solid surface, so it reads
+      as the main content.
     -->
     <div :class="['h-full min-h-0 flex']">
       <div
         ref="sidebar"
-        :class="['h-full min-h-0 flex shrink-0', transparentWindow ? 'bg-neutral-100/70 dark:bg-neutral-900/70' : 'bg-neutral-100 dark:bg-neutral-900']"
+        :class="['h-full min-h-0 flex shrink-0', transparentWindow ? 'bg-neutral-100/70 dark:bg-neutral-950/70' : 'bg-neutral-100 dark:bg-neutral-950']"
       >
-        <CharacterRail
-          docked
-          :class="['border-r border-neutral-200/70 dark:border-neutral-800/70']"
-          @manage="openSettings({ route: '/settings/airi-card' })"
-        />
-        <ChatSessionsDrawer
-          desktop-mode="inline"
+        <ChatSidebar
           desktop
-          :class="['w-60 shrink-0 border-r border-neutral-200/70 dark:border-neutral-800/70']"
+          @manage="openSettings({ route: '/settings/airi-card' })"
           @open-character-settings="characterId => openSettings({ route: `/settings/airi-card/${encodeURIComponent(characterId)}` })"
         />
       </div>

@@ -45,9 +45,9 @@ const featureFlags = useFeatureFlagsStore()
 // and fullscreen modes keep the floating placement, so switching back to the floating chat restores the placement
 // the user had.
 const styles = computed(() => ([
-  { mode: 'legacy', icon: 'i-solar:window-frame-bold-duotone', label: t('tamagotchi.stage.chat-window.style.legacy') },
-  { mode: 'floating', icon: 'i-solar:chat-round-dots-bold-duotone', label: t('tamagotchi.stage.chat-window.style.floating') },
-  { mode: 'fullscreen', icon: 'i-solar:full-screen-square-bold-duotone', label: t('tamagotchi.stage.chat-window.style.fullscreen') },
+  { mode: 'legacy', icon: 'i-mingcute:layout-top-line', label: t('tamagotchi.stage.chat-window.style.legacy') },
+  { mode: 'floating', icon: 'i-mingcute:message-3-line', label: t('tamagotchi.stage.chat-window.style.floating') },
+  { mode: 'fullscreen', icon: 'i-mingcute:fullscreen-line', label: t('tamagotchi.stage.chat-window.style.fullscreen') },
 ] satisfies { mode: ChatWindowMode, icon: string, label: string }[]).filter(style => style.mode !== 'fullscreen' || featureFlags.isEnabled(FULLSCREEN_WORKSPACE_FLAG.key)))
 
 /** Counts choices, so only the latest one decides what the menu shows. */
@@ -101,7 +101,7 @@ const itemClasses = [
       <DockButton
         v-if="variant === 'dock'"
         v-bind="$attrs"
-        icon="i-mingcute:layers-line"
+        icon="i-mingcute:layout-line"
         :label="t('tamagotchi.stage.chat-window.style.title')"
         :disabled="!preferences"
       />
@@ -113,7 +113,7 @@ const itemClasses = [
         :title="t('tamagotchi.stage.chat-window.style.title')"
         :aria-label="t('tamagotchi.stage.chat-window.style.title')"
       >
-        <div class="i-solar:layers-minimalistic-bold-duotone" />
+        <div class="i-mingcute:layout-line" />
       </button>
     </template>
 
@@ -128,7 +128,7 @@ const itemClasses = [
         <div :class="[style.icon, 'size-4 shrink-0']" />
         <span class="flex-1">{{ style.label }}</span>
         <DropdownMenuItemIndicator>
-          <div class="i-ph:check-bold size-4 shrink-0" />
+          <div class="i-mingcute:check-line size-4 shrink-0" />
         </DropdownMenuItemIndicator>
       </DropdownMenuRadioItem>
     </DropdownMenuRadioGroup>
@@ -140,10 +140,10 @@ const itemClasses = [
         @update:model-value="setAttached"
         @select.prevent
       >
-        <div :class="['i-solar:magnet-bold-duotone', 'size-4 shrink-0']" />
+        <div :class="['i-mingcute:magnet-line', 'size-4 shrink-0']" />
         <span class="flex-1">{{ t('tamagotchi.stage.chat-window.style.attached') }}</span>
         <DropdownMenuItemIndicator>
-          <div class="i-ph:check-bold size-4 shrink-0" />
+          <div class="i-mingcute:check-line size-4 shrink-0" />
         </DropdownMenuItemIndicator>
       </DropdownMenuCheckboxItem>
     </template>

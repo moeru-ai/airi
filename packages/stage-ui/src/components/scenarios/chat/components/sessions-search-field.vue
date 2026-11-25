@@ -12,8 +12,14 @@ import { iconButtonClasses, quietIconClasses } from './icon-button-classes'
  */
 const props = defineProps<{
   placeholder: string
+  /** The name of the button at the end of the field. It closes the field, or clears the text of a persistent field. */
   closeLabel: string
   compact: boolean
+  /**
+   * The field stays below a list title that has no room for it, as in the floating chat. Its button only clears the
+   * text and shows while there is text. Escape on an empty field goes on to the list.
+   */
+  persistent?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -27,18 +33,33 @@ function focus() {
   root.value?.querySelector('input')?.focus()
 }
 
-function handleEscape() {
-  if (query.value)
+function handleEscape(event: KeyboardEvent) {
+  if (query.value) {
     query.value = ''
-  else
-    emit('close')
+    event.stopPropagation()
+    return
+  }
+  if (props.persistent)
+    return
+  event.stopPropagation()
+  emit('close')
 }
 
 function handleFocusOut(event: FocusEvent) {
-  if (event.relatedTarget instanceof Node && root.value?.contains(event.relatedTarget))
+  if (props.persistent || (event.relatedTarget instanceof Node && root.value?.contains(event.relatedTarget)))
     return
   if (!query.value)
     emit('close')
+}
+
+/** The button closes the field. A persistent field stays, so its button clears the text and gives focus back to it. */
+function handleButton() {
+  if (!props.persistent) {
+    emit('close')
+    return
+  }
+  query.value = ''
+  focus()
 }
 
 defineExpose({ focus })
@@ -48,7 +69,7 @@ defineExpose({ focus })
   <div
     ref="root"
     :class="['relative flex shrink-0 items-center', props.compact ? 'min-h-8' : 'min-h-11']"
-    @keydown.esc.stop="handleEscape"
+    @keydown.esc="handleEscape"
     @focusout="handleFocusOut"
   >
     <span
@@ -76,11 +97,12 @@ defineExpose({ focus })
       ]"
     />
     <button
+      v-if="!props.persistent || query"
       type="button"
       :aria-label="props.closeLabel"
       :title="props.closeLabel"
       :class="[iconButtonClasses, quietIconClasses, 'absolute top-1/2 -translate-y-1/2', props.compact ? 'right-0.5 size-7' : 'right-1 size-9']"
-      @click="emit('close')"
+      @click="handleButton"
     >
       <span aria-hidden="true" :class="['i-mingcute:close-line', props.compact ? 'size-4' : 'size-5']" />
     </button>

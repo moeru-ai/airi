@@ -5,6 +5,8 @@ import { useWindowControls } from '../../composables/use-window-controls'
 
 defineProps<{
   title?: string
+  /** Shows the title in a lighter color, for a fallback such as the title of a chat that has none yet. */
+  titleMuted?: boolean
   icon?: string
   /** Lets the page background show through, for pages that paint up to the top of the window. */
   transparent?: boolean
@@ -31,12 +33,15 @@ const { reservesSystemControls } = useWindowControls()
       v-if="title || icon"
       bg="hover:neutral-200 hover:dark:neutral-800"
       transition="all duration-200 ease-in-out"
-      flex cursor-pointer select-none items-center gap-2 rounded-md px-1.5 py-0.5
+      min-w-0 flex cursor-pointer select-none items-center gap-2 rounded-md px-1.5 py-0.5
       class="[-webkit-app-region:no-drag]"
       @click="emit('titleClick')"
     >
-      <div v-if="icon" :class="icon" select-none text="neutral-400 dark:neutral-500" whitespace-nowrap />
-      <div><span select-none whitespace-nowrap text-sm>{{ title }}</span></div>
+      <div v-if="icon" :class="icon" shrink-0 select-none text="neutral-400 dark:neutral-500" whitespace-nowrap />
+      <!-- A long title, for example the title of a chat, keeps one line and ends with an ellipsis. -->
+      <div min-w-0>
+        <span block select-none truncate text-sm :class="titleMuted ? 'text-neutral-400 dark:text-neutral-500' : ''">{{ title }}</span>
+      </div>
     </div>
     <div h-full min-w-0 flex-1 drag-region />
     <div

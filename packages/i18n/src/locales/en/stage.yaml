@@ -19,6 +19,7 @@ background-picker:
 character-switcher:
   title: Switch character
   manage: Manage characters
+  on-stage: '{name} · on stage'
   empty: No characters yet
   failed: Could not switch characters. Try again.
 mobile-tools:
@@ -262,10 +263,12 @@ chat:
     confirm-delete-short: Confirm delete
     title: Chats
     new: New chat
+    new-with-character: New chat with {name}
     current: Current
     confirm-delete: Delete this chat and its messages?
     cancel: Cancel
     empty: No chats yet. Use New chat above to start one.
+    empty-character: No chats with {name} yet. Use the button above to start the first one.
     new-chat-fallback: New chat
     delete: Delete chat
     rename: Rename chat
@@ -296,6 +299,7 @@ chat:
     empty-archive: No archived chats. Archived chats stay here.
     search: Search chats
     search-close: Close search
+    search-clear: Clear search
     search-empty: 'No chats contain "{query}"'
     searching: Searching chats…
     search-failed: Some chats could not be searched

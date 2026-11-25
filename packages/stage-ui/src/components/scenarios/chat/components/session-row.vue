@@ -52,8 +52,21 @@ watch(() => props.selecting, (selecting) => {
 })
 
 const archived = computed(() => props.row.meta.archivedAt !== undefined)
-/** The row has swipe actions: the mobile row and the touch row. */
-const swipeable = computed(() => !props.compact || props.touch)
+/**
+ * The compact row of a pointer, for example in the popover or beside the chat of a desktop window. A swipe to the left,
+ * for example with two fingers on a trackpad, shows Archive only. Its delete stays in the menu. The mobile row and the
+ * touch row show Archive and Delete.
+ */
+const archiveOnlySwipe = computed(() => props.compact && !props.touch)
+// NOTICE:
+// A compact row is 50px high. In it, the surface of a swipe action dropped below the middle of the row and touched the
+// next row, and its label was cut off.
+// `SwipeActionButton` of `@proj-airi/ui` gives its surface a 44px minimum and its button an 8px inset, for rows of 80px.
+// Source: packages/ui/src/components/misc/swipe-action-button.vue (`min-h-11`, `py-2`).
+// These classes give the compact row a 4px inset and a surface that fills the row. Remove them when the button has a
+// compact size.
+const compactActionSurface = computed(() => props.compact ? 'min-h-0!' : '')
+const compactActionButton = computed(() => props.compact ? 'py-1!' : '')
 
 const mainButton = useTemplateRef<InstanceType<typeof BasicButton>>('mainButton')
 // The press that opened the menu ends with a click on the row. That click must not open the conversation.
@@ -78,6 +91,22 @@ function selectRow() {
   }
   emit('select')
 }
+/**
+ * The menu stays on screen while its close animation runs, and it keeps its trigger as its anchor. The trigger of the
+ * compact row hides when the pointer leaves the row, so it stays until the menu has left. A hidden trigger has no
+ * position, and the closing menu would jump to the corner of the window. The menu has left when it gives focus back.
+ */
+const menuShown = shallowRef(false)
+watch(menuOpen, (open) => {
+  if (open)
+    menuShown.value = true
+})
+
+function onMenuCloseAutoFocus(event: Event) {
+  menuShown.value = false
+  menuClose.onCloseAutoFocus(event)
+}
+
 /** The Delete item of the menu asks for a second press. It turns into its confirmation and keeps the menu open. */
 const confirmingMenuDelete = shallowRef(false)
 watch(menuOpen, (open) => {
@@ -165,28 +194,35 @@ function runSwipeAction(value: string) {
       v-else
       v-slot="{ open, toggle }"
       v-model:open="swipeOpen"
-      :disabled="!swipeable || renaming"
+      :disabled="renaming"
       @action="runSwipeAction"
     >
-      <SwipeActionsList v-if="swipeable" :gap="16" default-action="delete">
+      <!--
+        The swipe action buttons fit a row of 80px: a surface of at least 44px with a label below it. A compact row is
+        50px high, so its actions show the icon only and the surface fills the row with an even inset. The accessible
+        names stay.
+      -->
+      <SwipeActionsList :gap="16" :default-action="archiveOnlySwipe ? 'archive' : 'delete'">
         <SwipeActionsItem v-slot="{ takeover }" value="archive" as-child>
           <SwipeActionButton
             :label="archived ? t('stage.chat.sessions.unarchive') : t('stage.chat.sessions.archive')"
             :aria-label="archived ? t('stage.chat.sessions.unarchive') : t('stage.chat.sessions.archive')"
             :icon="archived ? 'i-mingcute:unarchive-line' : 'i-mingcute:archive-line'"
-            surface-class="bg-neutral-500 text-white"
+            :show-label="!props.compact"
+            :surface-class="['bg-neutral-500 text-white', compactActionSurface].join(' ')"
             :takeover="takeover"
-            :class="['text-neutral-600 focus-visible:outline-2 focus-visible:outline-offset-[-4px] focus-visible:outline-neutral-500 dark:text-neutral-300']"
+            :class="['text-neutral-600 focus-visible:outline-2 focus-visible:outline-offset-[-4px] focus-visible:outline-neutral-500 dark:text-neutral-300', compactActionButton]"
           />
         </SwipeActionsItem>
-        <SwipeActionsItem v-slot="{ takeover }" value="delete" as-child>
+        <SwipeActionsItem v-if="!archiveOnlySwipe" v-slot="{ takeover }" value="delete" as-child>
           <SwipeActionButton
             :label="t('stage.chat.sessions.delete-short')"
             :aria-label="t('stage.chat.sessions.delete')"
             icon="i-mingcute:delete-2-line"
-            surface-class="bg-red-500 text-white"
+            :show-label="!props.compact"
+            :surface-class="['bg-red-500 text-white', compactActionSurface].join(' ')"
             :takeover="takeover"
-            :class="['text-red-500 focus-visible:outline-2 focus-visible:outline-offset-[-4px] focus-visible:outline-red-500']"
+            :class="['text-red-500 focus-visible:outline-2 focus-visible:outline-offset-[-4px] focus-visible:outline-red-500', compactActionButton]"
           />
         </SwipeActionsItem>
       </SwipeActionsList>
@@ -241,8 +277,8 @@ function runSwipeAction(value: string) {
           <template v-if="!renaming">
             <!--
               The compact row keeps Archive on the row, because it is the common action and an archived conversation comes
-              back. Delete is in its menu, where the item turns into its own confirmation. The mobile row opens the swipe
-              area, where Archive and Delete are the second press.
+              back. A swipe to the left archives it too. Delete is in its menu, where the item turns into its own
+              confirmation. The mobile row opens the swipe area, where Archive and Delete are the second press.
             -->
             <template v-if="props.compact && !props.touch">
               <button
@@ -274,7 +310,7 @@ function runSwipeAction(value: string) {
               align="end"
               :side-offset="4"
               :content-class="['min-w-48 max-h-[var(--reka-dropdown-menu-content-available-height)] overflow-y-auto']"
-              @close-auto-focus="menuClose.onCloseAutoFocus"
+              @close-auto-focus="onMenuCloseAutoFocus"
             >
               <template #trigger>
                 <!-- The open menu keeps the icon in the theme color, which marks the row that the menu belongs to. -->
@@ -291,7 +327,7 @@ function runSwipeAction(value: string) {
                     props.touch
                       ? 'pointer-events-none absolute right-1 top-1/2 size-8 -translate-y-1/2 opacity-0 focus-visible:opacity-100'
                       : props.compact
-                        ? ['size-8', menuOpen ? 'inline-flex' : 'hidden group-hover:inline-flex group-focus-within:inline-flex']
+                        ? ['size-8', menuShown ? 'inline-flex' : 'hidden group-hover:inline-flex group-focus-within:inline-flex']
                         : 'size-11',
                   ]"
                   :style="props.compact ? undefined : { opacity: 'calc(1 - var(--swipe-progress, 0))' }"

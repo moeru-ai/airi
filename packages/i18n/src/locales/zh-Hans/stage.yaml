@@ -19,6 +19,7 @@ background-picker:
 character-switcher:
   title: 切换角色
   manage: 管理角色
+  on-stage: '{name} · 在舞台上'
   empty: 暂无角色
   failed: 无法切换角色，请重试。
 mobile-tools:
@@ -267,11 +268,13 @@ chat:
     confirm-delete-short: 确认删除
     title: 对话
     new: 新建对话
+    new-with-character: 新建 {name} 的对话
     current: 当前
     confirm-delete: 删除此对话及其中的消息？
     cancel: 取消
     empty: 还没有对话。点上面的“新建对话”开始。
-    new-chat-fallback: 新建对话
+    empty-character: 还没有和 {name} 的对话。点上面的按钮开始第一段。
+    new-chat-fallback: 新对话
     delete: 删除对话
     rename: 重命名对话
     rename-short: 重命名
@@ -301,6 +304,7 @@ chat:
     empty-archive: 没有归档的对话。归档的对话放在这里。
     search: 搜索对话
     search-close: 关闭搜索
+    search-clear: 清除搜索
     search-empty: '没有包含“{query}”的对话'
     searching: 正在搜索对话…
     search-failed: 部分对话无法搜索
