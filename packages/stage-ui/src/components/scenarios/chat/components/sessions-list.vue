@@ -483,7 +483,7 @@ const { holdLeavingItem } = useListReorderMotion({
     -->
     <!-- A drawer that closes on a drag leaves the rows alone, because a swipe on a row shows its actions. -->
     <div ref="listBox" :data-vaul-no-drag="props.touch ? '' : undefined" :class="[props.fill ? 'min-h-0 flex-1' : 'shrink-0', props.compact ? '' : 'mt-3', selecting ? 'select-none' : '']">
-      <ScrollableArea ref="scrollArea" :class=""[props.fill ? 'h-full' : props.compact ? 'max-h-[min(24rem,60dvh)]' : '']" :style="listMaxStyle">
+      <ScrollableArea ref="scrollArea" :class="[props.fill ? 'h-full' : props.compact ? 'max-h-[min(24rem,60dvh)]' : '']" :style="listMaxStyle">
         <AnimatedHeight>
           <!-- The padding keeps the focus rings of the rows inside the clip area. -->
           <div :class="[props.fill ? 'py-0.5 pl-0.5 pr-2.5' : props.compact ? 'p-0.5' : 'p-1']">
