@@ -71,6 +71,15 @@ export const chatSessionsRepo = {
   },
 
   /**
+   * The messages of a stored session, for a search over conversations that are not loaded. It only reads: unlike
+   * `getSession`, it does not move inline assets, so a search never writes a record.
+   */
+  async getSessionMessages(sessionId: string) {
+    const record = await storage.getItemRaw<ChatSessionRecord>(`local:chat/sessions/${sessionId}`)
+    return record?.messages
+  },
+
+  /**
    * The session becomes an owner of every asset that its messages reference.
    * A copied message, for example in a fork or an import, then keeps its asset after the source session is deleted.
    */

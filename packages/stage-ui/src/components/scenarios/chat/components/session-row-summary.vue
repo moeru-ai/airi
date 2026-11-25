@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { SessionRow } from './session-row-model'
 
+import { formatISO } from 'date-fns'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 /**
@@ -15,18 +17,44 @@ const props = defineProps<{
 }>()
 
 const { t } = useI18n()
+const snippet = computed(() => props.row.match?.snippet)
+const markClasses = ['rounded-sm bg-primary-100 px-0.5 text-inherit dark:bg-primary-900/60']
 </script>
 
 <template>
   <!--
-    Two lines in every row: the title, then the last message. The time is metadata, so the compact row of a desktop
-    list shows it only in the tooltip of the row. The mobile row has no hover, so it keeps the time at the end of the
-    second line.
+    Two lines in every row: the title with the time of the last message, then the last message. The time stands at the
+    end of the title line, as in a messenger, so the user can tell the conversations apart without opening them.
   -->
   <span :class="['min-w-0 w-full flex-1']">
-    <span :class="['block w-full truncate text-sm font-medium']">{{ props.row.preview }}</span>
+    <span :class="['w-full flex items-baseline gap-2']">
+      <span :class="['min-w-0 flex-1 truncate text-sm font-medium']">{{ props.row.preview }}</span>
+      <time
+        :datetime="formatISO(props.row.activityAt)"
+        :title="props.row.activityAtTitle"
+        :class="['shrink-0 text-xs font-normal tabular-nums text-neutral-400 dark:text-neutral-500']"
+      >
+        {{ props.row.activityAtLabel }}
+      </time>
+    </span>
     <span :class="['w-full flex items-center gap-1.5 text-xs font-normal text-neutral-500 dark:text-neutral-400', props.compact ? 'mt-0.5' : 'mt-1']">
-      <span :class="['min-w-0 flex-1 truncate']">{{ props.row.lastMessage ?? '' }}</span>
+      <!-- A search match shows the message that contains the query, with the query marked, in place of the last message. -->
+      <i18n-t v-if="snippet?.fromUser" keypath="stage.chat.sessions.last-message-you" tag="span" scope="global" :class="['min-w-0 flex-1 truncate']">
+        <template #text>
+          {{ snippet.before }}<mark :class="markClasses">{{ snippet.match }}</mark>{{ snippet.after }}
+        </template>
+      </i18n-t>
+      <span v-else-if="snippet" :class="['min-w-0 flex-1 truncate']">
+        {{ snippet.before }}<mark :class="markClasses">{{ snippet.match }}</mark>{{ snippet.after }}
+      </span>
+      <span v-else :class="['min-w-0 flex-1 truncate']">{{ props.row.lastMessage ?? '' }}</span>
+      <span
+        v-if="props.row.match && props.row.meta.archivedAt !== undefined"
+        role="img"
+        :aria-label="t('stage.chat.sessions.archived')"
+        :title="t('stage.chat.sessions.archived')"
+        :class="['i-mingcute:archive-line size-3.5 shrink-0']"
+      />
       <span
         v-if="props.marks && props.row.meta.pinnedAt"
         role="img"
@@ -34,7 +62,6 @@ const { t } = useI18n()
         :title="t('stage.chat.sessions.pinned')"
         :class="['i-mingcute:pin-line size-3.5 shrink-0']"
       />
-      <span v-if="!props.compact" :class="['shrink-0 text-neutral-400 dark:text-neutral-500']">{{ props.row.activityAtLabel }}</span>
       <span v-if="props.marks && props.row.isActive && !props.compact" :class="['shrink-0 text-primary-600 dark:text-primary-300']">{{ t('stage.chat.sessions.current') }}</span>
       <span :class="['sr-only']">{{ props.row.characterName }}</span>
     </span>

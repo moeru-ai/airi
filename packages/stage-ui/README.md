@@ -4,7 +4,8 @@ Shared core for stage
 
 ## MCP tool exposure
 
-The Desktop Host exposes the four stable Agent entrypoints (`computer_observe`, `computer_act`, `computer_verify`, and `terminal_exec`) as Direct. It keeps extensions behind the existing MCP discovery and call tools.
+The Desktop Host exposes the four stable Agent entrypoints (`computer_observe`, `computer_act`, `computer_verify`, and `terminal_exec`) as Direct before a user override. It keeps extensions behind the existing MCP discovery and call tools.
+A service support label does not add a tool to this catalog. A user configuration can change the catalog after this default.
 Direct calls use the same Main request binding, approval, cancellation, execution slot and settlement path.
 Exposure metadata grants no execution permission. External server metadata cannot opt into the Desktop Host's Direct policy.
 The Host rejects disabled bundled Desktop tools even when a caller invokes them through MCP directly.

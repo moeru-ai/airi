@@ -1,12 +1,13 @@
 <script setup lang="ts">
+import type { ChatHistoryItem } from '../../../../types/chat'
 import type { ChatSessionMeta, ChatSessionSummary } from '../../../../types/chat-session'
 import type { SessionRow } from './session-row-model'
 
 import { errorMessageFrom } from '@moeru/std'
 import { useNow } from '@vueuse/core'
-import { compareDesc, intlFormatDistance, max } from 'date-fns'
+import { compareDesc, max } from 'date-fns'
 import { storeToRefs } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed, ref, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 
@@ -14,13 +15,16 @@ import SessionsDialog from './sessions-dialog.vue'
 
 import { useAnalytics } from '../../../../composables/use-analytics'
 import { useBreakpoints } from '../../../../composables/use-breakpoints'
+import { chatSessionsRepo } from '../../../../database/repos/chat-sessions.repo'
 import { useAuthStore } from '../../../../stores/auth'
 import { useChatStore } from '../../../../stores/chat'
+import { normalizeSessionQuery, searchSessions } from '../../../../stores/chat/session-search'
 import { useChatSessionStore } from '../../../../stores/chat/session-store'
 import { summarizeSessionMessages } from '../../../../stores/chat/session-summary'
 import { useChatSessionsViewStore } from '../../../../stores/chat/sessions-view-store'
 import { useAiriCardStore } from '../../../../stores/modules/airi-card'
 import { useConsciousnessStore } from '../../../../stores/modules/consciousness'
+import { formatSessionFullTime, formatSessionRowTime } from './session-time'
 
 const props = withDefaults(defineProps<{
   desktopMode?: 'dialog' | 'popover' | 'inline'
@@ -102,9 +106,76 @@ function lastMessageFor(summary: ChatSessionSummary): string | undefined {
   return summary.lastFromUser ? t('stage.chat.sessions.last-message-you', { text: summary.lastText }) : summary.lastText
 }
 
+/**
+ * The search of the list. The list sets it when the typing pauses, and the rows below show only the conversations that
+ * match it.
+ */
+const searchQuery = ref('')
+const searchActive = computed(() => normalizeSessionQuery(searchQuery.value) !== '')
+
+/**
+ * The stored messages of conversations that are not loaded, read for the search. Each entry keeps the `updatedAt` of
+ * the metadata that it was read with, so a conversation that changed since then is read again. The cache lives while
+ * the search does, and an empty search drops it.
+ */
+const storedMessages = shallowRef(new Map<string, { updatedAt: number, messages?: ChatHistoryItem[] }>())
+const searchLoading = shallowRef(false)
+// Each read of the stored messages has a number. A read that a newer read or an empty search replaced is dropped.
+let searchRead = 0
+
+watch([searchActive, ownedSessions], async ([active, metas]) => {
+  const read = ++searchRead
+  if (!active) {
+    storedMessages.value = new Map()
+    searchLoading.value = false
+    return
+  }
+  const missing = metas.filter(meta => !sessionMessages.value[meta.sessionId]?.length
+    && storedMessages.value.get(meta.sessionId)?.updatedAt !== meta.updatedAt)
+  if (missing.length === 0)
+    return
+  searchLoading.value = true
+  try {
+    const records = await Promise.all(missing.map(async meta => ({
+      meta,
+      messages: await chatSessionsRepo.getSessionMessages(meta.sessionId),
+    })))
+    if (read !== searchRead)
+      return
+    const next = new Map(storedMessages.value)
+    for (const { meta, messages } of records)
+      next.set(meta.sessionId, { updatedAt: meta.updatedAt, messages })
+    storedMessages.value = next
+  }
+  catch (error) {
+    // The search still matches titles and loaded conversations, so a failed read only narrows the results.
+    toast.error(t('stage.chat.sessions.search-failed'), { description: errorMessageFrom(error) })
+  }
+  finally {
+    if (read === searchRead)
+      searchLoading.value = false
+  }
+}, { immediate: true })
+
+/** The conversations that match the search, with the reason of each match. Loaded messages win over stored ones. */
+const searchMatches = computed(() => {
+  if (!searchActive.value)
+    return undefined
+  return searchSessions(searchQuery.value, ownedSessions.value.map((meta) => {
+    const loaded = sessionMessages.value[meta.sessionId]
+    return {
+      sessionId: meta.sessionId,
+      title: previewFor(meta, summaryFor(meta)),
+      messages: loaded?.length ? loaded : storedMessages.value.get(meta.sessionId)?.messages,
+    }
+  }))
+})
+
 const rows = computed<SessionRow[]>(() => {
   const referenceTime = max([now.value, Date.now()])
+  const matches = searchMatches.value
   return ownedSessions.value
+    .filter(meta => !matches || matches.has(meta.sessionId))
     .map((meta) => {
       const summary = summaryFor(meta)
       return { meta, summary, activityAt: summary.lastAt ?? meta.createdAt }
@@ -115,8 +186,11 @@ const rows = computed<SessionRow[]>(() => {
       preview: previewFor(meta, summary),
       lastMessage: lastMessageFor(summary),
       isActive: meta.sessionId === activeSessionId.value,
-      activityAtLabel: intlFormatDistance(activityAt, referenceTime, { locale: locale.value }),
+      activityAt,
+      activityAtLabel: formatSessionRowTime(activityAt, referenceTime, locale.value),
+      activityAtTitle: formatSessionFullTime(activityAt, locale.value),
       characterName: cards.value.get(meta.characterId)?.name ?? t('stage.chat.sessions.unknown-character'),
+      match: matches?.get(meta.sessionId),
     }))
 })
 
@@ -145,6 +219,12 @@ async function selectSession(sessionId: string) {
   await chatSession.setActiveSession(sessionId)
   showDialog.value = false
 }
+
+// A list that closes ends its search, so the next open shows every conversation again.
+watch(showDialog, (open) => {
+  if (!open)
+    searchQuery.value = ''
+})
 
 /**
  * Creates a conversation with the current character and opens it.
@@ -203,9 +283,11 @@ async function renameSession(payload: { sessionId: string, title: string }) {
   <SessionsDialog
     v-model:open="showDialog"
     v-model:place="listPlace"
+    v-model:query="searchQuery"
     :rows="rows"
     :is-desktop="props.desktop || isDesktop"
     :is-creating-session="isCreatingSession"
+    :searching="searchLoading"
     :desktop-mode="props.desktopMode"
     :touch="props.touch"
     :character="currentCharacter"

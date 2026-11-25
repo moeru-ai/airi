@@ -299,6 +299,10 @@ chat:
     unarchive: 取消归档
     selected: 已选 {count} 个
     empty-archive: 没有归档的对话。归档的对话放在这里。
+    search: 搜索对话
+    search-empty: '没有包含“{query}”的对话'
+    searching: 正在搜索对话…
+    search-failed: 部分对话无法搜索
     save-failed: 这次修改没能保存
 avatar-model-missing:
   title: 还没有选择模型
