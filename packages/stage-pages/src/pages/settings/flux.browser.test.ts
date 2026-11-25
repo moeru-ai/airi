@@ -67,7 +67,7 @@ describe('public Flux page', () => {
     const requestLogin = vi.spyOn(useAuthStore(pinia), 'requestLogin').mockResolvedValue()
     const screen = await render(FluxPage, {
       global: {
-        plugins: [pinia, PiniaColada, router, createI18n({ legacy: false, locale: 'en', messages: { en } })],
+        plugins: [pinia, router, createI18n({ legacy: false, locale: 'en', messages: { en } })],
       },
     })
 

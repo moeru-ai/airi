@@ -88,7 +88,6 @@ export async function checkBillingAndUsage(
   await navigate('/settings/flux')
   const history = page.getByTestId('payment-history')
   await history.getByText('USD 60.00').filter({ visible: true }).first().waitFor()
-  await history.getByRole('button', { name: 'Refresh', exact: true }).waitFor({ state: 'hidden' })
   await page.evaluate(() => document.fonts.ready)
   if (state.requests.some(path => path.endsWith('/receipt') || path.startsWith('/api/v1/flux/history?')))
     throw new Error('Billing fetched an unrelated resource before a receipt click')

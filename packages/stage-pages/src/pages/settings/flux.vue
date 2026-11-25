@@ -2,7 +2,6 @@
 import type { FluxBalanceBucket } from '@proj-airi/stage-ui/composables/use-analytics'
 
 import { errorMessageFrom } from '@moeru/std'
-import { useQuery } from '@pinia/colada'
 import { isCapacitorAvailable, isFluxPurchaseDisabled, isStageTamagotchi } from '@proj-airi/stage-shared'
 import { client } from '@proj-airi/stage-ui/composables/api'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
@@ -50,32 +49,29 @@ if (isStageTamagotchi()) {
   })
 }
 
+interface FluxPackage {
+  stripePriceId: string
+  label: string
+  defaultCurrency: string
+  currencies: Record<string, string>
+  recommended?: boolean
+}
+
 const loadingPriceId = ref<string | null>(null)
 const message = ref<{ type: 'success' | 'error', text: string } | null>(null)
 const checkoutReturnMessageActive = ref(false)
-const { data: packages, isLoading: packagesFetching, error: packagesError } = useQuery({
-  key: ['flux-packages'],
-  enabled: !fluxPurchaseDisabled,
-  staleTime: 300_000,
-  refetchOnWindowFocus: false,
-  refetchOnReconnect: false,
-  query: async ({ signal }) => {
-    const response = await client.api.v1.stripe.packages.$get({}, { init: { signal } })
-    if (!response.ok)
-      throw new Error('Failed to load Flux packages')
-    return response.json()
-  },
-})
-const packagesLoading = computed(() => packagesFetching.value && !packages.value?.length)
+const packages = ref<FluxPackage[]>([])
+const packagesLoading = ref(!fluxPurchaseDisabled)
 const selectedCurrency = ref<string>('usd')
 
 const currencyOptions = computed(() => {
-  const available = packages.value
-  if (!available?.length)
+  if (packages.value.length === 0)
     return []
-  return Object.keys(available[0].currencies)
-    .filter(currency => available.every(pack => currency in pack.currencies))
-    .map(currency => ({ label: currency.toUpperCase(), value: currency }))
+  // Currencies supported by all packages
+  const first = Object.keys(packages.value[0].currencies)
+  return first
+    .filter(c => packages.value.every(p => c in p.currencies))
+    .map(c => ({ label: c.toUpperCase(), value: c }))
 })
 
 /**
@@ -110,15 +106,24 @@ async function fetchStats() {
   }
 }
 
-watch(packages, (available) => {
-  if (available?.length)
-    selectedCurrency.value = available[0].defaultCurrency
-}, { immediate: true })
-
-watch(packagesError, (error) => {
-  if (error && !checkoutReturnMessageActive.value)
-    message.value = { type: 'error', text: t('settings.pages.flux.packagesError') }
-})
+async function fetchPackages() {
+  try {
+    const res = await client.api.v1.stripe.packages.$get()
+    if (res.ok) {
+      const data = await res.json() as FluxPackage[]
+      packages.value = data
+      if (data.length > 0)
+        selectedCurrency.value = data[0].defaultCurrency
+    }
+  }
+  catch {
+    if (!checkoutReturnMessageActive.value)
+      message.value = { type: 'error', text: t('settings.pages.flux.packagesError') }
+  }
+  finally {
+    packagesLoading.value = false
+  }
+}
 
 /**
  * Shows a Stripe return banner that background package refreshes must not replace.
@@ -150,6 +155,9 @@ watch(isAuthenticated, async (authenticated) => {
 }, { immediate: true })
 
 onMounted(() => {
+  if (!fluxPurchaseDisabled)
+    void fetchPackages()
+
   if (route.query.success === 'true') {
     showCheckoutReturnMessage('success', t('settings.pages.flux.checkout.success'))
     router.replace({ query: {} })
