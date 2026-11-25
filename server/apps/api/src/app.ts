@@ -37,7 +37,6 @@ import { httpInstrumentationMiddleware } from '@hono/otel'
 import { createErrorHandler, createPayloadTooLargeError, ok } from '@proj-airi/http-shared'
 import { Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
-import { cors } from 'hono/cors'
 import { logger as honoLogger } from 'hono/logger'
 import { parseAccept } from 'hono/utils/accept'
 import { createLoggLogger, injeca } from 'injeca'
@@ -49,6 +48,7 @@ import { createStreamPublisher } from './libs/redis/stream'
 import { resolveRequestAuth } from './libs/request-auth'
 import { createUnauthorizedWsEvents } from './libs/ws-auth'
 import { authGuard, sessionMiddleware } from './middlewares/auth'
+import { crossOrigin } from './middlewares/cross-origin'
 import { emitOtelLog, initOtel } from './otel'
 import { registerDbPoolGauge } from './otel/gauges/db-pool'
 import { registerTtsPoolGauge } from './otel/gauges/tts-pool'
@@ -102,7 +102,6 @@ import { createUserDeletionService } from './services/domain/user-deletion'
 import { createVoicePackService } from './services/domain/voice-packs'
 import { createEnvelopeCrypto } from './utils/envelope-crypto'
 import { nanoid } from './utils/id'
-import { getTrustedOrigin } from './utils/origin'
 
 interface AppDeps {
   db: Database
@@ -164,13 +163,10 @@ export async function buildApp(deps: AppDeps) {
       c.res.headers.set('Pragma', 'no-cache')
       c.res.headers.set('Expires', '0')
     })
-    .use(
-      '/api/*',
-      cors({
-        origin: origin => getTrustedOrigin(origin, deps.env.ADDITIONAL_TRUSTED_ORIGINS),
-        credentials: true,
-      }),
-    )
+    // Clients send a bearer token with `credentials: 'omit'`, so the API allows every origin.
+    // `Retry-After` stays readable for the retry backoff of `@proj-airi/core-agent`.
+    // See server/docs/ai/adr/2026-11-07-cross-origin-boundary.md.
+    .use('/api/*', crossOrigin({ exposeHeaders: ['Retry-After'] }))
     .use(honoLogger())
 
   if (deps.otel) {

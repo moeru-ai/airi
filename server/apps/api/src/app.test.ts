@@ -133,6 +133,51 @@ describe('business API app', () => {
     expect(live.headers.get('location')).toBeNull()
   })
 
+  it.each(['https://airi.moeru.ai', 'null', 'capacitor://localhost'])('answers an API preflight from %s with the bearer policy', async (origin) => {
+    const { app } = await buildApp(createTestDeps())
+    const response = await app.request('/api/v1/openai/chat/completions', {
+      method: 'OPTIONS',
+      headers: {
+        'Origin': origin,
+        'Access-Control-Request-Method': 'POST',
+        'Access-Control-Request-Headers': 'authorization, content-type',
+      },
+    })
+
+    expect(response.status).toBe(204)
+    expect(response.headers.get('access-control-allow-origin')).toBe('*')
+    expect(response.headers.get('access-control-allow-credentials')).toBeNull()
+    expect(response.headers.get('access-control-allow-headers')).toBe('authorization, content-type')
+    expect(response.headers.get('access-control-max-age')).toBe('7200')
+  })
+
+  it('passes an OPTIONS request without Access-Control-Request-Method to the routes', async () => {
+    const { app } = await buildApp(createTestDeps())
+    const response = await app.request('/api/v1/openai/chat/completions', {
+      method: 'OPTIONS',
+      headers: { Origin: 'https://airi.moeru.ai' },
+    })
+
+    // The auth guard of the route answers, so the middleware did not end the request.
+    expect(response.status).toBe(401)
+    expect(response.headers.get('access-control-allow-origin')).toBe('*')
+    expect(response.headers.get('access-control-allow-methods')).toBeNull()
+    expect(response.headers.get('vary')).toBeNull()
+  })
+
+  it('lets clients read Retry-After from an API error response', async () => {
+    const { app } = await buildApp(createTestDeps())
+    const response = await app.request('/api/v1/openai/responses', {
+      method: 'POST',
+      headers: { 'Origin': 'https://airi.moeru.ai', 'Content-Type': 'application/json' },
+      body: '{}',
+    })
+
+    expect(response.status).toBe(401)
+    expect(response.headers.get('access-control-allow-origin')).toBe('*')
+    expect(response.headers.get('access-control-expose-headers')).toBe('Retry-After')
+  })
+
   // ROOT CAUSE:
   //
   // The former global 1 MiB limit ran before the Responses route's auth
