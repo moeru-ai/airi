@@ -64,7 +64,6 @@ async function downloadAndStoreCloudAttachment(attachment: WireAttachment, sessi
   return storeChatAsset(new Uint8Array(await blob.arrayBuffer()), attachment.mimeType, sessionId)
 }
 
-/** Downloads each image and stores it under the local session before it enters chat history. */
 export async function downloadCloudMessageAttachments(
   messages: WireMessage[],
   sessionId: string,

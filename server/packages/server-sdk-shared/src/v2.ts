@@ -18,6 +18,7 @@ export type {
   WireMessage,
 } from './chat'
 export {
+  ChatImageMimeTypeSchema,
   CreateAttachmentRequestSchema,
   CreateAttachmentResponseSchema,
   DownloadAttachmentResponseSchema,

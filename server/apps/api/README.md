@@ -219,12 +219,8 @@ cancels the subscription first.
 
 ## Private chat attachments
 
-Chat images use the same private bucket as display models. The browser uploads each image through a signed PUT URL.
-The API checks the stored size, content type, and SHA-256 checksum before a message can reference the image.
-
-Use the S3 configuration described above. In the bucket CORS policy, allow browser GET and PUT requests.
+Chat images use the same private bucket as display models. In the bucket CORS policy, allow browser GET and PUT requests.
 Allow the `content-type`, `if-none-match`, and `x-amz-checksum-sha256` request headers.
-The API checks attachment ownership or chat membership before it signs a GET URL.
 
 ## Run locally
 

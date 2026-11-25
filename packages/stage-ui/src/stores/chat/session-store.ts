@@ -120,7 +120,6 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   // reconnect catch up — that way the very first message in a session does
   // not get dropped while reconcile completes.
   const cloudSyncReady = ref(false)
-  /** Number of message sends waiting on cloud delivery. */
   const outboxPendingCount = ref(0)
   let wsClient: ChatWsClient | undefined
   let cloudMapper: CloudChatMapper | undefined
@@ -1681,8 +1680,6 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     if (entries.length === 0)
       return
 
-    // Group by sessionId for batched dispatch; preserve queuedAt order
-    // within each session so user-then-assistant turns stay ordered.
     const bySession = new Map<string, ChatSendOutboxEntry[]>()
     for (const entry of entries) {
       if (entry.attempts >= OUTBOX_MAX_ATTEMPTS)

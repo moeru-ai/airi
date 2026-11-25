@@ -2,10 +2,14 @@ import type { ChatSendPayload } from '../../../../stores/chat'
 import type { ChatComposerController } from './use-chat-composer'
 
 import { errorMessageFrom } from '@moeru/std'
+import { ChatImageMimeTypeSchema } from '@proj-airi/server-sdk-shared/v2'
 import { nanoid } from 'nanoid/non-secure'
 import { onScopeDispose, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import * as v from 'valibot'
+
+const IMAGE_ACCEPT = ChatImageMimeTypeSchema.options.join(',')
 const MAX_IMAGE_COUNT = 4
 const MAX_IMAGE_BYTES = 3 * 1024 * 1024
 const MAX_SOURCE_IMAGE_BYTES = 20 * 1024 * 1024
@@ -88,7 +92,7 @@ export function useChatImages(composer: ChatComposerController<ChatImageAttachme
     const readGeneration = generation
     error.value = ''
     for (const file of files) {
-      if (!['image/png', 'image/jpeg', 'image/webp', 'image/gif'].includes(file.type)) {
+      if (!v.is(ChatImageMimeTypeSchema, file.type)) {
         error.value = t('stage.chat.images.unsupported')
         return
       }
@@ -168,5 +172,5 @@ export function useChatImages(composer: ChatComposerController<ChatImageAttachme
     input.value = ''
   }
 
-  return { addFiles, selectFiles, error, pending }
+  return { accept: IMAGE_ACCEPT, addFiles, selectFiles, error, pending }
 }

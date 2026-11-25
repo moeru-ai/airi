@@ -36,9 +36,11 @@ export const WireAttachmentSchema = v.object({
 
 export type WireAttachment = v.InferOutput<typeof WireAttachmentSchema>
 
+export const ChatImageMimeTypeSchema = v.picklist(['image/png', 'image/jpeg', 'image/webp', 'image/gif'])
+
 export const CreateAttachmentRequestSchema = v.object({
   id: AttachmentIdSchema,
-  mimeType: v.picklist(['image/png', 'image/jpeg', 'image/webp', 'image/gif']),
+  mimeType: ChatImageMimeTypeSchema,
   sha256: Sha256Schema,
   size: v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(3 * 1024 * 1024)),
 })
