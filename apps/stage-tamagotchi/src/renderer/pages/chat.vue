@@ -2,7 +2,6 @@
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { isElectronWindow } from '@proj-airi/stage-shared'
 import { CharacterRail, ChatSessionsDrawer } from '@proj-airi/stage-ui/components'
-import { useBackdropSurface } from '@proj-airi/stage-ui/composables/backdrop-surface'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { storeToRefs } from 'pinia'
 import { useTemplateRef } from 'vue'
@@ -18,9 +17,6 @@ import { useChatDraftHandover } from '../composables/use-chat-draft-handover'
 
 const { activeCard } = storeToRefs(useAiriCardStore())
 const hasNativeControls = isElectronWindow(window) && window.platform === 'darwin'
-// Only the macOS chat window is transparent, and only the side columns show its glass.
-const transparentWindow = hasNativeControls
-useBackdropSurface(useTemplateRef<HTMLElement>('sidebar'), { enabled: transparentWindow })
 const interactiveArea = useTemplateRef<InstanceType<typeof InteractiveArea>>('interactive-area')
 const openSettings = useElectronEventaInvoke(electronOpenSettings)
 
@@ -28,8 +24,9 @@ useChatDraftHandover(interactiveArea)
 </script>
 
 <template>
-  <ChatPageShell :glass="false">
+  <ChatPageShell>
     <WindowTitleBar
+      transparent
       :title="activeCard?.name || 'AIRI'"
       :class="{ 'pl-20!': hasNativeControls }"
       icon="i-solar:chat-line-bold"
@@ -41,34 +38,34 @@ useChatDraftHandover(interactiveArea)
     </WindowTitleBar>
     <!--
       The layout of a messenger: characters, then the conversations of the current character, then the chat. The
-      conversations stay at every window width, like the channel list of Discord. Only the two side columns show the
-      window glass, like a sidebar on macOS. The chat paints a solid surface, so it reads as the main content.
+      conversations stay at every window width, like the channel list of Discord. The window frame, that is the title
+      bar and the character rail, is one surface. On macOS it shows the window glass. The conversations and the chat
+      share one solid card that floats 6px inside the frame. Two shades separate them, so they need no divider line.
     -->
-    <div :class="['h-full min-h-0 flex']">
+    <div :class="['h-full min-h-0 flex pb-1.5 pr-1.5']">
+      <CharacterRail
+        docked
+        @manage="openSettings({ route: '/settings/airi-card' })"
+      />
       <div
-        ref="sidebar"
-        :class="['h-full min-h-0 flex shrink-0', transparentWindow ? 'bg-neutral-100/70 dark:bg-neutral-900/70' : 'bg-neutral-100 dark:bg-neutral-900']"
+        data-testid="desktop-chat-card"
+        :class="['min-w-0 flex flex-1 overflow-hidden rounded-lg shadow-sm']"
       >
-        <CharacterRail
-          docked
-          :class="['border-r border-neutral-200/70 dark:border-neutral-800/70']"
-          @manage="openSettings({ route: '/settings/airi-card' })"
-        />
         <ChatSessionsDrawer
           desktop-mode="inline"
           desktop
-          :class="['w-60 shrink-0 border-r border-neutral-200/70 dark:border-neutral-800/70']"
+          :class="['w-60 shrink-0 pr-2', 'bg-neutral-50 dark:bg-neutral-800']"
           @open-character-settings="characterId => openSettings({ route: `/settings/airi-card/${encodeURIComponent(characterId)}` })"
         />
-      </div>
-      <!--
-        The chat area has two root elements, so it takes no class. This wrapper paints its solid surface.
-      -->
-      <div :class="['h-full min-w-0 flex-1 bg-white dark:bg-neutral-900']">
-        <InteractiveArea
-          ref="interactive-area"
-          :class="['interaction-area block h-full w-full transition-opacity duration-250']"
-        />
+        <!--
+          The chat area has two root elements, so it takes no class. This wrapper paints its shade.
+        -->
+        <div :class="['h-full min-w-0 flex-1 bg-white dark:bg-neutral-900']">
+          <InteractiveArea
+            ref="interactive-area"
+            :class="['interaction-area block h-full w-full transition-opacity duration-250']"
+          />
+        </div>
       </div>
     </div>
   </ChatPageShell>
