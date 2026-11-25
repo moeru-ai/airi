@@ -513,9 +513,13 @@ const { holdLeavingItem } = useListReorderMotion({
       </ScrollableArea>
     </div>
 
-    <!-- The batch actions rise from the bottom while selecting, so the controls above keep their places. -->
+    <!--
+      The batch actions rise from the bottom while selecting, so the controls above keep their places. Outside selection
+      the collapsed bar stays mounted for its animation, so it leaves the accessibility tree too.
+    -->
     <div
       :inert="!selecting"
+      :aria-hidden="selecting ? undefined : 'true'"
       :class="[
         'grid shrink-0 transition-[grid-template-rows,opacity] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none',
         props.fill ? 'pr-2' : '',
