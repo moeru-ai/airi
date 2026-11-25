@@ -6,10 +6,10 @@ import type { ChatFloatingState, ChatWindowPreferences } from '../../shared/even
 
 import { getElectronEventaContext, useElectronEventaInvoke, useElectronMouseAroundWindowBorder, useElectronMouseInElement } from '@proj-airi/electron-vueuse'
 import { isElectronWindow } from '@proj-airi/stage-shared'
-import { ChatSessionsDrawer } from '@proj-airi/stage-ui/components'
+import { CharacterRail, ChatSessionsDrawer } from '@proj-airi/stage-ui/components'
 import { useBackdropSurface } from '@proj-airi/stage-ui/composables/backdrop-surface'
 import { useDanmakuFeedExpiry } from '@proj-airi/stage-ui/composables/use-danmaku-feed-expiry'
-import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
+import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { Dock, DockButton, dockItemClasses, DockSeparator, Tooltip, TransitionBud } from '@proj-airi/ui'
 import { refDebounced, useElementSize, useEventListener, useFocusWithin, useLocalStorage, useMutationObserver, usePreferredReducedMotion } from '@vueuse/core'
@@ -32,6 +32,7 @@ import {
   electronChatFloatingResizeBy,
   electronChatFloatingStateChanged,
   electronChatWindowSetPreferences,
+  electronOpenSettings,
 } from '../../shared/eventa'
 import { useChatDraftHandover } from '../composables/use-chat-draft-handover'
 import { dismissOverlays, useChatFloatingClickThrough } from '../composables/use-chat-floating-click-through'
@@ -39,10 +40,11 @@ import { useControlsIslandStore } from '../stores/controls-island'
 
 const panel = useTemplateRef<HTMLElement>('panel')
 
-const { activeCard } = storeToRefs(useAiriCardStore())
-const sessionsDrawerOpen = shallowRef(false)
-const interactiveArea = useTemplateRef<InstanceType<typeof InteractiveArea>>('interactive-area')
 const { t } = useI18n()
+const sessionsDrawerOpen = shallowRef(false)
+const { activeSessionId, sessionMetas } = storeToRefs(useChatSessionStore())
+const activeSessionTitle = computed(() => sessionMetas.value[activeSessionId.value]?.title?.trim() || t('stage.chat.sessions.new-chat-fallback'))
+const interactiveArea = useTemplateRef<InstanceType<typeof InteractiveArea>>('interactive-area')
 
 // Folded until the main process answers, so the first unfold plays the same
 // animation as every later one.
@@ -52,6 +54,7 @@ const reportContentHidden = useElectronEventaInvoke(electronChatFloatingContentH
 const resizeBy = useElectronEventaInvoke(electronChatFloatingResizeBy)
 const moveTo = useElectronEventaInvoke(electronChatFloatingMoveTo)
 const foldChat = useElectronEventaInvoke(electronChatFloatingFold)
+const openSettings = useElectronEventaInvoke(electronOpenSettings)
 const setPreferences = useElectronEventaInvoke(electronChatWindowSetPreferences)
 
 // The main process can emit before this page mounts, so the first state comes
@@ -176,11 +179,11 @@ const dockTooltipSide = computed<TooltipContentProps['side']>(() => {
     return 'bottom'
   return characterOnLeft.value ? 'right' : 'left'
 })
-// The name button opens the conversations. A dock that stands up has no room for the name, so its tooltip gives the
-// name too.
+// The conversation button of the dock names the current conversation and opens the conversation list. A dock that
+// stands up has no room for the name, so its title gives the name too.
 const conversationsLabel = computed(() => {
   const label = t('tamagotchi.stage.chat-window.conversations')
-  return verticalDock.value ? `${activeCard.value?.name || 'AIRI'} · ${label}` : label
+  return verticalDock.value ? `${activeSessionTitle.value} · ${label}` : label
 })
 
 const dockInstance = useTemplateRef<InstanceType<typeof Dock>>('dock')
@@ -509,8 +512,11 @@ function moveByKeyboard(delta: WindowDelta) {
         v-show="contentShown"
         ref="panel"
         :class="[
-          'absolute inset-0 flex flex-col gap-1 rounded-3xl pt-3',
-          danmaku ? '' : 'bg-white/80 dark:bg-neutral-900/80',
+          'absolute inset-y-0 flex flex-col gap-1 rounded-3xl pt-3',
+          // The character rail floats outside the panel, on the side away from the character, as on the web stage.
+          danmaku ? 'inset-x-0' : characterOnLeft ? 'left-0 right-18' : 'left-18 right-0',
+          // macOS draws native glass behind this fill. Other platforms have no glass, so the same 80% fill shows the desktop.
+          danmaku ? '' : glassBackdrop ? 'bg-white/80 dark:bg-neutral-900/80' : 'bg-neutral-50 dark:bg-neutral-950',
         ]"
       >
         <!--
@@ -564,24 +570,26 @@ function moveByKeyboard(delta: WindowDelta) {
                 A plain button: GhostButton wraps its slot in a span that cannot shrink, so a long name could not
                 truncate.
               -->
-              <Tooltip :label="conversationsLabel" :side="dockTooltipSide">
-                <button
-                  :aria-label="verticalDock ? activeCard?.name || 'AIRI' : undefined"
-                  :class="[
-                    'group min-w-0 flex items-center gap-1.5 rounded-full outline-none transition-colors',
-                    'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-300',
-                    dockItemClasses('blurry'),
-                    verticalDock ? 'p-0.5' : characterOnLeft ? 'flex-row-reverse py-0.5 pl-2 pr-0.5' : 'py-0.5 pl-0.5 pr-2',
-                  ]"
-                  @click="sessionsDrawerOpen = true"
-                >
-                  <!-- The icon and the name take the icon color of the dock. Hover shows the background of the button. -->
-                  <span :class="['size-6 shrink-0', 'flex items-center justify-center text-base']">
-                    <span class="i-mingcute:chat-2-line" />
-                  </span>
-                  <span v-if="!verticalDock" class="truncate text-sm font-medium">{{ activeCard?.name || 'AIRI' }}</span>
-                </button>
-              </Tooltip>
+              <ChatSessionsDrawer v-model="sessionsDrawerOpen" desktop desktop-mode="popover">
+                <template #trigger>
+                  <button
+                    :aria-label="conversationsLabel"
+                    :title="conversationsLabel"
+                    :class="[
+                      'group min-w-0 flex items-center gap-1.5 rounded-full outline-none transition-colors',
+                      'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-300',
+                      dockItemClasses('blurry'),
+                      verticalDock ? 'p-0.5' : characterOnLeft ? 'flex-row-reverse py-0.5 pl-2 pr-0.5' : 'py-0.5 pl-0.5 pr-2',
+                    ]"
+                  >
+                    <!-- The icon and the name take the icon color of the dock. Hover shows the background of the button. -->
+                    <span :class="['size-6 shrink-0', 'flex items-center justify-center text-base']">
+                      <span class="i-mingcute:chat-2-line" />
+                    </span>
+                    <span v-if="!verticalDock" class="truncate text-sm font-medium">{{ activeSessionTitle }}</span>
+                  </button>
+                </template>
+              </ChatSessionsDrawer>
               <DockSeparator />
               <div :class="['flex shrink-0 items-center', verticalDock ? 'flex-col' : characterOnLeft ? 'flex-row-reverse' : '']">
                 <ChatSpeechMuteButton variant="dock" />
@@ -660,7 +668,16 @@ function moveByKeyboard(delta: WindowDelta) {
         <WindowResizeBorder :shown="nearResizeEdge || nearResizeEdgeFor250Ms" :class="['rounded-3xl']" />
       </div>
     </Transition>
-    <ChatSessionsDrawer v-model="sessionsDrawerOpen" />
+    <!--
+      The character rail floats beside the panel, like on the web stage. It opens on hover to show the names, over the
+      panel. The message feed has no panel, so it shows the chat only.
+    -->
+    <CharacterRail
+      v-if="!danmaku"
+      v-show="contentShown"
+      :class="['absolute top-1/2 z-40 -translate-y-1/2', characterOnLeft ? 'right-2' : 'left-2']"
+      @manage="openSettings({ route: '/settings/airi-card' })"
+    />
   </div>
 </template>
 

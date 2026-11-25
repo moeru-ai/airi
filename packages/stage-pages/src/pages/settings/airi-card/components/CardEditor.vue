@@ -11,7 +11,7 @@ import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { useSettingsSearchReveal } from '@proj-airi/stage-ui/composables/use-settings-search'
 import { DEFAULT_ARTISTRY_WIDGET_INSTRUCTION } from '@proj-airi/stage-ui/constants/prompts/artistry-instruction'
 import { applyAiriCardEditorModules, getAiriCardEditorModuleSettings, safeParseAiriCardDraft } from '@proj-airi/stage-ui/services/airi-card-editor'
-import { resolveModuleSelection } from '@proj-airi/stage-ui/services/airi-card-modules'
+import { resolveModuleSelection, SPEECH_NOOP_PROVIDER_ID } from '@proj-airi/stage-ui/services/airi-card-modules'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
@@ -204,9 +204,9 @@ const visionModelOptions = computed(() => {
   })), selectedVisionModel.value)
 })
 
-// Computed: available speech provider options
+// A card has no None for speech. It inherits the global speech setting or names a provider.
 const speechProviderOptions = computed(() => {
-  return withInheritGlobalSetting(providersStore.configuredSpeechProvidersMetadata.map(provider => ({
+  return withInheritGlobalSetting(providersStore.configuredSpeechProvidersMetadata.filter(provider => provider.id !== SPEECH_NOOP_PROVIDER_ID).map(provider => ({
     value: provider.id,
     label: provider.localizedName || provider.name,
   })), selectedSpeechProvider.value)

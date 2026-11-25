@@ -1,7 +1,7 @@
 import type { VoicePackService } from '../../services/domain/voice-packs'
 import type { HonoEnv } from '../../types/hono'
 
-import { ApiError } from '@proj-airi/http-error-shared'
+import { ApiError } from '@proj-airi/http-shared'
 import { Hono } from 'hono'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -33,7 +33,6 @@ function createService() {
       upstreamVoiceId: 'en-US-AvaMultilingualNeural',
       ttsModelId: 'microsoft/v1',
       params: { pitch: 10 },
-      costMultiplier: 2,
       enabled: true,
       createdAt: new Date('2026-01-01T00:00:00.000Z'),
       updatedAt: new Date('2026-01-02T00:00:00.000Z'),
@@ -71,7 +70,6 @@ describe('voice packs routes', () => {
       description: 'Public description',
       voiceId: 'friendly-voice',
       params: { pitch: 10 },
-      costMultiplier: 2,
       enabled: true,
       createdAt: '2026-01-01T00:00:00.000Z',
       updatedAt: '2026-01-02T00:00:00.000Z',

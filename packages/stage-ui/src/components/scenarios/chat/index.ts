@@ -1,4 +1,5 @@
 export { ChatActionMenu } from './components/action-menu'
+export { default as ChatArchivedSessionCallout } from './components/archived-session-callout.vue'
 export { default as ChatAssistantItem } from './components/assistant-item.vue'
 export { default as ChatBackgroundTasks } from './components/background-tasks.vue'
 export { default as ChatComposerAddMenu } from './components/composer-add-menu.vue'

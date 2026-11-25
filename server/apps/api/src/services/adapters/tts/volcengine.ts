@@ -2,7 +2,7 @@ import type { Voice } from 'unspeech'
 
 import type { TtsAdapter, TtsAdapterContext, TtsInput, TtsResult, TtsVoiceCatalogContext } from './types'
 
-import { createBadRequestError, createInternalError } from '@proj-airi/http-error-shared'
+import { createBadRequestError, createInternalError } from '@proj-airi/http-shared'
 
 import { nanoid } from '../../../utils/id'
 import { audioMimeFromFormat } from './audio-format'

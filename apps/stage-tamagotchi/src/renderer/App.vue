@@ -342,7 +342,9 @@ function createFullStageRuntime() {
         token: serverChannelConfig.authToken || undefined,
         possibleEvents: ['ui:configure'],
       }).catch(err => console.error('Failed to initialize Mods Server Channel in App.vue:', err))
-      contextBridgeStore.initialize()
+      // Every full-runtime window registers as a chat-ingestion consumer, but chat turns run in the
+      // synced leader. Prefer the leader, so external input and its context updates land where the turn runs.
+      contextBridgeStore.initialize({ consumerPriority: windowContext.leadership === 'leader-only' ? 1 : 0 })
       if (!isWidgetsWindow) {
         characterOrchestratorStore.initialize(syncedPinia)
       }
@@ -378,6 +380,9 @@ const fullStageRuntime = windowContext.stageRuntime === 'full'
 const chatStreamView = !fullStageRuntime && (initialRoutePath === '/chat' || isFloatingChatWindow)
   ? useContextBridgeStore()
   : null
+// The conversation list and the character switcher of a minimal chat window show character avatars from the display
+// model list. The full runtime reads that list with the rest of the stage.
+const chatWindowDisplayModels = chatStreamView ? useDisplayModelsStore() : null
 
 const { restore: restoreLocale } = useLanguage(language, getMainLocale, setLocale)
 
@@ -418,6 +423,7 @@ onMounted(async () => {
   await chatStore.initialize(syncedPinia)
 
   await fullStageRuntime?.initialize()
+  await chatWindowDisplayModels?.loadDisplayModelsFromIndexedDB()
   await chatStreamView?.initializeStreamView()
 })
 

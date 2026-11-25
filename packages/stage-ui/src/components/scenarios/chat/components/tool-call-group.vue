@@ -28,7 +28,7 @@ import { resolveToolCallBlockState } from './tool-call-results'
  * Consecutive generic tool calls of one reply, folded into one pill that reads like a skill combo.
  * Each call lands as a hit in the pill while the reply streams. The pill keeps one height, so the text around it never jumps.
  */
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   items: ToolCallGroupItem[]
   /** Reads the result of the call at a slice index. A call without a result still runs. */
   resultOf: (sliceIndex: number) => ChatSlicesToolCallResult | undefined
@@ -38,7 +38,12 @@ const props = defineProps<{
   streaming?: boolean
   /** The id of the reply that holds the calls. */
   messageId?: string
-}>()
+  /** Whether a call that a rerun can rebuild shows the rerun action. */
+  canRerun?: boolean
+}>(), {
+  streaming: false,
+  canRerun: true,
+})
 
 const emit = defineEmits<{
   (e: 'toolCallRerun', sliceIndex: number, payload: ToolCallRerunRequest): void
@@ -282,7 +287,7 @@ function rerun(item: ToolCallGroupItem) {
           </button>
           <!-- The rerun action shows on every call that a rerun can rebuild, in every state. -->
           <button
-            v-if="canRerunToolCall(call.toolCall.toolName)"
+            v-if="props.canRerun && canRerunToolCall(call.toolCall.toolName)"
             type="button"
             :aria-label="t(`${KEY}.rerun`)"
             :title="t(`${KEY}.rerun`)"

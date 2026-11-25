@@ -13,7 +13,7 @@ import {
   VerificationStatus,
 } from '@apple/app-store-server-library'
 import { useLogger } from '@guiiai/logg'
-import { ApiError, createBadRequestError, createInternalError, createServiceUnavailableError } from '@proj-airi/http-error-shared'
+import { ApiError, createBadRequestError, createInternalError, createServiceUnavailableError } from '@proj-airi/http-shared'
 import { decodeJwt } from 'jose'
 import { object, optional, safeParse, string } from 'valibot'
 

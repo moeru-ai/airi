@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { computed, createApp, defineComponent, h, nextTick } from 'vue'
 import { createI18n } from 'vue-i18n'
 
+import { chatSessionsRepo } from '../../database/repos/chat-sessions.repo'
 import { useAuthStore } from '../auth'
 import { useAiriCardStore } from '../modules/airi-card'
 
@@ -47,6 +48,7 @@ const listChatsMock = vi.fn()
 const updateChatMock = vi.fn()
 const pullMessagesMock = vi.fn()
 const connectCloudWsMock = vi.fn()
+const sendMessagesMock = vi.fn().mockResolvedValue({ ok: true })
 let cloudWsStatus: 'idle' | 'open' = 'idle'
 let cloudStatusListener: ((status: 'idle' | 'open') => void) | undefined
 
@@ -96,7 +98,7 @@ vi.mock('../../libs/chat-sync', async importOriginal => ({
     connect: connectCloudWsMock,
     disconnect: vi.fn(),
     destroy: vi.fn(),
-    sendMessages: vi.fn().mockResolvedValue({ ok: true }),
+    sendMessages: sendMessagesMock,
     pullMessages: (...args: unknown[]) => pullMessagesMock(...args),
     onNewMessages: () => () => {},
     onStatusChange: (listener: (status: 'idle' | 'open') => void) => {
@@ -151,6 +153,7 @@ beforeEach(() => {
   updateChatMock.mockReset().mockResolvedValue({ id: '', type: 'bot', title: null, createdAt: '', updatedAt: '' })
   pullMessagesMock.mockReset().mockResolvedValue({ messages: [], seq: 0 })
   connectCloudWsMock.mockReset()
+  sendMessagesMock.mockClear()
   cloudWsStatus = 'idle'
   cloudStatusListener = undefined
 })
@@ -582,7 +585,7 @@ describe('chat-session-store · cloud placeholder hydration', () => {
   })
 })
 
-describe('chat-session-store · cloud title reconciliation', () => {
+describe('chat-session-store · cloud reconciliation', () => {
   function remoteChat(title: string | null) {
     return {
       id: 'cloud-session',
@@ -594,7 +597,7 @@ describe('chat-session-store · cloud title reconciliation', () => {
     }
   }
 
-  async function reconcileWith(meta: ChatSessionMeta, remote: ReturnType<typeof remoteChat> | null) {
+  async function reconcileWith(meta: ChatSessionMeta, remote: ReturnType<typeof remoteChat> | null, messages: ChatSessionRecord['messages'] = []) {
     userIdRef.value = 'cloud-user'
     getIndexMock.mockResolvedValue({
       userId: 'cloud-user',
@@ -605,7 +608,7 @@ describe('chat-session-store · cloud title reconciliation', () => {
         },
       },
     })
-    getSessionMock.mockResolvedValue({ meta, messages: [] })
+    getSessionMock.mockResolvedValue({ meta, messages })
     listChatsMock.mockResolvedValue(remote ? [remote] : [])
 
     const store = useChatSessionStore()
@@ -655,6 +658,42 @@ describe('chat-session-store · cloud title reconciliation', () => {
     await vi.waitFor(() => expect(store.sessionMetas[meta.sessionId].cloudTitlePending).toBeUndefined())
     expect(updateChatMock).toHaveBeenCalledTimes(2)
     expect(updateChatMock).toHaveBeenLastCalledWith('cloud-session', { title: 'Desired title' })
+  })
+
+  it.each(['', 'caption'])('queues an offline image with caption "%s" when its chat first syncs', async (caption) => {
+    const ref = 'airi-asset:test-image'
+    const meta = { sessionId: 'cloud-session', userId: 'cloud-user', characterId: 'default', createdAt: 1, updatedAt: 1 }
+    await reconcileWith(meta, null, [{
+      id: 'offline-image',
+      role: 'user',
+      content: [{ type: 'text', text: caption }, { type: 'image_url', image_url: { url: ref } }],
+    }])
+
+    expect(chatSessionsRepo.enqueueOutbox).toHaveBeenCalledWith('cloud-user', expect.objectContaining({
+      messageId: 'offline-image',
+      content: caption,
+      imageRefs: [ref],
+    }))
+  })
+
+  it('sends text in the same session when an image upload fails', async () => {
+    const meta = { sessionId: 'cloud-session', userId: 'cloud-user', characterId: 'default', cloudChatId: 'cloud-session', createdAt: 1, updatedAt: 1 }
+    const entry = { sessionId: meta.sessionId, role: 'user' as const, attempts: 0 }
+    getOutboxMock.mockResolvedValue([
+      { ...entry, messageId: 'image', content: 'caption', attachments: [{ id: 'attachment-1', ref: 'airi-asset:missing-image' }], queuedAt: 1 },
+      { ...entry, messageId: 'text', content: 'hello', queuedAt: 2 },
+    ])
+
+    await reconcileWith(meta, remoteChat(null))
+
+    expect(sendMessagesMock).toHaveBeenCalledWith({
+      chatId: meta.cloudChatId,
+      messages: [{ id: 'text', role: 'user', content: 'hello', mediaIds: [], replyToMessageId: undefined }],
+    })
+    expect(chatSessionsRepo.dequeueOutbox).toHaveBeenCalledWith(meta.userId, ['text'])
+    expect(chatSessionsRepo.updateOutboxEntries).toHaveBeenCalledWith(meta.userId, [
+      { messageId: 'image', attempts: 1, lastError: expect.stringContaining('Chat asset is missing') },
+    ])
   })
 
   it('includes a pending title when an unmapped session is created', async () => {

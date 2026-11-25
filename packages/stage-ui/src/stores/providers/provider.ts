@@ -1032,7 +1032,7 @@ export const useProviderStore = defineStore('provider', () => {
       providerConfigStore.ensureProvider(providerId, definitionId, config)
     }
 
-    if (!config && !noCredentials && (providerId !== 'prompt-api'))
+    if (!config && !noCredentials)
       throw new Error(`Provider credentials for ${providerId} not found`)
 
     // Configuration snapshots can arrive after a follower creates an instance.
@@ -1155,10 +1155,6 @@ export const useProviderStore = defineStore('provider', () => {
     return !!addedProviders.value[providerId] || isProviderConfigDirty(providerId)
   }
 
-  function shouldListProviderForPromptApi(providerId: string) {
-    return providerId === 'prompt-api' && 'LanguageModel' in globalThis
-  }
-
   /** Returns whether a known provider can remain selected after its stored settings are removed. Account-owned providers still require authentication settings. */
   function isProviderAvailableWithoutConfiguration(providerId: string) {
     const definition = findProviderDefinition(providerId)
@@ -1195,8 +1191,7 @@ export const useProviderStore = defineStore('provider', () => {
     return allChatProvidersMetadata.value.filter(metadata =>
       isProviderConfiguredForModule(metadata.id)
       || (providerConfiguredBy(metadata.id) !== 'authentication' && shouldListProvider(metadata.id))
-      || isProviderAvailableWithoutConfiguration(metadata.id)
-      || shouldListProviderForPromptApi(metadata.id),
+      || isProviderAvailableWithoutConfiguration(metadata.id),
     )
   })
 

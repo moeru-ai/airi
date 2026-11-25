@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import type { SessionRow } from './sessions-list.vue'
+import type { ChatSessionsPlace } from '../../../../types/chat-session'
+import type { SessionRow } from './session-row-model'
 
 import { BottomDrawer } from '@proj-airi/ui'
 import { DialogContent, DialogOverlay, DialogPortal, DialogRoot, DialogTitle, PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger } from 'reka-ui'
@@ -13,9 +14,17 @@ const props = withDefaults(defineProps<{
   rows: SessionRow[]
   isDesktop: boolean
   isCreatingSession: boolean
-  desktopMode?: 'dialog' | 'popover'
+  /** `inline` renders the list in place, without a surface, and ignores `open`. A window that keeps the list beside the chat uses it. */
+  desktopMode?: 'dialog' | 'popover' | 'inline'
+  /** The character of the conversations. The inline list names it in its title. */
+  character?: { name: string }
+  /** The inline list is on a touch screen, so its rows take swipes and long presses. */
+  touch?: boolean
+  /** The owner reads stored messages for the search. See `SessionsList`. */
+  searching?: boolean
 }>(), {
   desktopMode: 'dialog',
+  touch: false,
 })
 
 const emit = defineEmits<{
@@ -24,8 +33,16 @@ const emit = defineEmits<{
   'newSession': []
   'renameSession': [payload: { sessionId: string, title: string }]
   'selectSession': [sessionId: string]
+  'pinSession': [payload: { sessionId: string, pinned: boolean }]
+  'archiveSessions': [payload: { sessionIds: string[], archived: boolean }]
   'update:open': [open: boolean]
+  'openCharacter': []
 }>()
+
+/** The place of the list. The owner can keep it, so the list opens where the user left it. */
+const place = defineModel<ChatSessionsPlace>('place', { default: () => ({ kind: 'all' }) })
+/** The search of the list. The owner filters the rows by it. */
+const query = defineModel<string>('query', { default: '' })
 
 const { t } = useI18n()
 // Every open starts outside selection mode, so a closed list never keeps a selection.
@@ -42,11 +59,35 @@ function preserveTriggerFocus(event: Event) {
 </script>
 
 <template>
+  <div v-if="desktopMode === 'inline'" data-testid="sessions-inline" :class="['h-full min-h-0 py-2 pl-2']">
+    <SessionsList
+      v-model:selecting="selecting"
+      v-model:place="place"
+      v-model:query="query"
+      :searching="searching"
+      compact
+      fill
+      :touch="touch"
+      :character="character"
+      :class="['h-full']"
+      :rows="rows"
+      :is-creating-session="isCreatingSession"
+      @open-character="emit('openCharacter')"
+      @new-session="emit('newSession')"
+      @rename-session="emit('renameSession', $event)"
+      @select-session="emit('selectSession', $event)"
+      @delete-session="emit('deleteSession', $event)"
+      @delete-sessions="emit('deleteSessions', $event)"
+      @pin-session="emit('pinSession', $event)"
+      @archive-sessions="emit('archiveSessions', $event)"
+    />
+  </div>
   <BottomDrawer
-    v-if="!isDesktop"
+    v-else-if="!isDesktop"
     :model-value="open"
     :title="t('stage.chat.sessions.title')"
     minimum-height="half"
+    hide-title
     @update:model-value="emit('update:open', $event)"
   >
     <template v-if="$slots.trigger" #trigger>
@@ -54,6 +95,9 @@ function preserveTriggerFocus(event: Event) {
     </template>
     <SessionsList
       v-model:selecting="selecting"
+      v-model:place="place"
+      v-model:query="query"
+      :searching="searching"
       :rows="rows"
       :is-creating-session="isCreatingSession"
       @new-session="emit('newSession')"
@@ -61,6 +105,8 @@ function preserveTriggerFocus(event: Event) {
       @select-session="emit('selectSession', $event)"
       @delete-session="emit('deleteSession', $event)"
       @delete-sessions="emit('deleteSessions', $event)"
+      @pin-session="emit('pinSession', $event)"
+      @archive-sessions="emit('archiveSessions', $event)"
     />
   </BottomDrawer>
   <PopoverRoot v-else-if="desktopMode === 'popover'" :open="open" @update:open="emit('update:open', $event)">
@@ -80,6 +126,9 @@ function preserveTriggerFocus(event: Event) {
       >
         <SessionsList
           v-model:selecting="selecting"
+          v-model:place="place"
+          v-model:query="query"
+          :searching="searching"
           compact
           :rows="rows"
           :is-creating-session="isCreatingSession"
@@ -88,6 +137,8 @@ function preserveTriggerFocus(event: Event) {
           @select-session="emit('selectSession', $event)"
           @delete-session="emit('deleteSession', $event)"
           @delete-sessions="emit('deleteSessions', $event)"
+          @pin-session="emit('pinSession', $event)"
+          @archive-sessions="emit('archiveSessions', $event)"
         />
       </PopoverContent>
     </PopoverPortal>
@@ -106,11 +157,15 @@ function preserveTriggerFocus(event: Event) {
           'data-[state=closed]:animate-contentHide data-[state=open]:animate-contentShow',
         ]"
       >
-        <DialogTitle :class="['mb-5 text-xl font-semibold tracking-tight']">
+        <!-- The list shows the visible title, because it switches between all conversations and the archive. -->
+        <DialogTitle :class="['sr-only']">
           {{ t('stage.chat.sessions.title') }}
         </DialogTitle>
         <SessionsList
           v-model:selecting="selecting"
+          v-model:place="place"
+          v-model:query="query"
+          :searching="searching"
           :rows="rows"
           :is-creating-session="isCreatingSession"
           @new-session="emit('newSession')"
@@ -118,6 +173,8 @@ function preserveTriggerFocus(event: Event) {
           @select-session="emit('selectSession', $event)"
           @delete-session="emit('deleteSession', $event)"
           @delete-sessions="emit('deleteSessions', $event)"
+          @pin-session="emit('pinSession', $event)"
+          @archive-sessions="emit('archiveSessions', $event)"
         />
       </DialogContent>
     </DialogPortal>

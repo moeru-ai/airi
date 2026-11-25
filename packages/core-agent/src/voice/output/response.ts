@@ -129,6 +129,9 @@ export class SpeechStream {
   private readonly controls: SpeechControl[] = []
   /** The spoken text of the last segment, for the language of a formula that starts the next one. */
   private spoken = ''
+  /** Whether any segment got audio, and the first synthesis error. A reply fails only when no segment got audio. */
+  private synthesized = false
+  private synthesisError: Error | undefined
   readonly signal = this.abort.signal
   readonly done = this.completion.promise
 
@@ -175,14 +178,27 @@ export class SpeechStream {
           const audio = await output.synthesize(request, AbortSignal.any([signal, this.signal, response.signal]))
           const aborted = signal.aborted || this.signal.aborted || response.signal.aborted
           response.emit({ type: 'tts-result', segmentId, status: aborted ? 'cancelled' : audio ? 'audio' : 'no-audio' })
+          if (!aborted && audio)
+            this.synthesized = true
           return aborted ? null : audio
         }
         catch (cause) {
           const error = errorFromCause(cause, 'Speech synthesis failed')
           // A provider rejects when its signal aborts. A stop or an interruption is a cancellation, not a failure.
           const aborted = signal.aborted || this.signal.aborted || response.signal.aborted
-          response.emit(aborted ? { type: 'tts-result', segmentId, status: 'cancelled' } : { type: 'tts-result', segmentId, status: 'failed', error })
-          this.fail(error)
+          if (aborted) {
+            response.emit({ type: 'tts-result', segmentId, status: 'cancelled' })
+            return null
+          }
+
+          // NOTICE:
+          // Skip a single failed segment (e.g. rate limit or timeout) so subsequent segments still play.
+          // Root cause: calling this.fail(error) aborts this.signal and cancels the entire speech stream and playback queue.
+          // Source: https://github.com/moeru-ai/airi/issues/3540
+          // Removal condition: speech pipeline provides per-segment retry and degradation policies.
+          response.emit({ type: 'tts-result', segmentId, status: 'failed', error })
+          console.warn('[VoiceResponse] Speech synthesis failed, skipping one segment:', error.message)
+          this.synthesisError ??= error
           return null
         }
       },
@@ -254,7 +270,12 @@ export class SpeechStream {
       response.emit({ type: 'token-special', segmentId: segment.segmentId, special: segment.special })
       output.onSpecial?.(segment.special)
     })
-    pipeline.on('onIntentEnd', () => this.settle({ status: 'finished', value: undefined }))
+    pipeline.on('onIntentEnd', () => {
+      if (this.synthesisError && !this.synthesized)
+        this.fail(this.synthesisError)
+      else
+        this.settle({ status: 'finished', value: undefined })
+    })
 
     this.intent = pipeline.openIntent({ turnId: response.turn.turnId, ownerId: response.turn.sessionId })
   }

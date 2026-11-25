@@ -7,6 +7,7 @@ import type { AccountEventPublisher } from './services/adapters/account-events'
 import type { ConfigKVService } from './services/adapters/config-kv'
 import type { RevenuecatSubscriberClient } from './services/adapters/revenuecat-subscriber'
 import type { RevenuecatSubscriptionSync } from './services/adapters/revenuecat-subscriptions'
+import type { AttachmentService } from './services/domain/attachments'
 import type { BillingService } from './services/domain/billing/billing-service'
 import type { LlmBillingService } from './services/domain/billing/llm-billing'
 import type { CharacterCardService } from './services/domain/character-cards'
@@ -34,7 +35,7 @@ import Stripe from 'stripe'
 import { initLogger, LoggerFormat, LoggerLevel, setGlobalHookPostLog, useLogger } from '@guiiai/logg'
 import { createNodeWebSocket } from '@hono/node-ws'
 import { httpInstrumentationMiddleware } from '@hono/otel'
-import { createErrorHandler, createPayloadTooLargeError } from '@proj-airi/http-error-shared'
+import { createErrorHandler, createPayloadTooLargeError, ok } from '@proj-airi/http-shared'
 import { Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import { cors } from 'hono/cors'
@@ -55,6 +56,7 @@ import { registerTtsPoolGauge } from './otel/gauges/tts-pool'
 import { registerWsOnlineUsersGauge } from './otel/gauges/ws-online-users'
 import { createAppleIapRoutes } from './routes/apple-iap'
 import { createVerifier as createAppleIapVerifier } from './routes/apple-iap/verifier'
+import { createAttachmentRoutes } from './routes/attachments'
 import { createAudioSpeechWsHandlers } from './routes/audio-speech-ws'
 import { createAudioTranscriptionStreamHandler } from './routes/audio-transcription-stream/route'
 import { createCharacterCardRoutes } from './routes/character-cards'
@@ -82,6 +84,7 @@ import { createPosthogSink } from './services/adapters/posthog'
 import { createFanoutSink } from './services/adapters/product-analytics'
 import { createRevenuecatSubscriberClient } from './services/adapters/revenuecat-subscriber'
 import { createRevenuecatSubscriptionSync } from './services/adapters/revenuecat-subscriptions'
+import { createAttachmentService } from './services/domain/attachments'
 import { createBillingService } from './services/domain/billing/billing-service'
 import { createLlmBillingService } from './services/domain/billing/llm-billing'
 import { SpeechBilling } from './services/domain/billing/speech-billing'
@@ -106,6 +109,7 @@ import { getTrustedOrigin } from './utils/origin'
 
 interface AppDeps {
   db: Database
+  attachmentService: AttachmentService
   characterCardService: CharacterCardService
   characterService: CharacterService
   chatService: ChatService
@@ -344,6 +348,7 @@ export async function buildApp(deps: AppDeps) {
      * dependency: a single upstream blip should NOT cause Railway to
      * recycle the pod (R13/R14).
      */
+    // eslint-disable-next-line no-restricted-syntax -- The health probe contract owns this body.
     .on('GET', '/livez', c => c.json({ status: 'live' }))
     /**
      * Readiness probe (K8s convention). Verifies the instance can serve
@@ -363,6 +368,7 @@ export async function buildApp(deps: AppDeps) {
       const redisReady = redisResult.status === 'fulfilled'
       const ready = dbReady && redisReady
 
+      // eslint-disable-next-line no-restricted-syntax -- The health probe contract owns this body and its 503.
       return c.json(
         {
           status: ready ? 'ready' : 'not_ready',
@@ -378,7 +384,7 @@ export async function buildApp(deps: AppDeps) {
       if (accept && parseAccept(accept).some(media => media.type.toLowerCase() === 'text/html' && media.q > 0))
         return context.redirect(webAppUrl, 302)
 
-      return context.json({
+      return ok(context, {
         service: 'airi-api',
         message: `This is the Project AIRI API server. Visit ${webAppUrl} to use the product, or see the docs at ${docsUrl}.`,
         docs: docsUrl,
@@ -421,6 +427,8 @@ export async function buildApp(deps: AppDeps) {
      * Chat routes are handled by the chat service.
      */
     .route('/api/v1/chats', createChatRoutes(deps.chatService))
+
+    .route('/api/v1/attachments', createAttachmentRoutes(deps.attachmentService))
 
     /**
      * V1 OpenAI-compatible and audio routes. The factory returns two
@@ -479,6 +487,7 @@ export async function buildApp(deps: AppDeps) {
      * Found" so unmatched routes (typos, stale email links, scanners) get a
      * structured response and a hint at where to go for the real product UI.
      */
+    // eslint-disable-next-line no-restricted-syntax -- Known deviation in 2026-10-19-http-response-conventions.md: the API 404 adds `ui`.
     .notFound(c => c.json({
       error: 'NOT_FOUND',
       message: `No route matched ${c.req.method} ${new URL(c.req.url).pathname}. This is the airi-api server; the product UI lives at ${webAppUrl}.`,
@@ -650,6 +659,11 @@ export async function createApp() {
     },
   })
 
+  const attachmentService = injeca.provide('services:attachments', {
+    dependsOn: { db, objectStore },
+    build: ({ dependsOn }) => createAttachmentService(dependsOn.db, dependsOn.objectStore),
+  })
+
   const characterService = injeca.provide('services:characters', {
     dependsOn: { db, otel },
     build: ({ dependsOn }) => createCharacterService(dependsOn.db, dependsOn.otel?.engagement),
@@ -788,7 +802,7 @@ export async function createApp() {
   // Domain knowledge stays inside each service instead of being copied into
   // a parallel handler file.
   const userDeletionService = injeca.provide('services:userDeletion', {
-    dependsOn: { paymentService, fluxService, providerService, characterService, characterCardService, chatService, accountEvents },
+    dependsOn: { paymentService, fluxService, providerService, characterService, characterCardService, chatService, attachmentService, accountEvents },
     build: ({ dependsOn }) => {
       const service = createUserDeletionService()
       // priority: 20 = financial / cache state (Flux balance + Redis),
@@ -800,6 +814,7 @@ export async function createApp() {
       service.register({ name: 'characters', priority: 30, softDelete: ({ userId }) => dependsOn.characterService.deleteAllForUser(userId) })
       service.register({ name: 'characterCards', priority: 30, softDelete: ({ userId }) => dependsOn.characterCardService.deleteAllForUser(userId) })
       service.register({ name: 'chats', priority: 30, softDelete: ({ userId }) => dependsOn.chatService.deleteAllForUser(userId) })
+      service.register({ name: 'attachments', priority: 30, softDelete: ({ userId }) => dependsOn.attachmentService.deleteAllForUser(userId) })
       service.register(createUserDeletedEventHandler(dependsOn.accountEvents))
       return service
     },
@@ -831,6 +846,7 @@ export async function createApp() {
   const resolved = await injeca.resolve({
     objectStore,
     db,
+    attachmentService,
     characterCardService,
     characterService,
     chatService,
@@ -867,6 +883,7 @@ export async function createApp() {
 
   const appDeps = {
     db: resolved.db,
+    attachmentService: resolved.attachmentService,
     characterCardService: resolved.characterCardService,
     characterService: resolved.characterService,
     chatService: resolved.chatService,

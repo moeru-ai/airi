@@ -2,7 +2,7 @@ import type { HonoEnv } from '../routes'
 
 import { useLogger } from '@guiiai/logg'
 import { serve } from '@hono/node-server'
-import { createErrorHandler } from '@proj-airi/http-error-shared'
+import { createErrorHandler } from '@proj-airi/http-shared'
 import { Hono } from 'hono'
 import { describe, expect, it, vi } from 'vitest'
 

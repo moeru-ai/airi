@@ -30,11 +30,13 @@ function createTestI18n() {
               'empty': 'No chats',
               'delete': 'Delete',
               'delete-short': 'Delete',
+              'confirm-delete-short': 'Confirm delete',
+              'more-actions': 'More actions',
               'current': 'Current',
               'cancel': 'Cancel',
               'confirm-delete': 'Delete this conversation and its messages?',
-              'cloud-badge': 'Cloud synced',
               'rename': 'Rename conversation',
+              'rename-short': 'Rename',
               'rename-input': 'Conversation name',
               'rename-placeholder': 'Enter a conversation name',
               'save-rename': 'Save conversation name',
@@ -82,8 +84,8 @@ function createSessionsPinia() {
 
 // ROOT CAUSE:
 //
-// From 00:00 to 02:00, `Date.now() - 2 hours` falls on the previous day.
-// `intlFormatDistance` then shows "yesterday", not "2 hours ago".
+// From 00:00 to 04:00, `Date.now() - 4 hours` falls on the previous day.
+// The row then shows "yesterday", not the clock time of the message.
 //
 // We fixed this by faking only `Date` at a fixed local noon. Polling timers stay real.
 function useFixedNoon() {
@@ -112,10 +114,13 @@ describe('sessions drawer orchestration', () => {
     chatSession.sessionMessages['session-b'] = [
       { id: 'b', role: 'user', content: 'Earlier', createdAt: now - 14_400_000 },
     ]
+    // The list shows the current character only. A chat with another character stays out of it.
+    chatSession.sessionMetas['session-other'] = { ...sessionMeta('session-other', 'Chat of another character', 4), characterId: 'other' }
+    chatSession.sessionMessages['session-other'] = []
     vi.spyOn(chatSession, 'loadSession').mockResolvedValue(true)
     await screen.rerender({ modelValue: true })
-    await expect.element(screen.getByRole('button', { name: /^Chat A/ })).toHaveTextContent('2 hours ago')
-    await expect.element(screen.getByRole('button', { name: /^Chat B/ })).toHaveTextContent('4 hours ago')
+    await expect.element(screen.getByRole('button', { name: /^Chat A/ })).toHaveTextContent('10:00 AM')
+    await expect.element(screen.getByRole('button', { name: /^Chat B/ })).toHaveTextContent('8:00 AM')
     expect(Array.from(document.querySelectorAll('.session-select')).map(button => button.textContent?.trim())).toEqual([
       expect.stringContaining('Chat A'),
       expect.stringContaining('Chat B'),
@@ -123,7 +128,7 @@ describe('sessions drawer orchestration', () => {
     ])
     await chatSession.persistSessionMessages('session-b')
     expect(chatSession.sessionMetas['session-b'].updatedAt).toBeGreaterThanOrEqual(now)
-    await expect.element(screen.getByRole('button', { name: /^Chat B/ })).toHaveTextContent('4 hours ago')
+    await expect.element(screen.getByRole('button', { name: /^Chat B/ })).toHaveTextContent('8:00 AM')
     expect(document.querySelector('.session-select')?.textContent).toContain('Chat A')
     chatSession.sessionMessages['session-b'].push({
       id: 'reply',
@@ -133,7 +138,7 @@ describe('sessions drawer orchestration', () => {
       tool_results: [],
       createdAt: now - 3_600_000,
     })
-    await expect.element(screen.getByRole('button', { name: /^Chat B/ })).toHaveTextContent('1 hour ago')
+    await expect.element(screen.getByRole('button', { name: /^Chat B/ })).toHaveTextContent('11:00 AM')
     expect(document.querySelector('.session-select')?.textContent).toContain('Chat B')
   })
 
@@ -152,9 +157,12 @@ describe('sessions drawer orchestration', () => {
       { id: 'undated', role: 'user', content: 'No date' },
       { id: 'invalid', role: 'user', content: 'Invalid date', createdAt: Number.NaN },
     ]
+    // The list shows the current character only. A chat with another character stays out of it.
+    chatSession.sessionMetas['session-other'] = { ...sessionMeta('session-other', 'Chat of another character', 4), characterId: 'other' }
+    chatSession.sessionMessages['session-other'] = []
     vi.spyOn(chatSession, 'loadSession').mockResolvedValue(true)
     await screen.rerender({ modelValue: true })
-    await expect.element(screen.getByRole('button', { name: /^Chat A/ })).toHaveTextContent('2 hours ago')
+    await expect.element(screen.getByRole('button', { name: /^Chat A/ })).toHaveTextContent('10:00 AM')
   })
 
   it('renames a conversation from the session list', async () => {
@@ -168,7 +176,8 @@ describe('sessions drawer orchestration', () => {
     vi.spyOn(chatSession, 'loadSession').mockResolvedValue(true)
 
     await screen.rerender({ modelValue: true })
-    await screen.getByRole('button', { name: 'Rename conversation: Chat B' }).click()
+    await screen.getByRole('button', { name: 'More actions: Chat B' }).click()
+    await screen.getByRole('menuitem', { name: 'Rename' }).click()
     const input = screen.getByRole('textbox', { name: 'Conversation name' })
     await input.fill('Project notes')
     await screen.getByRole('button', { name: 'Save conversation name' }).click()

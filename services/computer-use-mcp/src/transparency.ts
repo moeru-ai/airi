@@ -64,6 +64,16 @@ export function explainActionIntent(action: ActionInvocation, runState: RunState
       return `Executing terminal command: \`${action.input.command.length > 80 ? `${action.input.command.slice(0, 77)}...` : action.input.command}\`${taskContext}.`
     case 'terminal_reset':
       return `Resetting the terminal state${action.input.reason ? ` (${action.input.reason})` : ''}${taskContext}.`
+    case 'browser_dom_click':
+      return `Clicking the browser element matching "${action.input.selector}"${taskContext}.`
+    case 'browser_dom_set_input_value':
+      return `Setting the browser input matching "${action.input.selector}" to a ${action.input.value.length}-character value${taskContext}.`
+    case 'browser_dom_check_checkbox':
+      return `Changing the checked state of the browser element matching "${action.input.selector}"${taskContext}.`
+    case 'browser_dom_select_option':
+      return `Selecting a browser option in "${action.input.selector}"${taskContext}.`
+    case 'browser_dom_trigger_event':
+      return `Dispatching the ${action.input.eventName} event on "${action.input.selector}"${taskContext}.`
   }
 }
 
@@ -103,6 +113,9 @@ export function explainApprovalReason(
   }
   else if (action.kind === 'secret_read_env_value') {
     parts.push('because env files may contain secrets or other sensitive values')
+  }
+  else if (action.kind.startsWith('browser_dom_')) {
+    parts.push('because it changes the current browser page')
   }
 
   if (context.available && context.appName) {
@@ -169,6 +182,16 @@ export function explainActionOutcome(params: {
       return buildTerminalOutcomeExplanation(action, terminalResult)
     case 'terminal_reset':
       return 'Terminal state has been reset.'
+    case 'browser_dom_click':
+      return `Browser element "${action.input.selector}" was clicked.`
+    case 'browser_dom_set_input_value':
+      return `Browser input "${action.input.selector}" was updated (${action.input.value.length} characters).`
+    case 'browser_dom_check_checkbox':
+      return `Browser checkbox "${action.input.selector}" was updated.`
+    case 'browser_dom_select_option':
+      return `Browser option "${action.input.selector}" was updated.`
+    case 'browser_dom_trigger_event':
+      return `Browser event "${action.input.eventName}" was dispatched on "${action.input.selector}".`
   }
 }
 
@@ -204,6 +227,13 @@ function buildFailureExplanation(
       parts.push(`Verify that "${app}" is installed and listed in COMPUTER_USE_OPENABLE_APPS.`)
       break
     }
+    case 'browser_dom_click':
+    case 'browser_dom_set_input_value':
+    case 'browser_dom_check_checkbox':
+    case 'browser_dom_select_option':
+    case 'browser_dom_trigger_event':
+      parts.push('Read the current browser DOM and verify the selector before retrying.')
+      break
   }
 
   return parts.join(' ')

@@ -62,7 +62,11 @@ const props = withDefaults(defineProps<AnimatedContentProps>(), {
  *   `https://github.com/videojs/v10/blob/35616db5a38d193f1fc114da4af68a79f08093f1/packages/skins/src/default/css/components/menus.css#L25-L77`
  *
  * This primitive follows those projects by resizing the outer box and focusing
- * an inner content layer separately. It deliberately does not copy drawesome's
+ * an inner content layer separately. Content that a positioning owner such as
+ * Reka places (it sets `data-side`) keeps its final height from the first frame
+ * and only fades and slides. The owner measures the content on each frame to
+ * choose a side, so a growing height makes a menu near an edge open on one side
+ * and then flip to the other. It deliberately does not copy drawesome's
  * JavaScript measurement: AIRI's Electron Chromium supports native intrinsic
  * size interpolation, so `interpolate-size: allow-keywords` can animate from
  * `0` to `auto` without layout observers. The feature query keeps opacity and
@@ -115,11 +119,11 @@ const props = withDefaults(defineProps<AnimatedContentProps>(), {
     interpolate-size: allow-keywords;
   }
 
-  .animated-content[data-state="open"] {
+  .animated-content:not([data-side])[data-state="open"] {
     animation-name: animated-content-size-expand;
   }
 
-  .animated-content[data-state="closed"] {
+  .animated-content:not([data-side])[data-state="closed"] {
     animation-name: animated-content-size-collapse;
   }
 }

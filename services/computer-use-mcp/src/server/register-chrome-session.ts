@@ -42,10 +42,13 @@ export async function executeChromeEnsure(
   runtime: ComputerUseServerRuntime,
   input: DesktopEnsureChromeApprovalInput,
   operationUnits?: number,
+  signal?: AbortSignal,
 ): Promise<CallToolResult> {
+  signal?.throwIfAborted()
   const sessionInfo = await runtime.chromeSessionManager.ensureAgentWindow({
     url: input.url,
     cdpPort: input.cdpPort,
+    signal,
   })
 
   // Persist in state
@@ -81,6 +84,7 @@ export async function executeChromeEnsure(
   // Best-effort only: Chrome may need a moment before the DevTools server answers.
   let cdpStatus = 'not applicable'
   if (sessionInfo.cdpUrl) {
+    signal?.throwIfAborted()
     try {
       const probe = await runtime.cdpBridgeManager.probeAvailability(sessionInfo.cdpUrl)
       if (probe.connectable) {

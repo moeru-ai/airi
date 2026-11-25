@@ -1,6 +1,6 @@
 import type { Database } from '../../../libs/db'
 
-import { ApiError } from '@proj-airi/http-error-shared'
+import { ApiError } from '@proj-airi/http-shared'
 import { eq } from 'drizzle-orm'
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
@@ -77,7 +77,7 @@ describe('providerCatalogService', () => {
       },
     })
     await db.update(providerCatalogTtsModels)
-      .set({ enabled: false, displayName: 'Curated CosyVoice', displayOrder: 7 })
+      .set({ enabled: false, displayName: 'Curated CosyVoice', displayOrder: 7, description: 'Faster first audio', costMultiplier: 5 })
       .where(eq(providerCatalogTtsModels.id, first[0].id))
 
     await service.syncTtsModelsFromRouterConfig({
@@ -93,11 +93,15 @@ describe('providerCatalogService', () => {
       enabled: false,
       displayName: 'Curated CosyVoice',
       displayOrder: 7,
+      description: 'Faster first audio',
+      costMultiplier: 5,
       provider: 'dashscope-cosyvoice',
     })
     expect(models.find(model => model.routerModelId === 'microsoft/v1')).toMatchObject({
       enabled: true,
       displayName: 'microsoft/v1',
+      description: null,
+      costMultiplier: 1,
       provider: 'azure',
     })
   })

@@ -74,10 +74,10 @@ async function extractColorsFromModel() {
 meta:
   layout: settings
   titleKey: settings.pages.models.title
-  subtitleKey: settings.title
+  subtitleKey: settings.pages.card.title
   descriptionKey: settings.pages.models.description
   icon: i-solar:people-nearby-bold-duotone
-  settingsEntry: true
+  settingsEntry: false
   order: 4
   stageTransition:
     name: slide

@@ -1,3 +1,5 @@
+import type { McpToolExposureMode } from '@proj-airi/stage-ui/types/mcp'
+
 import type {
   ElectronMcpConfigFile,
   ElectronMcpHttpServerConfig,
@@ -123,13 +125,15 @@ export function isHttpServerConfig(config: ElectronMcpServerConfig): config is E
  * - Parsing JSON drafts in the settings page
  *
  * Expects:
- * - The root object contains only `mcpServers`
+ * - The root contains server definitions and an optional bundled Terminal switch
  * - Each server entry matches {@link electronMcpServerConfigSchema}
  *
  * Returns:
  * - A strict Zod schema for the full MCP config file
  */
 export const electronMcpConfigSchema = z.object({
+  terminalEnabled: z.boolean().optional(),
+  toolExposure: z.record(z.string().min(1), z.enum(['disabled', 'direct', 'router-only'] satisfies readonly [McpToolExposureMode, McpToolExposureMode, McpToolExposureMode])).optional(),
   mcpServers: z.record(z.string(), electronMcpServerConfigSchema),
 }).strict() satisfies z.ZodType<ElectronMcpConfigFile>
 

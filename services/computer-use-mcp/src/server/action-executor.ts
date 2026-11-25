@@ -1,5 +1,7 @@
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
+import type { TerminalOrigin } from '@proj-airi/stage-shared/terminal-approval'
 
+import type { ModelDecisionContract } from '../contracts/agent-execution'
 import type { DisplayPointResolution, MultiDisplaySnapshot } from '../display'
 import type {
   ActionInvocation,
@@ -8,19 +10,31 @@ import type {
   DisplayInfo,
   ForegroundContext,
   PolicyDecision,
+  PreparedGroundingBinding,
   ScreenshotArtifact,
   TerminalCommandResult,
+  TerminalExecution,
   TerminalState,
 } from '../types'
 import type { ComputerUseServerRuntime } from './runtime'
 
+import { hostname } from 'node:os'
+import { platform } from 'node:process'
+
+import { terminalSnapshotSchema } from '@proj-airi/stage-shared/terminal-approval'
+
+import * as v from 'valibot'
+
 import { normalizeConfiguredAppAction } from '../app-aliases'
 import { decideBrowserTypeAction } from '../browser-action-router'
+import { diagnoseBrowserActionError } from '../browser-dom/browser-repair-contract'
 import { isBrowserDomActionSupported } from '../browser-dom/capabilities'
+import { attachAgentExecutionContracts, buildAgentExecutionContracts, createModelDecision } from '../contracts/agent-execution'
 import { resolveDisplayPoint } from '../display'
 import { evaluateActionPolicy } from '../policy'
 import { getRuntimePreflight } from '../preflight'
 import { buildCoordinateSpaceInfo } from '../runtime-probes'
+import { resolveSnapByCandidate } from '../snap-resolver'
 import { evaluateStrategy, summarizeAdvisories } from '../strategy'
 import { buildPointerTrace } from '../trace'
 import {
@@ -38,8 +52,9 @@ import {
   readEnvValue,
 } from '../utils/env-file'
 import { errorMessageFromValue } from '../utils/error-message'
+import { assertApprovedForeground } from './approved-foreground'
 import { executeDesktopClickTarget } from './desktop-grounding-actions'
-import { describeExecutionTarget } from './formatters'
+import { describeExecutionTarget, describeTerminalBackend } from './formatters'
 import { refreshRuntimeRunState } from './refresh-run-state'
 import {
   buildApprovalResponse,
@@ -50,6 +65,17 @@ import {
 
 export interface ExecuteActionOptions {
   skipApprovalQueue?: boolean
+  modelDecision?: ModelDecisionContract
+  /** Identifies the authority that allowed a previously pending action. */
+  authorizationSource?: 'policy' | 'host'
+  executionSignal?: AbortSignal
+  /** Foreground context captured when the Host approval was requested. */
+  approvedContext?: ForegroundContext
+  /** Grounding identity frozen when the Host approved a desktop_click_target. */
+  boundGrounding?: PreparedGroundingBinding
+  terminalOrigin?: TerminalOrigin
+  /** The private Host handler supplies the final check and synchronous executor start. Public tools cannot supply callbacks. */
+  terminalExecution?: () => TerminalExecution
 }
 
 export type ExecuteAction = (action: ActionInvocation, toolName: string, options?: ExecuteActionOptions) => Promise<CallToolResult>
@@ -62,6 +88,8 @@ async function captureOptionalScreenshot(params: {
   action: ActionInvocation
   executor: DesktopExecutor
   config: ComputerUseConfig
+  signal?: AbortSignal
+  targetWindowContext?: ForegroundContext
 }) {
   let captureAfter = params.config.defaultCaptureAfter
 
@@ -86,7 +114,11 @@ async function captureOptionalScreenshot(params: {
 
   return await params.executor.takeScreenshot({
     label: `${params.action.kind}-after`,
-  })
+  }, { signal: params.signal, targetWindowContext: params.targetWindowContext })
+}
+
+function isAuvWindowBoundAction(action: ActionInvocation) {
+  return ['click', 'desktop_click_target', 'type_text', 'press_keys', 'scroll'].includes(action.kind)
 }
 
 function buildDeniedDecision(params: {
@@ -168,6 +200,19 @@ function getCoordinateMutationTarget(action: ActionInvocation): { x: number, y: 
   }
 }
 
+function getBrowserDomSelector(action: ActionInvocation): string | undefined {
+  switch (action.kind) {
+    case 'browser_dom_click':
+    case 'browser_dom_set_input_value':
+    case 'browser_dom_check_checkbox':
+    case 'browser_dom_select_option':
+    case 'browser_dom_trigger_event':
+      return action.input.selector
+    default:
+      return undefined
+  }
+}
+
 function toStructuredDisplayPoint(resolution: DisplayPointResolution) {
   return {
     coordinateSpace: 'global-logical',
@@ -234,14 +279,32 @@ function getPolicyEvaluationContext(params: {
 }
 
 export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteAction {
-  return async (action, toolName, options = {}) => {
+  const executeAction: ExecuteAction = async (action, toolName, options = {}) => {
+    options.executionSignal?.throwIfAborted()
     const normalizedAction = normalizeConfiguredAppAction(action, runtime.config.openableApps)
-    const { executionTarget, context: actualContext, displayInfo } = await refreshRuntimeRunState(runtime)
-    const context = getPolicyEvaluationContext({
+    const modelDecision = options.modelDecision ?? createModelDecision(toolName, normalizedAction)
+    const finalize = (result: CallToolResult, authorizationSource?: 'policy' | 'host') => attachAgentExecutionContracts(
+      result,
+      buildAgentExecutionContracts({ result, modelDecision, authorizationSource }),
+    )
+    const isTerminal = normalizedAction.kind === 'terminal_exec' || normalizedAction.kind === 'terminal_reset'
+    const isBrowserDomAction = normalizedAction.kind.startsWith('browser_dom_')
+    const { executionTarget, context: actualContext, displayInfo } = isTerminal && runtime.config.executor === 'auv'
+      ? getAuvTerminalRunState(runtime)
+      : await refreshRuntimeRunState(runtime, { probeBrowser: !isTerminal })
+    options.executionSignal?.throwIfAborted()
+    const terminalBackend = isTerminal ? runtime.terminalRunner.describe().kind : undefined
+    const observedPolicyContext = getPolicyEvaluationContext({
       action: normalizedAction,
       actualContext,
       runtime,
     })
+    const targetWindowContext = options.approvedContext ?? observedPolicyContext
+    const context = runtime.config.executor === 'auv'
+      && options.approvedContext
+      && (isAuvWindowBoundAction(normalizedAction) || normalizedAction.kind === 'open_app' || normalizedAction.kind === 'focus_app')
+      ? options.approvedContext
+      : observedPolicyContext
     const actualForegroundContext = context === actualContext ? undefined : actualContext
 
     const budget = runtime.session.getBudgetState()
@@ -250,14 +313,16 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
       lastScreenshot: runtime.session.getLastScreenshot(),
       displayInfo,
       executionTarget,
+      foregroundContext: context,
     })
-    const decision = evaluateActionPolicy({
+    const baseDecision = evaluateActionPolicy({
       action: normalizedAction,
       config: runtime.config,
       context,
       operationsExecuted: budget.operationsExecuted,
       operationUnitsConsumed: budget.operationUnitsConsumed,
     })
+    const decision = baseDecision
     runtime.stateManager.updatePolicyDecision(decision)
 
     // Evaluate strategy advisories.
@@ -285,7 +350,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
       },
     })
 
-    if (preflight.blockingIssues.length > 0) {
+    if (!isBrowserDomAction && preflight.blockingIssues.length > 0) {
       const deniedDecision = buildDeniedDecision({
         decision,
         issues: preflight.blockingIssues,
@@ -304,10 +369,14 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
         },
       })
 
-      return buildDeniedResponse(deniedDecision, context, executionTarget)
+      return finalize(buildDeniedResponse(deniedDecision, context, executionTarget, terminalBackend), options.authorizationSource)
     }
 
-    if (isMutatingAction(normalizedAction) && preflight.mutationReadinessIssues.length > 0) {
+    const isMutationBlockedByPreflight = !isBrowserDomAction && isMutatingAction(normalizedAction)
+      && (runtime.config.executor !== 'auv' || normalizedAction.kind !== 'terminal_exec')
+      && preflight.mutationReadinessIssues.length > 0
+
+    if (isMutationBlockedByPreflight) {
       const deniedDecision = buildDeniedDecision({
         decision,
         issues: preflight.mutationReadinessIssues,
@@ -326,7 +395,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
         },
       })
 
-      return buildDeniedResponse(deniedDecision, context, executionTarget)
+      return finalize(buildDeniedResponse(deniedDecision, context, executionTarget, terminalBackend), options.authorizationSource)
     }
 
     if (!decision.allowed) {
@@ -341,7 +410,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
         },
       })
 
-      return buildDeniedResponse(decision, context, executionTarget)
+      return finalize(buildDeniedResponse(decision, context, executionTarget, terminalBackend), options.authorizationSource)
     }
 
     const actionDisplayPoint = resolveActionDisplayPoint(normalizedAction, displayInfo)
@@ -365,7 +434,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
         },
       })
 
-      return buildDeniedResponse(deniedDecision, context, executionTarget)
+      return finalize(buildDeniedResponse(deniedDecision, context, executionTarget), options.authorizationSource)
     }
     const structuredDisplayPoint = actionDisplayPoint?.status === 'ok'
       ? actionDisplayPoint.structured
@@ -377,39 +446,84 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
         action: normalizedAction,
         context,
         policy: decision,
+        modelDecision,
       })
-      runtime.stateManager.setPendingApprovalCount(runtime.session.listPendingActions().length)
+      try {
+        if (normalizedAction.kind === 'terminal_exec' && options.terminalOrigin) {
+          if (options.terminalOrigin.nonce !== runtime.terminalControlNonce || !runtime.terminalRunner.prepare)
+            throw new Error('The executor cannot prepare this Host Terminal operation.')
+          const snapshot = v.parse(terminalSnapshotSchema, {
+            protocol: 'airi-terminal-approval/1' as const,
+            preparedId: pending.id,
+            requestId: options.terminalOrigin.requestId,
+            toolCallId: options.terminalOrigin.toolCallId,
+            ...runtime.terminalRunner.prepare(normalizedAction.input),
+          })
+          Object.freeze(snapshot.argv)
+          pending.preparedTerminal = Object.freeze(snapshot)
+        }
+        if (normalizedAction.kind === 'desktop_click_target') {
+          const state = runtime.stateManager.getState()
+          const groundingSnapshot = state.lastGroundingSnapshot
+          if (!groundingSnapshot)
+            throw new Error('No computer_observe snapshot available. Call computer_observe first to get a list of target candidates.')
+          const candidateId = normalizedAction.input.candidateId
+          const candidate = groundingSnapshot.targetCandidates.find(item => item.id === candidateId)
+          const candidateLabel = candidate?.label?.trim() ?? ''
+          if (!candidateLabel) {
+            throw new Error(`Candidate "${candidateId}" not found in snapshot "${groundingSnapshot.snapshotId}". Available candidates: ${groundingSnapshot.targetCandidates.map(item => item.id).join(', ')}`)
+          }
+          const snap = resolveSnapByCandidate(candidateId, groundingSnapshot)
+          if (snap.source === 'none' && !snap.candidateId)
+            throw new Error(`Candidate "${candidateId}" not found in snapshot "${groundingSnapshot.snapshotId}".`)
+          pending.preparedGrounding = Object.freeze({
+            snapshotId: groundingSnapshot.snapshotId,
+            candidateId,
+            candidateLabel,
+          })
+        }
+        runtime.stateManager.setPendingApprovalCount(runtime.session.listPendingActions().length)
 
-      await runtime.session.record({
-        event: 'approval_required',
-        toolName,
-        action: normalizedAction,
-        context,
-        policy: decision,
-        result: {
-          executionTarget,
-          pendingActionId: pending.id,
-        },
-      })
+        await runtime.session.record({
+          event: 'approval_required',
+          toolName,
+          action: normalizedAction,
+          context,
+          policy: decision,
+          result: {
+            executionTarget,
+            pendingActionId: pending.id,
+          },
+        })
 
-      // Transparency: explain why approval is needed.
-      const approvalExplanation = explainApprovalReason(normalizedAction, decision, context)
-      return buildApprovalResponse(pending, decision, context, {
-        intent,
-        approvalReason: approvalExplanation,
-        advisorySummary,
-      })
+        return finalize(buildApprovalResponse(pending, decision, context, {
+          intent,
+          approvalReason: explainApprovalReason(normalizedAction, decision, context),
+          advisorySummary,
+        }), 'host')
+      }
+      catch (error) {
+        // No approval result was sent. The caller has no prepared ID to discard.
+        runtime.session.removePendingAction(pending.id)
+        runtime.stateManager.setPendingApprovalCount(runtime.session.listPendingActions().length)
+        throw error
+      }
     }
 
     try {
+      options.executionSignal?.throwIfAborted()
       let backendResult: Record<string, unknown> = {}
+      let terminalResult: TerminalCommandResult | undefined
       let clipboardStructuredContent: Record<string, unknown> | undefined
       let secretStructuredContent: Record<string, unknown> | undefined
       let summaryOverride: string | undefined
 
       switch (normalizedAction.kind) {
         case 'screenshot': {
-          const screenshot = await runtime.executor.takeScreenshot(normalizedAction.input)
+          const screenshot = await runtime.executor.takeScreenshot(normalizedAction.input, {
+            signal: options.executionSignal,
+            targetWindowContext,
+          })
           runtime.session.setLastScreenshot(screenshot)
           runtime.stateManager.updateLastScreenshot({
             path: screenshot.path,
@@ -421,6 +535,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
             executionTargetMode: screenshot.executionTargetMode,
             sourceHostName: screenshot.sourceHostName,
             sourceDisplayId: screenshot.sourceDisplayId,
+            sourceWindowId: screenshot.sourceWindowId,
             sourceSessionTag: screenshot.sourceSessionTag,
           })
           runtime.session.consumeOperation(decision.estimatedOperationUnits)
@@ -440,7 +555,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
             },
           })
 
-          return buildSuccessResponse({
+          return finalize(buildSuccessResponse({
             summary: `Screenshot captured (${screenshot.width || '?'}x${screenshot.height || '?'}) on ${describeExecutionTarget(executionTarget)}.`,
             screenshot,
             structuredContent: {
@@ -458,16 +573,16 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
               }),
               screenshot: toScreenshotContent(screenshot),
             },
-          })
+          }), options.authorizationSource)
         }
         case 'observe_windows': {
-          const observation = await runtime.executor.observeWindows(normalizedAction.input)
+          const observation = await runtime.executor.observeWindows(normalizedAction.input, { signal: options.executionSignal })
           runtime.stateManager.updateWindowObservation(observation)
           backendResult = { observation }
           break
         }
         case 'open_app': {
-          const result = await runtime.executor.openApp(normalizedAction.input)
+          const result = await runtime.executor.openApp(normalizedAction.input, { signal: options.executionSignal })
           backendResult = {
             ...result,
             app: normalizedAction.input.app,
@@ -475,7 +590,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
           break
         }
         case 'focus_app': {
-          const result = await runtime.executor.focusApp(normalizedAction.input)
+          const result = await runtime.executor.focusApp(normalizedAction.input, { signal: options.executionSignal })
           backendResult = {
             ...result,
             app: normalizedAction.input.app,
@@ -491,6 +606,10 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
           const result = await runtime.executor.click({
             ...normalizedAction.input,
             pointerTrace,
+          }, {
+            signal: options.executionSignal,
+            targetWindowId: targetWindowContext.windowId,
+            targetWindowContext,
           })
           runtime.session.setPointerPosition({ x: normalizedAction.input.x, y: normalizedAction.input.y })
           backendResult = {
@@ -520,6 +639,10 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
                 button: 'left',
                 clickCount: 1,
                 pointerTrace,
+              }, {
+                signal: options.executionSignal,
+                targetWindowId: targetWindowContext.windowId,
+                targetWindowContext,
               })
               runtime.session.setPointerPosition({ x: normalizedAction.input.x!, y: normalizedAction.input.y! })
               backendResult.focusPointerTrace = pointerTrace
@@ -550,6 +673,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
                 && isBrowserDomActionSupported(runtime.browserDomBridge, 'setInputValue')
               ) {
                 try {
+                  options.executionSignal?.throwIfAborted()
                   await runtime.browserDomBridge!.setInputValue({
                     selector: typeDecision.selector,
                     value: normalizedAction.input.text,
@@ -566,7 +690,9 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
                     reason: typeDecision.reason,
                   }
                 }
-                catch {
+                catch (error) {
+                  if (options.executionSignal?.aborted)
+                    throw error
                   // Fallback to OS typeText below
                 }
               }
@@ -574,7 +700,13 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
           }
 
           if (!usedBrowserDom) {
-            const result = await runtime.executor.typeText(normalizedAction.input)
+            options.executionSignal?.throwIfAborted()
+            await assertApprovedForeground(runtime, options.approvedContext)
+            const result = await runtime.executor.typeText(normalizedAction.input, {
+              signal: options.executionSignal,
+              targetWindowId: targetWindowContext.windowId,
+              targetWindowContext,
+            })
             backendResult = {
               ...backendResult,
               ...result,
@@ -583,17 +715,32 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
 
           // Handle pressEnter even when browser-dom was used
           if (usedBrowserDom && normalizedAction.input.pressEnter) {
-            await runtime.executor.pressKeys({ keys: ['Return'] })
+            options.executionSignal?.throwIfAborted()
+            await assertApprovedForeground(runtime, options.approvedContext)
+            await runtime.executor.pressKeys({ keys: ['Return'] }, {
+              signal: options.executionSignal,
+              targetWindowId: targetWindowContext.windowId,
+              targetWindowContext,
+            })
           }
           break
         }
         case 'press_keys': {
-          const result = await runtime.executor.pressKeys(normalizedAction.input)
+          await assertApprovedForeground(runtime, options.approvedContext)
+          const result = await runtime.executor.pressKeys(normalizedAction.input, {
+            signal: options.executionSignal,
+            targetWindowId: targetWindowContext.windowId,
+            targetWindowContext,
+          })
           backendResult = { ...result }
           break
         }
         case 'scroll': {
-          const result = await runtime.executor.scroll(normalizedAction.input)
+          const result = await runtime.executor.scroll(normalizedAction.input, {
+            signal: options.executionSignal,
+            targetWindowId: targetWindowContext.windowId,
+            targetWindowContext,
+          })
           if (typeof normalizedAction.input.x === 'number' && typeof normalizedAction.input.y === 'number') {
             runtime.session.setPointerPosition({ x: normalizedAction.input.x, y: normalizedAction.input.y })
           }
@@ -604,12 +751,25 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
           break
         }
         case 'wait': {
-          const result = await runtime.executor.wait(normalizedAction.input)
+          const result = await runtime.executor.wait(normalizedAction.input, { signal: options.executionSignal })
           backendResult = { ...result }
           break
         }
         case 'terminal_exec': {
-          const result = await runtime.terminalRunner.execute(normalizedAction.input)
+          let result: TerminalCommandResult
+          if (options.terminalExecution) {
+            const execution = options.terminalExecution()
+            try {
+              result = await execution.result
+            }
+            finally {
+              await execution.lifecycle
+            }
+          }
+          else {
+            result = await runtime.terminalRunner.execute(normalizedAction.input)
+          }
+          terminalResult = result
           runtime.session.setTerminalState(runtime.terminalRunner.getState())
           runtime.stateManager.updateTerminalResult(result)
           backendResult = {
@@ -623,6 +783,56 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
           runtime.session.setTerminalState(state)
           backendResult = {
             terminalState: toTerminalStateContent(state),
+          }
+          break
+        }
+        case 'browser_dom_click': {
+          const result = await runtime.browserDomBridge.clickSelector(normalizedAction.input)
+          const clickSucceeded = result.clickResults.some(frame => (frame.result as Record<string, unknown>)?.success === true)
+          if (!clickSucceeded)
+            throw new Error(`No browser DOM click succeeded for selector "${normalizedAction.input.selector}".`)
+          backendResult = {
+            targetFrameId: result.targetFrameId,
+            targetPoint: result.targetPoint,
+            targetElement: result.targetElement,
+            clickResults: result.clickResults,
+          }
+          break
+        }
+        case 'browser_dom_set_input_value': {
+          const results = await runtime.browserDomBridge.setInputValue(normalizedAction.input)
+          backendResult = {
+            selector: normalizedAction.input.selector,
+            valueLength: normalizedAction.input.value.length,
+            results,
+          }
+          break
+        }
+        case 'browser_dom_check_checkbox': {
+          const results = await runtime.browserDomBridge.checkCheckbox(normalizedAction.input)
+          backendResult = {
+            selector: normalizedAction.input.selector,
+            checked: normalizedAction.input.checked,
+            results,
+          }
+          break
+        }
+        case 'browser_dom_select_option': {
+          const results = await runtime.browserDomBridge.selectOption(normalizedAction.input)
+          backendResult = {
+            selector: normalizedAction.input.selector,
+            value: normalizedAction.input.value,
+            results,
+          }
+          break
+        }
+        case 'browser_dom_trigger_event': {
+          const results = await runtime.browserDomBridge.triggerEvent(normalizedAction.input)
+          backendResult = {
+            selector: normalizedAction.input.selector,
+            eventName: normalizedAction.input.eventName,
+            eventType: normalizedAction.input.eventType,
+            results,
           }
           break
         }
@@ -672,7 +882,13 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
           break
         }
         case 'desktop_click_target': {
-          const result = await executeDesktopClickTarget(runtime, normalizedAction.input)
+          const result = await executeDesktopClickTarget(runtime, normalizedAction.input, {
+            signal: options.executionSignal,
+            targetWindowId: context.windowId,
+            targetWindowContext,
+            boundGrounding: options.boundGrounding,
+            approvedForeground: options.approvedContext,
+          })
           backendResult = result.backendResult
           summaryOverride = result.summary
           break
@@ -680,11 +896,22 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
       }
 
       runtime.session.consumeOperation(decision.estimatedOperationUnits)
-      const screenshot = await captureOptionalScreenshot({
-        action: normalizedAction,
-        executor: runtime.executor,
-        config: runtime.config,
-      })
+      let screenshot: ScreenshotArtifact | undefined
+      let postActionCaptureError: string | undefined
+      try {
+        screenshot = await captureOptionalScreenshot({
+          action: normalizedAction,
+          executor: runtime.executor,
+          config: runtime.config,
+          signal: options.executionSignal,
+          targetWindowContext: isAuvWindowBoundAction(normalizedAction) ? targetWindowContext : undefined,
+        })
+      }
+      catch (error) {
+        if (runtime.config.executor !== 'auv' || !isMutatingAction(normalizedAction))
+          throw error
+        postActionCaptureError = errorMessageFromValue(error)
+      }
       if (screenshot) {
         runtime.session.setLastScreenshot(screenshot)
         runtime.stateManager.updateLastScreenshot({
@@ -697,17 +924,27 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
           executionTargetMode: screenshot.executionTargetMode,
           sourceHostName: screenshot.sourceHostName,
           sourceDisplayId: screenshot.sourceDisplayId,
+          sourceWindowId: screenshot.sourceWindowId,
           sourceSessionTag: screenshot.sourceSessionTag,
         })
       }
 
       // Transparency: explain what just happened.
-      const outcome = explainActionOutcome({
+      let outcome = explainActionOutcome({
         action: normalizedAction,
         succeeded: true,
-        terminalResult: normalizedAction.kind === 'terminal_exec' ? (backendResult as unknown as TerminalCommandResult) : undefined,
+        terminalResult,
         context,
       })
+      if (terminalBackend)
+        outcome += ` ${describeTerminalBackend(terminalBackend)}`
+      if (runtime.config.executor === 'auv' && ['click', 'desktop_click_target', 'type_text', 'press_keys', 'scroll'].includes(normalizedAction.kind)) {
+        outcome = `AUV reported input delivery; the target application's state has not been verified. ${outcome}`
+      }
+      if (postActionCaptureError) {
+        outcome += ` The post-action screenshot failed, so inspect the current application state before retrying: ${postActionCaptureError}`
+        backendResult.postActionCapture = { status: 'failed', error: postActionCaptureError, doNotReplay: true }
+      }
 
       await runtime.session.record({
         event: 'executed',
@@ -718,12 +955,13 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
         result: {
           ...backendResult,
           executionTarget,
+          terminalBackend,
           screenshotPath: screenshot?.path,
           displayInfo,
         },
       })
 
-      return buildSuccessResponse({
+      return finalize(buildSuccessResponse({
         summary: summaryOverride ?? `${intent} ${outcome}${advisorySummary ? ` Strategy: ${advisorySummary}` : ''}`,
         screenshot,
         structuredContent: {
@@ -733,6 +971,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
           policy: decision,
           launchContext: preflight.launchContext,
           executionTarget,
+          terminalBackend,
           displayInfo,
           coordinateSpace: buildCoordinateSpaceInfo({
             config: runtime.config,
@@ -753,7 +992,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
             advisories: advisories.map(a => ({ kind: a.kind, reason: a.reason })),
           },
         },
-      })
+      }), options.authorizationSource)
     }
     catch (error) {
       const errorMessage = errorMessageFromValue(error)
@@ -779,17 +1018,55 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
         policy: decision,
         result: {
           executionTarget,
+          terminalBackend,
           error: errorMessage,
         },
       })
 
-      return buildExecutionErrorResponse({
+      return finalize(buildExecutionErrorResponse({
         errorMessage: `${failureExplanation}${advisorySummary ? ` Strategy: ${advisorySummary}` : ''}`,
         action: normalizedAction,
         context,
         executionTarget,
+        terminalBackend,
         policy: decision,
-      })
+        repairSuggestion: (() => {
+          const selector = getBrowserDomSelector(normalizedAction)
+          const suggestion = selector ? diagnoseBrowserActionError(error, selector, normalizedAction.kind) : null
+          return suggestion ? { ...suggestion } : undefined
+        })(),
+      }), options.authorizationSource)
     }
   }
+  return executeAction
+}
+
+/** Terminal execution is independent of desktop observation and must remain usable when AUV is unavailable. */
+function getAuvTerminalRunState(runtime: ComputerUseServerRuntime) {
+  const state = runtime.stateManager.getState()
+  const executionTarget = state.executionTarget ?? {
+    mode: 'local-windowed' as const,
+    transport: 'local' as const,
+    hostName: hostname(),
+    sessionTag: runtime.config.sessionTag,
+    isolated: false,
+    tainted: false,
+    note: 'AUV desktop was not probed for this Terminal action',
+  }
+  const context = state.foregroundContext ?? {
+    available: false,
+    platform,
+    unavailableReason: 'AUV desktop was not probed for this Terminal action',
+  }
+  const displayInfo = state.displayInfo ?? {
+    available: false,
+    platform,
+    note: 'AUV desktop was not probed for this Terminal action',
+  }
+  runtime.stateManager.updateExecutionTarget(executionTarget)
+  runtime.stateManager.updateForegroundContext(context)
+  runtime.stateManager.updateDisplayInfo(displayInfo)
+  runtime.stateManager.updateTerminalState(runtime.terminalRunner.getState())
+  runtime.stateManager.setPendingApprovalCount(runtime.session.listPendingActions().length)
+  return { executionTarget, context, displayInfo, browserSurfaceAvailability: state.browserSurfaceAvailability }
 }

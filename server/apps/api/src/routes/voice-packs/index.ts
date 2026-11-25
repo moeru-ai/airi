@@ -12,7 +12,6 @@ function publicVoicePack(pack: Awaited<ReturnType<VoicePackService['listEnabled'
     description: pack.description,
     voiceId: pack.voiceId,
     params: pack.params,
-    costMultiplier: pack.costMultiplier,
     enabled: pack.enabled,
     createdAt: pack.createdAt,
     updatedAt: pack.updatedAt,
@@ -31,6 +30,7 @@ export function createVoicePackRoutes(service: VoicePackService) {
     .use('*', authGuard)
     .get('/', async (c) => {
       const packs = await service.listEnabled()
+      // eslint-disable-next-line no-restricted-syntax -- Known deviation in 2026-10-19-http-response-conventions.md: clients read a bare array.
       return c.json(packs.map(publicVoicePack))
     })
 }

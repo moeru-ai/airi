@@ -16,6 +16,17 @@ const googleGenerativeApiKeyCandidates = [
   'GOOGLE_GENERATIVE_AI_API_KEY',
 ] as const
 
+const openAICompatibleApiKeyCandidates = [
+  'AIRI_E2E_API_KEY',
+  'AIRI_E2E_OPENAI_COMPATIBLE_API_KEY',
+  'OPENAI_API_KEY',
+] as const
+
+const openAICompatibleBaseUrlCandidates = [
+  'AIRI_E2E_BASE_URL',
+  'AIRI_E2E_OPENAI_COMPATIBLE_BASE_URL',
+] as const
+
 type EnvMap = NodeJS.ProcessEnv | Record<string, string | undefined>
 
 function readFirstNonEmptyValue(source: EnvMap, keys: readonly string[]) {
@@ -43,6 +54,22 @@ export function resolveGoogleGenerativeApiKey(params: {
 }) {
   return readFirstNonEmptyValue(params.processEnv, googleGenerativeApiKeyCandidates)
     || readFirstNonEmptyValue(params.dotenvValues, googleGenerativeApiKeyCandidates)
+}
+
+export function resolveOpenAICompatibleApiKey(params: {
+  processEnv: EnvMap
+  dotenvValues: Record<string, string>
+}) {
+  return readFirstNonEmptyValue(params.processEnv, openAICompatibleApiKeyCandidates)
+    || readFirstNonEmptyValue(params.dotenvValues, openAICompatibleApiKeyCandidates)
+}
+
+export function resolveOpenAICompatibleBaseUrl(params: {
+  processEnv: EnvMap
+  dotenvValues: Record<string, string>
+}) {
+  return readFirstNonEmptyValue(params.processEnv, openAICompatibleBaseUrlCandidates)
+    || readFirstNonEmptyValue(params.dotenvValues, openAICompatibleBaseUrlCandidates)
 }
 
 export function resolvePreferredChatProviderId(params: {
@@ -91,6 +118,19 @@ export function getProviderBootstrapConfig(params: {
     return {
       apiKey,
       baseUrl: DEFAULT_GOOGLE_GENERATIVE_AI_BASE_URL,
+    }
+  }
+
+  if (params.providerId === 'openai-compatible') {
+    const apiKey = resolveOpenAICompatibleApiKey(params)
+    const baseUrl = resolveOpenAICompatibleBaseUrl(params)
+    if (!apiKey || !baseUrl) {
+      return undefined
+    }
+
+    return {
+      apiKey,
+      baseUrl,
     }
   }
 

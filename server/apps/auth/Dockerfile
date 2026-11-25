@@ -11,13 +11,13 @@ COPY patches/ ./patches/
 # Manifests come first, so a source change does not install dependencies again.
 COPY server/apps/auth/package.json server/apps/auth/package.json
 COPY server/packages/auth-shared/package.json server/packages/auth-shared/package.json
-COPY server/packages/http-error-shared/package.json server/packages/http-error-shared/package.json
+COPY server/packages/http-shared/package.json server/packages/http-shared/package.json
 
 RUN pnpm install --frozen-lockfile --ignore-scripts --filter @proj-airi/auth-server...
 
 COPY server/apps/auth server/apps/auth
 COPY server/packages/auth-shared server/packages/auth-shared
-COPY server/packages/http-error-shared server/packages/http-error-shared
+COPY server/packages/http-shared server/packages/http-shared
 
 RUN pnpm -F @proj-airi/auth-server run build
 

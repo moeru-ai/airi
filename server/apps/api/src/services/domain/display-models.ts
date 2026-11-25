@@ -7,7 +7,7 @@ import type { UploadSessionService } from './upload-sessions'
 
 import { Buffer } from 'node:buffer'
 
-import { createBadRequestError, createConflictError, createNotFoundError, createPayloadTooLargeError, createPaymentRequiredError } from '@proj-airi/http-error-shared'
+import { createBadRequestError, createConflictError, createNotFoundError, createPayloadTooLargeError, createPaymentRequiredError } from '@proj-airi/http-shared'
 import { and, eq, isNull, ne, sql } from 'drizzle-orm'
 
 import * as v from 'valibot'
