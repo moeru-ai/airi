@@ -83,6 +83,51 @@ describe('voiceController output', () => {
     await controller.close()
   })
 
+  it('skips a single failed segment and plays the rest of the speech stream', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const played: string[] = []
+    const playback = new Playback({ nowMs: () => 0, play: clip => ({
+      done: (clip.audio as Blob).text().then((text) => {
+        played.push(text)
+        return { throughMs: 1 }
+      }),
+      stop: async () => ({ throughMs: 0 }),
+    }) })
+    const controller = new VoiceController({ speech: () => ({ playback, synthesize: async (request) => {
+      if (request.text.includes('Two'))
+        throw new Error('rate limit exceeded(RPM)')
+      return new Blob([request.text.trim()])
+    } }) })
+    const response = controller.openResponse({ sessionId: 'alice', turnId: 'rate-limited' })
+    const speech = response.openSpeech({ purpose: 'answer' })
+    await speech.write('One.\n\nTwo.\n\nThree.\n\n')
+    speech.end()
+    expect((await speech.done).status).toBe('finished')
+    expect(await response.finish()).toBe('finished')
+    expect(played.join(' ')).toContain('One.')
+    expect(played.join(' ')).toContain('Three.')
+    expect(played.join(' ')).not.toContain('Two.')
+    expect(warn).toHaveBeenCalled()
+    warn.mockRestore()
+    await controller.close()
+  })
+
+  it('fails the speech when no segment could be synthesized', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const playback = new Playback({ nowMs: () => 0, play: () => ({ done: Promise.resolve({ throughMs: 1 }), stop: async () => ({ throughMs: 0 }) }) })
+    const controller = new VoiceController({ speech: () => ({ playback, synthesize: async () => {
+      throw new Error('invalid api key')
+    } }) })
+    const response = controller.openResponse({ sessionId: 'alice', turnId: 'no-audio' })
+    const speech = response.openSpeech({ purpose: 'answer' })
+    await speech.write('One.\n\nTwo.\n\n')
+    speech.end()
+    const outcome = await speech.done
+    expect(outcome.status).toBe('failed')
+    warn.mockRestore()
+    await controller.close()
+  })
+
   it('plays bidirectional synthesis output before the provider ends', async () => {
     const words: string[] = []
     const samples: number[] = []
