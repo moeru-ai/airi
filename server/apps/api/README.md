@@ -7,7 +7,7 @@ auth/OIDC routes.
 ## Responsibilities
 
 - Hono business APIs and WebSocket endpoints.
-- Characters, chats, providers, Flux, Stripe, model routing, and billing.
+- Characters, chats, private attachments, providers, Flux, Stripe, model routing, and billing.
 - PostgreSQL migration ownership for the currently shared database. Drizzle reads the checked-in `drizzle/` journal and SQL files at startup.
 - Redis cache, configuration KV, cross-instance Pub/Sub, and the Redis Streams infrastructure.
 - Local verification of Auth-issued OIDC JWTs through public JWKS.
@@ -216,6 +216,11 @@ customer, or until the client calls `POST /sync`. The Capacitor name and expiry 
 The Auth service asks `POST /internal/auth/user-deletion/check` before it sends the deletion email, and again
 before it deletes. The check returns 409 `SUBSCRIPTION_ACTIVE` while a subscription can still charge. The user
 cancels the subscription first.
+
+## Private chat attachments
+
+Chat images use the same private bucket as display models. In the bucket CORS policy, allow browser GET and PUT requests.
+Allow the `content-type`, `if-none-match`, and `x-amz-checksum-sha256` request headers.
 
 ## Run locally
 

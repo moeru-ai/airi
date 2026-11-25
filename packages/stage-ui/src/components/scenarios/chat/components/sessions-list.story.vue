@@ -33,7 +33,23 @@ const rows: SessionRow[] = [
   rowOf('intro', 'Practice a self-introduction', { label: 'Nov 17', archivedAt: CREATED_AT }),
 ]
 
+/** The rows that an owner passes for the search "moon": a match in a message, one in an archived chat, and a title match. */
+const searchRows: SessionRow[] = [
+  {
+    ...rowOf('weekend', 'Weekend trip ideas', { label: '18:02' }),
+    match: { snippet: { before: '…we could watch the ', match: 'moon', after: ' rise from the hill', fromUser: false } },
+  },
+  {
+    ...rowOf('intro', 'Practice a self-introduction', { label: 'Nov 17', archivedAt: CREATED_AT }),
+    match: { snippet: { before: 'I like the ', match: 'Moon', after: ' festival', fromUser: true } },
+  },
+  { ...rowOf('moon', 'Moon phases for the garden', { label: 'Sat' }), match: {} },
+]
+
 const popoverPlace = ref<ChatSessionsPlace>({ kind: 'all' })
+const searchPlace = ref<ChatSessionsPlace>({ kind: 'all' })
+const searchQuery = ref('moon')
+const missQuery = ref('comet')
 const drawerPlace = ref<ChatSessionsPlace>({ kind: 'all' })
 const archivePlace = ref<ChatSessionsPlace>({ kind: 'archive' })
 const emptyPlace = ref<ChatSessionsPlace>({ kind: 'all' })
@@ -59,6 +75,16 @@ const emptyPlace = ref<ChatSessionsPlace>({ kind: 'all' })
     <Variant id="empty" title="No conversations">
       <div :class="['max-w-lg bg-neutral-50 p-5 dark:bg-neutral-900']">
         <SessionsList v-model:place="emptyPlace" :rows="[]" :is-creating-session="false" />
+      </div>
+    </Variant>
+    <Variant id="search" title="Search">
+      <div :class="['w-88 rounded-xl bg-white p-2 dark:bg-neutral-900']">
+        <SessionsList v-model:place="searchPlace" v-model:query="searchQuery" compact :rows="searchRows" :is-creating-session="false" />
+      </div>
+    </Variant>
+    <Variant id="search-empty" title="Search without results">
+      <div :class="['w-88 rounded-xl bg-white p-2 dark:bg-neutral-900']">
+        <SessionsList v-model:place="searchPlace" v-model:query="missQuery" compact :rows="[]" :is-creating-session="false" />
       </div>
     </Variant>
     <Variant id="row-states" title="Row states">
