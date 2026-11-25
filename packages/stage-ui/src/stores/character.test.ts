@@ -4,8 +4,10 @@ import { defineInvokeHandler } from '@moeru/eventa'
 import { createTestingPinia } from '@pinia/testing'
 import { setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { isProxy } from 'vue'
 
 import { getSpeechBusContext, voiceSpeechCommand } from '../services/speech/bus'
+import { SpeechClient } from '../services/speech/speech-client'
 import { setCharacterLlmMarkerParserFactoryForTest, useCharacterStore } from './character'
 import { useChatSessionStore } from './chat/session-store'
 import { useAiriCardStore } from './modules'
@@ -140,6 +142,33 @@ describe('store character', () => {
     store.onSparkNotifyReactionStreamEnd('missing', 'Ignored')
 
     expect(store.reactions).toHaveLength(0)
+  })
+
+  it('keeps the notification speech client out of the reactive graph', async () => {
+    // The speech bus posts its commands over BroadcastChannel, and structured clone
+    // rejects a Vue proxy at any depth. A proxied client silently loses the spoken
+    // line with `DataCloneError`, which is why spark reactions had no audio.
+    const store = useCharacterStore()
+    const endSpyOnPrototype = vi.spyOn(SpeechClient.prototype, 'end')
+
+    try {
+      store.onSparkNotifyReactionStreamEvent('spark-proxy', 'Hello')
+      store.onSparkNotifyReactionStreamEnd('spark-proxy', 'Hello')
+
+      await vi.waitFor(() => expect(endSpyOnPrototype).toHaveBeenCalled())
+
+      const receiver = endSpyOnPrototype.mock.instances[0] as SpeechClient
+      expect(isProxy(receiver)).toBe(false)
+      // `identity` is private on SpeechClient, so read the own property directly
+      // instead of reaching for a chained type assertion.
+      const identity = Reflect.get(receiver, 'identity') as { turn: object }
+      expect(isProxy(identity.turn)).toBe(false)
+      // This is the exact shape SpeechClient.send() posts.
+      expect(() => structuredClone({ ...identity, type: 'end' })).not.toThrow()
+    }
+    finally {
+      endSpyOnPrototype.mockRestore()
+    }
   })
 
   it('clears reactions', () => {
