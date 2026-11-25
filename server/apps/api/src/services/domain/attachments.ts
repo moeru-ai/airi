@@ -1,4 +1,4 @@
-import type { WireAttachment } from '@proj-airi/server-sdk-shared/v2'
+import type { CreateAttachmentRequest, CreateAttachmentResponse, DownloadAttachmentResponse, WireAttachment } from '@proj-airi/server-sdk-shared/v2'
 
 import type { Database } from '../../libs/db'
 import type { Attachment } from '../../schemas/attachments'
@@ -7,18 +7,9 @@ import type { ObjectStore } from '../adapters/object-store'
 import { createConflictError, createNotFoundError } from '@proj-airi/http-shared'
 import { and, arrayContains, eq, inArray, isNull } from 'drizzle-orm'
 
-import * as v from 'valibot'
-
 import { attachments } from '../../schemas/attachments'
 import { chatMembers, chats, messages } from '../../schemas/chats'
 import { signWriteOnceUpload, uploadedObjectMismatch } from './direct-upload'
-
-export const CreateAttachmentSchema = v.object({
-  id: v.pipe(v.string(), v.regex(/^[\w-]{1,128}$/)),
-  mimeType: v.picklist(['image/png', 'image/jpeg', 'image/webp', 'image/gif']),
-  sha256: v.pipe(v.string(), v.regex(/^[a-f0-9]{64}$/)),
-  size: v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(3 * 1024 * 1024)),
-})
 
 function toWireAttachment({ id, mimeType, size }: Attachment): WireAttachment {
   return { id, mimeType, size }
@@ -38,7 +29,7 @@ export function createAttachmentService(
   }
 
   return {
-    async createUpload(userId: string, input: v.InferOutput<typeof CreateAttachmentSchema>) {
+    async createUpload(userId: string, input: CreateAttachmentRequest): Promise<CreateAttachmentResponse> {
       await db.insert(attachments).values({
         ...input,
         objectKey: `attachments/${input.id}/original`,
@@ -80,7 +71,7 @@ export function createAttachmentService(
       return toWireAttachment(readyAttachment)
     },
 
-    async createDownload(userId: string, attachmentId: string) {
+    async createDownload(userId: string, attachmentId: string): Promise<DownloadAttachmentResponse> {
       const attachment = await db.query.attachments.findFirst({
         where: and(eq(attachments.id, attachmentId), eq(attachments.state, 'ready')),
       })

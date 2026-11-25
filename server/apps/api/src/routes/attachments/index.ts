@@ -2,11 +2,11 @@ import type { AttachmentService } from '../../services/domain/attachments'
 import type { HonoEnv } from '../../types/hono'
 
 import { createBadRequestError, created, ok } from '@proj-airi/http-shared'
+import { CreateAttachmentRequestSchema } from '@proj-airi/server-sdk-shared/v2'
 import { Hono } from 'hono'
 import { safeParse } from 'valibot'
 
 import { authGuard } from '../../middlewares/auth'
-import { CreateAttachmentSchema } from '../../services/domain/attachments'
 import { readJsonBody } from '../../services/domain/field-sync'
 
 export function createAttachmentRoutes(attachmentService: AttachmentService) {
@@ -14,7 +14,7 @@ export function createAttachmentRoutes(attachmentService: AttachmentService) {
     .use('*', authGuard)
     .post('/', async (c) => {
       const body = await readJsonBody(c.req)
-      const result = safeParse(CreateAttachmentSchema, body)
+      const result = safeParse(CreateAttachmentRequestSchema, body)
       if (!result.success)
         throw createBadRequestError('Invalid Request', 'INVALID_REQUEST', result.issues)
 

@@ -31,7 +31,7 @@ import { modelDeclaresImageInput, useChatVision } from '../composables/vision/us
 import { useVisionInference } from '../composables/vision/use-vision-inference'
 import { chatAssetIdFrom, inlineConversationAssets, storeChatAttachments } from '../libs/chat-assets'
 import { extractMessageText, isCloudSyncableMessage } from '../libs/chat-sync'
-import { pendingImageAttachments } from '../libs/chat-sync/attachments'
+import { imageAttachmentRefsOf } from '../libs/chat-sync/attachments'
 import { CONVERSATION_COMPACT_FLAG } from '../libs/feature-flags'
 import { syncedRoles } from '../libs/pinia/synced-context'
 import { createChatAnalyticsHooks, getProviderMode } from '../libs/product-signals/events/chat'
@@ -1253,7 +1253,7 @@ export const useChatStore = defineStore('chat', () => {
           id: message.id,
           role: 'user',
           content: messageText,
-          attachments: pendingImageAttachments(message),
+          imageRefs: imageAttachmentRefsOf(message),
           replyToMessageId: message.replyToMessageId,
         })
       }

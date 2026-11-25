@@ -4,7 +4,7 @@ import type { ComputedRef, Ref } from 'vue'
 import { defineInvoke } from '@moeru/eventa'
 import { createContext as createWsContext, wsErrorEvent } from '@moeru/eventa/adapters/websocket/native'
 import { errorMessageFrom } from '@moeru/std'
-import { authenticate, newMessages, parseAuthenticateResponse, pullMessages, sendMessages, WireAttachmentSchema } from '@proj-airi/server-sdk-shared/v2'
+import { authenticate, newMessages, NewMessagesPayloadSchema, parseAuthenticateResponse, pullMessages, sendMessages } from '@proj-airi/server-sdk-shared/v2'
 import { useWebSocket } from '@vueuse/core'
 import { computed, ref, shallowRef, watch } from 'vue'
 
@@ -32,24 +32,6 @@ export const WS_CLOSE_UNAUTHORIZED = 4001
 // event constants.
 // Removal condition: the adapter exports a public `EventContext` type.
 type WsEventContext = ReturnType<typeof createWsContext>['context']
-
-const NewMessagesPayloadSchema = v.object({
-  chatId: v.pipe(v.string(), v.minLength(1)),
-  fromSeq: v.number(),
-  toSeq: v.number(),
-  messages: v.array(v.object({
-    id: v.pipe(v.string(), v.minLength(1)),
-    chatId: v.pipe(v.string(), v.minLength(1)),
-    senderId: v.nullable(v.string()),
-    role: v.picklist(['system', 'user', 'assistant', 'tool', 'error']),
-    content: v.string(),
-    attachments: v.optional(v.array(WireAttachmentSchema)),
-    replyToMessageId: v.optional(v.nullable(v.string())),
-    seq: v.number(),
-    createdAt: v.number(),
-    updatedAt: v.number(),
-  })),
-})
 
 /**
  * WebSocket connection lifecycle states surfaced to the chat-sync layer.

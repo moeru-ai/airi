@@ -2,6 +2,7 @@ import * as v from 'valibot'
 
 const NonEmptyStringSchema = v.pipe(v.string(), v.minLength(1))
 const AttachmentIdSchema = v.pipe(v.string(), v.regex(/^[\w-]{1,128}$/))
+const Sha256Schema = v.pipe(v.string(), v.regex(/^[a-f0-9]{64}$/))
 const MediaIdsSchema = v.pipe(
   v.array(AttachmentIdSchema),
   v.maxLength(4),
@@ -35,19 +36,45 @@ export const WireAttachmentSchema = v.object({
 
 export type WireAttachment = v.InferOutput<typeof WireAttachmentSchema>
 
-export interface WireMessage {
-  id: string
-  chatId: string
-  senderId: string | null
-  role: 'system' | 'user' | 'assistant' | 'tool' | 'error'
-  content: string
-  /** Image descriptors. Omission represents a message without attachments. */
-  attachments?: WireAttachment[]
-  replyToMessageId?: string | null
-  seq: number
-  createdAt: number
-  updatedAt: number
-}
+export const CreateAttachmentRequestSchema = v.object({
+  id: AttachmentIdSchema,
+  mimeType: v.picklist(['image/png', 'image/jpeg', 'image/webp', 'image/gif']),
+  sha256: Sha256Schema,
+  size: v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(3 * 1024 * 1024)),
+})
+
+export const CreateAttachmentResponseSchema = v.object({
+  attachment: WireAttachmentSchema,
+  upload: v.nullable(v.object({
+    headers: v.record(v.string(), v.string()),
+    url: v.pipe(v.string(), v.url()),
+  })),
+})
+
+export const DownloadAttachmentResponseSchema = v.object({
+  attachment: WireAttachmentSchema,
+  url: v.pipe(v.string(), v.url()),
+  sha256: Sha256Schema,
+})
+
+export type CreateAttachmentRequest = v.InferOutput<typeof CreateAttachmentRequestSchema>
+export type CreateAttachmentResponse = v.InferOutput<typeof CreateAttachmentResponseSchema>
+export type DownloadAttachmentResponse = v.InferOutput<typeof DownloadAttachmentResponseSchema>
+
+const WireMessageSchema = v.object({
+  id: NonEmptyStringSchema,
+  chatId: NonEmptyStringSchema,
+  senderId: v.nullable(v.string()),
+  role: v.picklist(['system', 'user', 'assistant', 'tool', 'error']),
+  content: v.string(),
+  attachments: v.optional(v.array(WireAttachmentSchema)),
+  replyToMessageId: v.optional(v.nullable(v.string())),
+  seq: v.number(),
+  createdAt: v.number(),
+  updatedAt: v.number(),
+})
+
+export type WireMessage = v.InferOutput<typeof WireMessageSchema>
 
 export type MessageRole = WireMessage['role']
 
@@ -64,12 +91,14 @@ export interface PullMessagesResponse {
   seq: number
 }
 
-export interface NewMessagesPayload {
-  chatId: string
-  messages: WireMessage[]
-  fromSeq: number
-  toSeq: number
-}
+export const NewMessagesPayloadSchema = v.object({
+  chatId: NonEmptyStringSchema,
+  messages: v.array(WireMessageSchema),
+  fromSeq: v.number(),
+  toSeq: v.number(),
+})
+
+export type NewMessagesPayload = v.InferOutput<typeof NewMessagesPayloadSchema>
 
 /** Parses a `chat:send-messages` payload at the WebSocket boundary. */
 export function parseSendMessagesRequest(request: unknown): SendMessagesRequest {

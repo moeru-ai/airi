@@ -25,7 +25,7 @@ import {
   mergeCloudMessagesIntoLocal,
   reconcileLocalAndRemote,
 } from '../../libs/chat-sync'
-import { downloadCloudMessageAttachments, pendingImageAttachments, uploadCloudAttachment } from '../../libs/chat-sync/attachments'
+import { downloadCloudMessageAttachments, imageAttachmentRefsOf, uploadCloudAttachment } from '../../libs/chat-sync/attachments'
 import { captureAnalyticsEvent } from '../../libs/product-signals'
 import { SERVER_URL } from '../../libs/server'
 import { useAuthStore } from '../auth'
@@ -1268,8 +1268,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
           if (!messageId || !isCloudSyncableMessage(message))
             continue
           const text = extractMessageText(message)
-          const attachments = pendingImageAttachments(message)
-          if (!text && !attachments.length)
+          const imageRefs = imageAttachmentRefsOf(message)
+          if (!text && !imageRefs.length)
             continue
           await enqueuePersist(() => chatSessionsRepo.enqueueOutbox(currentUserId, {
             messageId,
@@ -1277,7 +1277,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
             cloudChatId: result.cloudChatId,
             role: message.role as CloudSyncableRole,
             content: text,
-            attachments,
+            imageRefs,
             replyToMessageId: message.replyToMessageId,
             attempts: 0,
             queuedAt: Date.now(),
@@ -1605,20 +1605,20 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     id: string
     role: CloudSyncableRole
     content: string
-    attachments?: ChatSendOutboxEntry['attachments']
+    imageRefs?: string[]
     replyToMessageId?: string
   }) {
     const userId = getCurrentUserId()
     if (userId === 'local')
       return
 
-    const entry: ChatSendOutboxEntry = {
+    const entry = {
       messageId: message.id,
       sessionId,
       cloudChatId: sessionMetas.value[sessionId]?.cloudChatId,
       role: message.role,
       content: message.content,
-      attachments: message.attachments,
+      imageRefs: message.imageRefs,
       replyToMessageId: message.replyToMessageId,
       attempts: 0,
       queuedAt: Date.now(),
@@ -1695,6 +1695,13 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     const succeededIds: string[] = []
     const failedUpdates: Array<Pick<ChatSendOutboxEntry, 'messageId' | 'attempts' | 'lastError'>> = []
 
+    function recordFailures(sessionId: string, failed: ChatSendOutboxEntry[], error: unknown) {
+      const lastError = errorMessageFrom(error) ?? 'unknown'
+      console.warn('[chat-sync] outbox drain failed for', sessionId, lastError)
+      for (const { messageId, attempts } of failed)
+        failedUpdates.push({ messageId, attempts: attempts + 1, lastError })
+    }
+
     for (const [sessionId, sessionEntries] of bySession) {
       const cloudChatId = sessionMetas.value[sessionId]?.cloudChatId
       if (!cloudChatId)
@@ -1703,23 +1710,25 @@ export const useChatSessionStore = defineStore('chat-session', () => {
         break
 
       sessionEntries.sort((a, b) => a.queuedAt - b.queuedAt)
+      const prepared = await Promise.allSettled(sessionEntries.map(prepareOutboxMessage))
+      if (!isCurrentConnection())
+        break
+      const ready = prepared.flatMap((result, index) => {
+        const entry = sessionEntries[index]
+        if (result.status === 'fulfilled')
+          return [{ entry, message: result.value }]
+        recordFailures(sessionId, [entry], result.reason)
+        return []
+      })
+      if (!ready.length)
+        continue
+
       try {
-        const messages = await Promise.all(sessionEntries.map(prepareOutboxMessage))
-        if (!isCurrentConnection())
-          break
-        await client.sendMessages({ chatId: cloudChatId, messages })
-        succeededIds.push(...sessionEntries.map(e => e.messageId))
+        await client.sendMessages({ chatId: cloudChatId, messages: ready.map(({ message }) => message) })
+        succeededIds.push(...ready.map(({ entry }) => entry.messageId))
       }
-      catch (err) {
-        const errMsg = errorMessageFrom(err) ?? 'unknown'
-        console.warn('[chat-sync] outbox drain failed for', sessionId, errMsg)
-        for (const entry of sessionEntries) {
-          failedUpdates.push({
-            messageId: entry.messageId,
-            attempts: entry.attempts + 1,
-            lastError: errMsg,
-          })
-        }
+      catch (error) {
+        recordFailures(sessionId, ready.map(({ entry }) => entry), error)
       }
     }
 
