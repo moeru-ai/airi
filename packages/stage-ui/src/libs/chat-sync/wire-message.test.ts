@@ -3,7 +3,7 @@ import type { WireMessage } from '@proj-airi/server-sdk-shared'
 
 import { describe, expect, it } from 'vitest'
 
-import { extractMessageText, isCloudSyncableMessage, mergeCloudMessagesIntoLocal, wireMessageToLocal } from './wire-message'
+import { attachDownloadedCloudImage, extractMessageText, isCloudSyncableMessage, mergeCloudMessagesIntoLocal, wireMessageToLocal } from './wire-message'
 
 function makeWire(partial: Partial<WireMessage> & Pick<WireMessage, 'id' | 'seq'>): WireMessage {
   return {
@@ -169,19 +169,32 @@ describe('wireMessageToLocal', () => {
     expect(local.content).toContain('tool message')
   })
 
-  it('restores downloaded attachments as local image content', () => {
+  it('keeps thumbnails separate from image content until the originals are restored', () => {
+    const thumbnail = { hash: 'HikOLYh4eXepiHecd/d3eoaAdwh4', width: 640, height: 480 }
     const wire = makeWire({
       id: 'm-image',
       seq: 2,
       role: 'user',
       content: 'look',
-      attachments: [{ id: 'attachment-1', mimeType: 'image/png', size: 4 }],
+      attachments: [
+        { id: 'attachment-1', mimeType: 'image/png', size: 4, thumbnail },
+        { id: 'attachment-2', mimeType: 'image/png', size: 4, thumbnail },
+      ],
     })
-    const local = wireMessageToLocal(wire, new Map([['attachment-1', 'data:image/png;base64,dGVzdA==']]))
+    const local = wireMessageToLocal(wire)
+    expect(local.content).toBe('look')
+    expect(local.cloudImages).toEqual(wire.attachments)
 
-    expect(local.content).toEqual([
+    const second = attachDownloadedCloudImage(local, 'attachment-2', 'airi-asset:second')
+    expect(second.content).toEqual([
       { type: 'text', text: 'look' },
-      { type: 'image_url', image_url: { url: 'data:image/png;base64,dGVzdA==' } },
+      { type: 'image_url', image_url: { url: 'airi-asset:second' } },
+    ])
+    const both = attachDownloadedCloudImage(second, 'attachment-1', 'airi-asset:first')
+    expect(both.content).toEqual([
+      { type: 'text', text: 'look' },
+      { type: 'image_url', image_url: { url: 'airi-asset:first' } },
+      { type: 'image_url', image_url: { url: 'airi-asset:second' } },
     ])
   })
 })

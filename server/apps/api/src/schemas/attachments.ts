@@ -1,6 +1,7 @@
+import type { ImageThumbnail } from '@proj-airi/server-sdk-shared/v2'
 import type { InferSelectModel } from 'drizzle-orm'
 
-import { index, integer, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core'
+import { index, integer, jsonb, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core'
 
 export const attachments = pgTable(
   'attachments',
@@ -11,6 +12,7 @@ export const attachments = pgTable(
     mimeType: text('mime_type').notNull(),
     size: integer('size').notNull(),
     sha256: text('sha256').notNull(),
+    thumbnail: jsonb('thumbnail').$type<ImageThumbnail>(),
     state: text('state', { enum: ['pending', 'ready'] }).notNull(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),

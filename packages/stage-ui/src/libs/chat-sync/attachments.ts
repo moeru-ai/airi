@@ -1,4 +1,4 @@
-import type { WireAttachment, WireMessage } from '@proj-airi/server-sdk-shared/v2'
+import type { WireAttachment } from '@proj-airi/server-sdk-shared/v2'
 
 import type { ChatHistoryItem } from '../../types/chat'
 
@@ -6,10 +6,11 @@ import { CreateAttachmentRequestSchema, CreateAttachmentResponseSchema, Download
 
 import * as v from 'valibot'
 
-import { chatAssetIdFrom, chatEventAttachmentsOf, readChatAsset, storeChatAsset } from '../chat-assets'
+import { chatAssetIdFrom, chatEventAttachmentsOf, readChatAsset } from '../chat-assets'
 import { TransferRequestError } from '../file-transfer/request-error'
 import { downloadVerified, putToTarget } from '../file-transfer/transfer'
 import { readJsonOrThrow } from './http-response'
+import { createImageThumbnail } from './image-thumbnail'
 
 interface CloudAttachmentClientOptions {
   apiFetch: typeof fetch
@@ -24,11 +25,13 @@ export function imageAttachmentRefsOf(message: ChatHistoryItem) {
 
 export async function uploadCloudAttachment(attachmentId: string, assetRef: string, options: CloudAttachmentClientOptions): Promise<string> {
   const asset = await readChatAsset(assetRef)
+  const thumbnail = await createImageThumbnail(asset.blob).catch(() => undefined)
   const request = v.parse(CreateAttachmentRequestSchema, {
     id: attachmentId,
     mimeType: asset.mimeType,
     sha256: chatAssetIdFrom(assetRef),
     size: asset.blob.size,
+    thumbnail,
   })
   const createResponse = await options.apiFetch(new URL('/api/v1/attachments', options.serverUrl), {
     body: JSON.stringify(request),
@@ -55,29 +58,11 @@ export async function uploadCloudAttachment(attachmentId: string, assetRef: stri
   return created.attachment.id
 }
 
-async function downloadAndStoreCloudAttachment(attachment: WireAttachment, sessionId: string, options: CloudAttachmentClientOptions) {
+export async function downloadCloudAttachment(attachment: WireAttachment, options: CloudAttachmentClientOptions) {
   const response = await options.apiFetch(
     new URL(`/api/v1/attachments/${encodeURIComponent(attachment.id)}/download`, options.serverUrl),
   )
   const download = await readJsonOrThrow(response, DownloadAttachmentResponseSchema)
   const blob = await downloadVerified({ url: download.url, byteSize: attachment.size, sha256: download.sha256 })
-  return storeChatAsset(new Uint8Array(await blob.arrayBuffer()), attachment.mimeType, sessionId)
-}
-
-export async function downloadCloudMessageAttachments(
-  messages: WireMessage[],
-  sessionId: string,
-  options: CloudAttachmentClientOptions,
-): Promise<Map<string, string>> {
-  const attachments = new Map<string, WireAttachment>()
-  for (const message of messages) {
-    for (const attachment of message.attachments ?? [])
-      attachments.set(attachment.id, attachment)
-  }
-
-  const resolved = await Promise.all([...attachments.values()].map(async (attachment) => {
-    const ref = await downloadAndStoreCloudAttachment(attachment, sessionId, options)
-    return [attachment.id, ref] as const
-  }))
-  return new Map(resolved)
+  return new Uint8Array(await blob.arrayBuffer())
 }

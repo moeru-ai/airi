@@ -11,8 +11,8 @@ import { attachments } from '../../schemas/attachments'
 import { chatMembers, chats, messages } from '../../schemas/chats'
 import { signWriteOnceUpload, uploadedObjectMismatch } from './direct-upload'
 
-function toWireAttachment({ id, mimeType, size }: Attachment): WireAttachment {
-  return { id, mimeType, size }
+function toWireAttachment({ id, mimeType, size, thumbnail }: Attachment): WireAttachment {
+  return { id, mimeType, size, ...(thumbnail ? { thumbnail } : {}) }
 }
 
 export function createAttachmentService(

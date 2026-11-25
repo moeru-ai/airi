@@ -8,6 +8,7 @@ export type {
   CreateAttachmentRequest,
   CreateAttachmentResponse,
   DownloadAttachmentResponse,
+  ImageThumbnail,
   MessageRole,
   NewMessagesPayload,
   PullMessagesRequest,

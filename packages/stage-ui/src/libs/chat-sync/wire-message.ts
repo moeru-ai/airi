@@ -1,8 +1,8 @@
-import type { ChatAssistantMessage, ChatHistoryItem } from '@proj-airi/core-agent'
+import type { ChatAssistantMessage } from '@proj-airi/core-agent'
 import type { NewMessagesPayload, WireMessage } from '@proj-airi/server-sdk-shared'
 import type { CommonContentPart } from '@xsai/shared-chat'
 
-const EMPTY_ATTACHMENT_REFS: ReadonlyMap<string, string> = new Map()
+import type { ChatHistoryItem } from '../../types/chat'
 
 /**
  * Extract a plain-text payload from a local `ChatHistoryItem` for upload.
@@ -114,7 +114,7 @@ export function isCloudSyncableMessage(message: ChatHistoryItem): boolean {
  *   that the wire format does not, so we synthesize minimal placeholders
  *   for them.
  */
-export function wireMessageToLocal(wire: WireMessage, attachmentRefs: ReadonlyMap<string, string> = EMPTY_ATTACHMENT_REFS): ChatHistoryItem {
+export function wireMessageToLocal(wire: WireMessage): ChatHistoryItem {
   switch (wire.role) {
     case 'assistant': {
       const assistant: ChatAssistantMessage = {
@@ -130,18 +130,12 @@ export function wireMessageToLocal(wire: WireMessage, attachmentRefs: ReadonlyMa
       })
     }
     case 'user': {
-      const images: CommonContentPart[] = (wire.attachments ?? []).flatMap((attachment) => {
-        const url = attachmentRefs.get(attachment.id)
-        return url ? [{ type: 'image_url', image_url: { url } }] : []
-      })
-      const content: string | CommonContentPart[] = images.length > 0
-        ? [{ type: 'text', text: wire.content }, ...images]
-        : wire.content
       return {
         role: 'user',
-        content,
+        content: wire.content,
         id: wire.id,
         createdAt: wire.createdAt,
+        ...(wire.attachments?.length ? { cloudImages: wire.attachments } : {}),
         ...(wire.replyToMessageId ? { replyToMessageId: wire.replyToMessageId } : {}),
       }
     }
@@ -173,6 +167,21 @@ export function wireMessageToLocal(wire: WireMessage, attachmentRefs: ReadonlyMa
         ...(wire.replyToMessageId ? { replyToMessageId: wire.replyToMessageId } : {}),
       }
   }
+}
+
+export function attachDownloadedCloudImage(message: ChatHistoryItem, attachmentId: string, assetRef: string): ChatHistoryItem {
+  if (message.role !== 'user' || !message.cloudImages?.some(image => image.id === attachmentId && !image.assetRef))
+    return message
+
+  const cloudImages = message.cloudImages.map(image => image.id === attachmentId ? { ...image, assetRef } : image)
+  const images: CommonContentPart[] = cloudImages.flatMap(image => image.assetRef
+    ? [{ type: 'image_url', image_url: { url: image.assetRef } }]
+    : [])
+  const text: CommonContentPart[] = typeof message.content === 'string'
+    ? [{ type: 'text', text: message.content }]
+    : message.content.filter(part => part.type !== 'image_url')
+
+  return { ...message, cloudImages, content: [...text, ...images] }
 }
 
 export interface CloudMergeResult {
@@ -211,7 +220,6 @@ export function mergeCloudMessagesIntoLocal(
   currentMessages: ChatHistoryItem[],
   currentMaxSeq: number,
   payload: Pick<NewMessagesPayload, 'messages'> & { toSeq?: number },
-  attachmentRefs: ReadonlyMap<string, string> = EMPTY_ATTACHMENT_REFS,
 ): CloudMergeResult {
   const knownIds = new Set<string>()
   for (const message of currentMessages) {
@@ -231,7 +239,7 @@ export function mergeCloudMessagesIntoLocal(
       maxSeq = wire.seq
     if (knownIds.has(wire.id))
       continue
-    additions.push(wireMessageToLocal(wire, attachmentRefs))
+    additions.push(wireMessageToLocal(wire))
   }
 
   // The server may report a higher seq than the highest message in the

@@ -1,12 +1,10 @@
-import type { WireMessage } from '@proj-airi/server-sdk-shared/v2'
-
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { chatAssetsRepo } from '../../database/repos/chat-assets.repo'
-import { readChatAsset, storeChatAsset } from '../chat-assets'
+import { storeChatAsset } from '../chat-assets'
 import { TransferRequestError } from '../file-transfer/request-error'
 import { putToTarget } from '../file-transfer/transfer'
-import { downloadCloudMessageAttachments, uploadCloudAttachment } from './attachments'
+import { downloadCloudAttachment, uploadCloudAttachment } from './attachments'
 
 vi.mock('../file-transfer/transfer', async (importOriginal) => {
   const original = await importOriginal<typeof import('../file-transfer/transfer')>()
@@ -57,36 +55,31 @@ describe('cloud attachments', () => {
     expect(putToTarget).not.toHaveBeenCalled()
   })
 
-  it('stores the downloaded image under the receiving session', async () => {
-    const wire: WireMessage = {
-      id: 'message-1',
-      chatId: 'chat-1',
-      senderId: 'owner-1',
-      role: 'user',
-      content: 'look',
-      attachments: [image],
-      seq: 1,
-      createdAt: 1,
-      updatedAt: 1,
-    }
+  it('returns the downloaded image only if its checksum matches', async () => {
     const apiFetch = vi.fn(async () => Response.json({ attachment: image, sha256, url: 'https://objects.test/download' }))
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(bytes))
-
-    const refs = await downloadCloudMessageAttachments([wire], 'session-1', {
-      apiFetch,
-      serverUrl: 'https://api.test',
-    })
-    const ref = refs.get(image.id)!
-    const asset = await readChatAsset(ref)
-
-    expect(asset.mimeType).toBe(image.mimeType)
-    expect(asset.owners).toContain('session-1')
-    expect(new Uint8Array(await asset.blob.arrayBuffer())).toEqual(bytes)
+    const options = { apiFetch, serverUrl: 'https://api.test' }
+    await expect(downloadCloudAttachment(image, options)).resolves.toEqual(bytes)
 
     vi.mocked(globalThis.fetch).mockResolvedValueOnce(new Response(new Uint8Array(bytes.length)))
-    await expect(downloadCloudMessageAttachments([wire], 'session-1', {
-      apiFetch,
-      serverUrl: 'https://api.test',
-    })).rejects.toThrow('checksum')
+    await expect(downloadCloudAttachment(image, options)).rejects.toThrow('checksum')
+  })
+
+  it('includes a ThumbHash and the original dimensions when it reserves a valid image', async () => {
+    const canvas = document.createElement('canvas')
+    canvas.width = 200
+    canvas.height = 120
+    const context = canvas.getContext('2d')!
+    context.fillStyle = '#6a65d6'
+    context.fillRect(0, 0, canvas.width, canvas.height)
+    const blob = await new Promise<Blob>((resolve, reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('PNG encoding failed'))))
+    const ref = await storeChatAsset(new Uint8Array(await blob.arrayBuffer()), blob.type, 'session-1')
+    const apiFetch = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ attachment: image, upload: null }))
+
+    await uploadCloudAttachment(image.id, ref, { apiFetch, serverUrl: 'https://api.test' })
+
+    expect(JSON.parse(String(apiFetch.mock.calls[0]?.[1]?.body))).toMatchObject({
+      thumbnail: { width: 200, height: 120, hash: expect.stringMatching(/^[\w+/]+={0,2}$/) },
+    })
   })
 })

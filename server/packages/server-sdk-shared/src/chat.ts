@@ -28,10 +28,19 @@ export const PullMessagesRequestSchema = v.object({
   limit: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1))),
 })
 
+const ImageThumbnailSchema = v.object({
+  hash: v.pipe(v.string(), v.minLength(20), v.maxLength(40), v.base64()),
+  width: v.pipe(v.number(), v.safeInteger(), v.minValue(1)),
+  height: v.pipe(v.number(), v.safeInteger(), v.minValue(1)),
+})
+
+export type ImageThumbnail = v.InferOutput<typeof ImageThumbnailSchema>
+
 export const WireAttachmentSchema = v.object({
   id: AttachmentIdSchema,
   mimeType: NonEmptyStringSchema,
   size: v.pipe(v.number(), v.integer(), v.minValue(1)),
+  thumbnail: v.optional(ImageThumbnailSchema),
 })
 
 export type WireAttachment = v.InferOutput<typeof WireAttachmentSchema>
@@ -43,6 +52,7 @@ export const CreateAttachmentRequestSchema = v.object({
   mimeType: ChatImageMimeTypeSchema,
   sha256: Sha256Schema,
   size: v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(3 * 1024 * 1024)),
+  thumbnail: v.optional(ImageThumbnailSchema),
 })
 
 export const CreateAttachmentResponseSchema = v.object({

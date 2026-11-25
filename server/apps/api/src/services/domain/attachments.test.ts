@@ -40,7 +40,8 @@ describe('attachment service', () => {
 
   it('creates a private upload and marks it ready after object metadata matches', async () => {
     const service = createAttachmentService(db, objectStore)
-    const input = { id: 'attachment-1', mimeType: 'image/png', sha256: 'a'.repeat(64), size: 4 } as const
+    const thumbnail = { hash: 'HikOLYh4eXepiHecd/d3eoaAdwh4', width: 640, height: 480 }
+    const input = { id: 'attachment-1', mimeType: 'image/png', sha256: 'a'.repeat(64), size: 4, thumbnail } as const
 
     const created = await service.createUpload('owner-1', input)
     expect(created.upload).toEqual({
@@ -58,6 +59,7 @@ describe('attachment service', () => {
       id: 'attachment-1',
       mimeType: 'image/png',
       size: 4,
+      thumbnail,
     })
 
     const retried = await service.createUpload('owner-1', input)

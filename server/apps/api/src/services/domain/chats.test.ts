@@ -77,6 +77,7 @@ describe('pushMessages', () => {
   })
 
   it('synchronizes descriptors for ready message attachments', async () => {
+    const thumbnail = { hash: 'HikOLYh4eXepiHecd/d3eoaAdwh4', width: 640, height: 480 }
     await db.insert(schema.chats).values({ id: 'group', type: 'group' })
     await db.insert(schema.chatMembers).values({ chatId: 'group', memberType: 'user', userId: 'member' })
     await db.insert(attachments).values({
@@ -86,6 +87,7 @@ describe('pushMessages', () => {
       mimeType: 'image/png',
       size: 4,
       sha256: 'a'.repeat(64),
+      thumbnail,
       state: 'ready',
     })
     const service = createChatService(db)
@@ -102,7 +104,12 @@ describe('pushMessages', () => {
       id: 'attachment-1',
       mimeType: 'image/png',
       size: 4,
+      thumbnail,
     }])
+
+    await db.update(schema.messages).set({ deletedAt: new Date() })
+    const afterDeletion = await service.pullMessages('member', 'group', 0)
+    expect(afterDeletion.messages[0]?.attachments).toEqual([])
   })
 
   it.each([

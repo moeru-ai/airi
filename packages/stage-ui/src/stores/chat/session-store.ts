@@ -1,4 +1,5 @@
 import type { MessageRole, NewMessagesPayload } from '@proj-airi/server-sdk-shared'
+import type { WireAttachment } from '@proj-airi/server-sdk-shared/v2'
 import type {} from 'pinia-plugin-synced'
 
 import type { ChatSendOutboxEntry } from '../../database/repos/chat-sessions.repo'
@@ -14,7 +15,7 @@ import { computed, ref, toRaw, watch } from 'vue'
 
 import { chatSessionsRepo } from '../../database/repos/chat-sessions.repo'
 import { authedFetch } from '../../libs/auth-fetch'
-import { chatAssetIdsOf, inlineChatAssets } from '../../libs/chat-assets'
+import { chatAssetIdFrom, chatAssetIdsOf, inlineChatAssets, storeChatAsset } from '../../libs/chat-assets'
 import {
   applyCreateActions,
   characterIdOfRemoteChat,
@@ -25,7 +26,8 @@ import {
   mergeCloudMessagesIntoLocal,
   reconcileLocalAndRemote,
 } from '../../libs/chat-sync'
-import { downloadCloudMessageAttachments, imageAttachmentRefsOf, uploadCloudAttachment } from '../../libs/chat-sync/attachments'
+import { downloadCloudAttachment, imageAttachmentRefsOf, uploadCloudAttachment } from '../../libs/chat-sync/attachments'
+import { attachDownloadedCloudImage } from '../../libs/chat-sync/wire-message'
 import { captureAnalyticsEvent } from '../../libs/product-signals'
 import { SERVER_URL } from '../../libs/server'
 import { useAuthStore } from '../auth'
@@ -129,7 +131,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   // capture the epoch at start and bail after every await once it changes,
   // so account-A mutations cannot land on account-B state after a sign-out.
   let reconcileEpoch = 0
-  const cloudMergeTasks = new Map<string, Promise<void>>()
+  const cloudImageDownloads = new Map<string, Promise<void>>()
   // Single-flight guard for outbox drain so concurrent `reconcile end` +
   // `pushMessageToCloud post-enqueue` triggers don't double-send.
   let outboxDrainTask: Promise<void> | undefined
@@ -514,6 +516,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     }
 
     if (loadedSessions.has(sessionId) && !staleSessions.has(sessionId) && !needsCloudHydration()) {
+      restoreCloudImages(sessionId)
       return true
     }
     // A synchronized snapshot already carries the canonical hydrated
@@ -560,6 +563,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
         // the local view usable and keeps the next selection eligible to retry.
         if (needsCloudHydration())
           await pullCloudMessages(sessionId)
+        restoreCloudImages(sessionId)
 
         // Missing IDB payloads still need a valid canonical conversation.
         // This action runs in the elected leader, so the initialized history
@@ -1014,39 +1018,65 @@ export const useChatSessionStore = defineStore('chat-session', () => {
    *
    * Persistence is queued through the existing `persistSession` pipeline.
    */
-  async function applyCloudMessagesToSession(sessionId: string, payload: CloudMergePayload, mergeEpoch: number) {
-    if (mergeEpoch !== reconcileEpoch || !sessionMetas.value[sessionId])
-      return
-
-    const knownIds = new Set(sessionMessages.value[sessionId]?.map(message => message.id))
-    const incoming = payload.messages.filter(message => !knownIds.has(message.id))
-    const attachmentRefs = await downloadCloudMessageAttachments(incoming, sessionId, cloudAttachmentOptions)
+  function mergeCloudMessagesIntoSession(sessionId: string, payload: CloudMergePayload) {
     const meta = sessionMetas.value[sessionId]
-    if (mergeEpoch !== reconcileEpoch || !meta)
+    if (!meta)
       return
 
     const current = sessionMessages.value[sessionId] ?? []
-    const merged = mergeCloudMessagesIntoLocal(current, meta.cloudMaxSeq ?? 0, payload, attachmentRefs)
-    if (!merged.dirty)
-      return
-
-    sessionMessages.value[sessionId] = merged.messages
-    sessionMetas.value[sessionId] = { ...meta, cloudMaxSeq: merged.maxSeq }
-    void persistSession(sessionId)
+    const merged = mergeCloudMessagesIntoLocal(current, meta.cloudMaxSeq ?? 0, payload)
+    if (merged.dirty) {
+      sessionMetas.value[sessionId] = { ...meta, cloudMaxSeq: merged.maxSeq }
+      replaceSessionMessages(sessionId, merged.messages)
+    }
+    restoreCloudImages(sessionId)
   }
 
-  function mergeCloudMessagesIntoSession(sessionId: string, payload: CloudMergePayload): Promise<void> {
-    const mergeEpoch = reconcileEpoch
-    const previous = cloudMergeTasks.get(sessionId) ?? Promise.resolve()
-    const task = previous
-      .catch(() => undefined)
-      .then(() => applyCloudMessagesToSession(sessionId, payload, mergeEpoch))
-      .finally(() => {
-        if (cloudMergeTasks.get(sessionId) === task)
-          cloudMergeTasks.delete(sessionId)
-      })
-    cloudMergeTasks.set(sessionId, task)
-    return task
+  async function restoreCloudImage(sessionId: string, attachment: WireAttachment, epoch: number) {
+    const bytes = await downloadCloudAttachment(attachment, cloudAttachmentOptions)
+    await enqueuePersist(async () => {
+      const currentMessages = () => epoch === reconcileEpoch ? sessionMessages.value[sessionId] : undefined
+      if (!currentMessages()?.some(message => message.cloudImages?.some(image => image.id === attachment.id && !image.assetRef)))
+        return
+
+      const assetRef = await storeChatAsset(bytes, attachment.mimeType, sessionId)
+      const messages = currentMessages()
+      if (messages) {
+        const updated = messages.map(message => attachDownloadedCloudImage(message, attachment.id, assetRef))
+        if (updated.some((message, index) => message !== messages[index])) {
+          replaceSessionMessages(sessionId, updated)
+          return
+        }
+      }
+
+      const assetId = chatAssetIdFrom(assetRef)!
+      if (!chatAssetIdsOf(sessionMessages.value[sessionId] ?? []).has(assetId))
+        await chatSessionsRepo.releaseAssets(sessionId, [assetId])
+    })
+  }
+
+  function restoreCloudImages(sessionId: string) {
+    if (wsClient?.status() !== 'open')
+      return
+
+    for (const message of sessionMessages.value[sessionId] ?? []) {
+      for (const image of message.cloudImages ?? []) {
+        if (image.assetRef)
+          continue
+
+        const key = JSON.stringify([sessionId, image.id])
+        if (cloudImageDownloads.has(key))
+          continue
+
+        const task = restoreCloudImage(sessionId, image, reconcileEpoch)
+          .catch(error => console.warn('[chat-sync] attachment download failed', errorMessageFrom(error)))
+          .finally(() => {
+            if (cloudImageDownloads.get(key) === task)
+              cloudImageDownloads.delete(key)
+          })
+        cloudImageDownloads.set(key, task)
+      }
+    }
   }
 
   /**
@@ -1060,12 +1090,15 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     if (!meta?.cloudChatId)
       return
 
+    const epoch = reconcileEpoch
     try {
       const result = await wsClient.pullMessages({
         chatId: meta.cloudChatId,
         afterSeq: meta.cloudMaxSeq ?? 0,
       })
-      await mergeCloudMessagesIntoSession(sessionId, {
+      if (epoch !== reconcileEpoch)
+        return
+      mergeCloudMessagesIntoSession(sessionId, {
         messages: result.messages,
         toSeq: result.seq,
       })
@@ -1394,7 +1427,10 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       getToken: () => authToken.value,
     })
 
+    const epoch = reconcileEpoch
     wsClient.onNewMessages((payload) => {
+      if (epoch !== reconcileEpoch)
+        return
       const sessionId = findSessionIdByCloudChatId(payload.chatId)
       if (!sessionId) {
         // Not yet mapped — likely a chat created on another device that
@@ -1402,9 +1438,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
         void reconcileCloudSessions()
         return
       }
-      void mergeCloudMessagesIntoSession(sessionId, payload).catch((error) => {
-        console.warn('[chat-sync] message merge failed for', sessionId, errorMessageFrom(error))
-      })
+      mergeCloudMessagesIntoSession(sessionId, payload)
     })
 
     wsClient.onStatusChange((status) => {
@@ -1426,7 +1460,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
 
   function disposeCloudWsClient() {
     cloudReconcileTask = undefined
-    cloudMergeTasks.clear()
+    cloudImageDownloads.clear()
     pendingReconcile = false
     // Invalidate any in-flight reconcile IIFE so its post-await mutations
     // do not land on the next user's state.
