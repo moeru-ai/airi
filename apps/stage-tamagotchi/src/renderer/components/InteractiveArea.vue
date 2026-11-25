@@ -231,7 +231,7 @@ const {
   replyTarget,
   selectReply,
 } = composer
-const { addFiles: handleFilePaste, selectFiles: handleFileSelect, error: imageError, pending: pendingImages } = useChatImages(composer, () => activeSessionId.value)
+const { accept: imageAccept, addFiles: handleFilePaste, selectFiles: handleFileSelect, error: imageError, pending: pendingImages } = useChatImages(composer, () => activeSessionId.value)
 useHearingInputChannel(messageInput)
 const { openImagePreview } = journalPreviewStore
 const DOUBLE_ENTER_INTERVAL_MS = 300
@@ -725,7 +725,7 @@ defineExpose({
           <input
             ref="fileInput"
             type="file"
-            accept="image/png,image/jpeg,image/webp,image/gif"
+            :accept="imageAccept"
             class="hidden"
             multiple
             @change="handleFileSelect"

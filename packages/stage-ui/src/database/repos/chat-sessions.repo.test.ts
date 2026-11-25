@@ -110,6 +110,20 @@ describe('chatSessionsRepo.outbox', () => {
     expect(entries[0].content).toBe('second')
   })
 
+  it('recreates the same attachment IDs after the outbox entry was removed', async () => {
+    const ref = 'airi-asset:test-image'
+    const message = { ...makeEntry({ messageId: 'm1' }), imageRefs: [ref, ref] }
+    await chatSessionsRepo.enqueueOutbox('user-1', message)
+    const [original] = await chatSessionsRepo.getOutbox('user-1')
+    await chatSessionsRepo.dequeueOutbox('user-1', [message.messageId])
+
+    await chatSessionsRepo.enqueueOutbox('user-1', { ...message, cloudChatId: 'chat-a' })
+
+    expect(original.attachments).toEqual([{ id: expect.any(String), ref }, { id: expect.any(String), ref }])
+    expect(original.attachments?.[0].id).not.toBe(original.attachments?.[1].id)
+    expect(await chatSessionsRepo.getOutbox('user-1')).toEqual([{ ...original, cloudChatId: 'chat-a' }])
+  })
+
   /**
    * @example
    * dequeueOutbox drops only the named ids.
