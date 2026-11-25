@@ -48,7 +48,7 @@ Use text or icons to explain business states. A palette name does not establish 
 | `FieldInput` descriptions | `text-xs`, `neutral-500` in light mode, `neutral-400` in dark mode |
 | `BottomDrawer` titles | `text-xl font-semibold tracking-tight` |
 
-Use only the font families that `uno.config.ts` defines. The [`enforce-rules-for-fonts`](.agents/skills/enforce-rules-for-fonts/SKILL.md) skill gives the rules.
+Use only the font families that `uno.config.ts` defines. The [`enforce-rules-for-visual-design`](.agents/skills/enforce-rules-for-visual-design/SKILL.md) skill gives the rules.
 
 These values describe controls, not a global heading scale. Use the surrounding layout and adjacent pages as references for page titles and body text.
 
@@ -131,6 +131,8 @@ Rounded rectangles are the default for everyday controls. Pills and circles dist
 Inputs and standard selects use `rounded-lg`. Overlay buttons and select popups use `rounded-xl`. Bottom drawers use 32px top corners.
 
 Keep parallelogram styling in the existing button shape. Preserve its counter-skew so labels remain upright.
+
+Nested rounded surfaces share their centers: the inner radius is the outer radius minus the padding between them. A floating surface over the stage follows `Dock`: a pill whose radius is half its short side. The [`enforce-rules-for-visual-design`](.agents/skills/enforce-rules-for-visual-design/SKILL.md) skill gives the rules.
 
 ## Components
 
@@ -245,7 +247,7 @@ Live voice text appears with the blur fade through `PoppinText`. A rewrite of sp
 
 `AnimatedContent`, `BottomDrawer`, `TransitionBud`, and the blur fade explicitly handle reduced-motion preferences. Check other controls individually instead of assuming library-wide support.
 
-Icons use Iconify. Existing components and stories use sets such as Solar and Phosphor. The repository does not require one exclusive icon set.
+Icons use Iconify. Most components use Solar or MingCute. The repository does not require one exclusive icon set, but one action group uses one set. The [`enforce-rules-for-visual-design`](.agents/skills/enforce-rules-for-visual-design/SKILL.md) skill gives the rules.
 
 `BasicButton` uses a 16 × 16px icon container. Its spinner occupies the same area. Keep visual size and icon style consistent within an action group.
 
