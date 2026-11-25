@@ -24,6 +24,8 @@ const props = withDefaults(defineProps<{
   fill?: boolean
   /** The character of the conversations. The title names it. See `SessionsListHeader`. */
   character?: { name: string }
+  /** The ID of the character of the rows. The rows of another character replace the rows at once. */
+  characterId?: string
   /** Compact rows for a touch screen, with swipe actions and a long-press menu. See `SessionRowItem`. */
   touch?: boolean
   /** The owner still reads stored messages for the search, so more rows can match. */
@@ -555,7 +557,17 @@ const { holdLeavingItem } = useListReorderMotion({
         <AnimatedHeight>
           <!-- The padding keeps the focus rings of the rows inside the clip area. -->
           <div :class="[props.fill ? 'py-0.5 pl-0.5 pr-2.5' : props.compact ? 'p-0.5' : 'p-1']">
-            <TransitionGroup name="session-item" tag="ul" :class="['relative m-0 list-none p-0']" @before-leave="holdLeavingItem">
+            <!--
+              The motion of the rows is for changes inside the list of one character. When the character changes, the new
+              list replaces the old list at once, so the titles of the two lists never fade over each other.
+            -->
+            <TransitionGroup
+              :key="props.characterId"
+              name="session-item"
+              tag="ul"
+              :class="['relative m-0 list-none p-0']"
+              @before-leave="holdLeavingItem"
+            >
               <li
                 v-if="visibleRows.length === 0"
                 key="empty"

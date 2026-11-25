@@ -287,6 +287,7 @@ async function renameSession(payload: { sessionId: string, title: string }) {
     :desktop-mode="props.desktopMode"
     :touch="props.touch"
     :character="currentCharacter"
+    :character-id="currentCharacterId"
     @open-character="emit('openCharacterSettings', currentCharacterId)"
     @new-session="reportFailure(startNewSession)"
     @select-session="selectSession"

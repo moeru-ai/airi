@@ -21,6 +21,8 @@ const props = withDefaults(defineProps<{
   desktopMode?: 'dialog' | 'popover' | 'inline' | 'floating'
   /** The character of the conversations. The inline list names it in its title. */
   character?: { name: string }
+  /** The ID of the character of the rows. See `SessionsList`. */
+  characterId?: string
   /** The inline list is on a touch screen, so its rows take swipes and long presses. */
   touch?: boolean
   /** The owner reads stored messages for the search. See `SessionsList`. */
@@ -68,6 +70,7 @@ function preserveTriggerFocus(event: Event) {
       v-model:place="place"
       v-model:query="query"
       :searching="searching"
+      :character-id="characterId"
       compact
       fill
       :islands="desktopMode === 'floating'"
@@ -102,6 +105,7 @@ function preserveTriggerFocus(event: Event) {
       v-model:place="place"
       v-model:query="query"
       :searching="searching"
+      :character-id="characterId"
       :rows="rows"
       :is-creating-session="isCreatingSession"
       @new-session="emit('newSession')"
@@ -133,6 +137,7 @@ function preserveTriggerFocus(event: Event) {
           v-model:place="place"
           v-model:query="query"
           :searching="searching"
+          :character-id="characterId"
           compact
           :rows="rows"
           :is-creating-session="isCreatingSession"
@@ -170,6 +175,7 @@ function preserveTriggerFocus(event: Event) {
           v-model:place="place"
           v-model:query="query"
           :searching="searching"
+          :character-id="characterId"
           :rows="rows"
           :is-creating-session="isCreatingSession"
           @new-session="emit('newSession')"
