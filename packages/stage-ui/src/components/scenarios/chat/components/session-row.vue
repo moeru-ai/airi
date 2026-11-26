@@ -52,8 +52,6 @@ watch(() => props.selecting, (selecting) => {
 })
 
 const archived = computed(() => props.row.meta.archivedAt !== undefined)
-/** The row has swipe actions: the mobile row and the touch row. */
-const swipeable = computed(() => !props.compact || props.touch)
 
 const mainButton = useTemplateRef<InstanceType<typeof BasicButton>>('mainButton')
 // The press that opened the menu ends with a click on the row. That click must not open the conversation.
@@ -165,10 +163,14 @@ function runSwipeAction(value: string) {
       v-else
       v-slot="{ open, toggle }"
       v-model:open="swipeOpen"
-      :disabled="!swipeable || renaming"
+      :disabled="renaming"
       @action="runSwipeAction"
     >
-      <SwipeActionsList v-if="swipeable" :gap="16" default-action="delete">
+      <!--
+        Every row has swipe actions: a finger on a touch screen, and a two-finger swipe on a trackpad or a mouse drag on
+        a desktop. A short swipe to the left shows Archive and Delete, and a long swipe deletes.
+      -->
+      <SwipeActionsList :gap="16" default-action="delete">
         <SwipeActionsItem v-slot="{ takeover }" value="archive" as-child>
           <SwipeActionButton
             :label="archived ? t('stage.chat.sessions.unarchive') : t('stage.chat.sessions.archive')"
@@ -241,8 +243,8 @@ function runSwipeAction(value: string) {
           <template v-if="!renaming">
             <!--
               The compact row keeps Archive on the row, because it is the common action and an archived conversation comes
-              back. Delete is in its menu, where the item turns into its own confirmation. The mobile row opens the swipe
-              area, where Archive and Delete are the second press.
+              back. Delete is in its menu, where the item turns into its own confirmation, and in the swipe area. The mobile
+              row also opens the swipe area from its delete button, where Archive and Delete are the second press.
             -->
             <template v-if="props.compact && !props.touch">
               <button
@@ -313,7 +315,12 @@ function runSwipeAction(value: string) {
                 {{ archived ? t('stage.chat.sessions.unarchive') : t('stage.chat.sessions.archive') }}
               </MenuItem>
               <MenuSeparator />
-              <MenuItem v-if="props.compact" :class="['text-red-500 dark:text-red-400']" @select="selectDelete">
+              <!-- The item keeps the fill of the menu. The confirmation marks itself with bold text and a filled icon. -->
+              <MenuItem
+                v-if="props.compact"
+                :class="['text-red-500 dark:text-red-400', confirmingMenuDelete ? 'font-semibold' : '']"
+                @select="selectDelete"
+              >
                 <span aria-hidden="true" :class="[confirmingMenuDelete ? 'i-mingcute:delete-2-fill' : 'i-mingcute:delete-2-line', 'size-4 shrink-0']" />
                 {{ confirmingMenuDelete ? t('stage.chat.sessions.confirm-delete-short') : t('stage.chat.sessions.delete-short') }}
               </MenuItem>
