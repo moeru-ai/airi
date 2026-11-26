@@ -63,7 +63,7 @@ import { deliverTerminalNotice } from './services/airi/mcp-servers/terminal-noti
 import { setupExtensionHost } from './services/airi/plugins'
 import { createBuiltInExtensionKits } from './services/airi/plugins/kits'
 import { setupArtistryBridge } from './services/airi/widgets/artistry-bridge'
-import { isExternallyUpdatedInstall, setupAutoUpdater } from './services/electron/auto-updater'
+import { cleanupRedundantPendingInstallers, isExternallyUpdatedInstall, setupAutoUpdater } from './services/electron/auto-updater'
 import { setupSherpawModelAssetsProtocol } from './services/electron/bundled-sherpaw-assets'
 import { setupGlobalShortcutService } from './services/electron/global-shortcut'
 import { setupPermissionHandlers } from './services/electron/media-permissions'
@@ -302,6 +302,7 @@ app.whenReady().then(async () => {
   const ioTraceRecordingConfig = injeca.provide('configs:io-trace-recording', () => createIOTraceRecordingConfig())
   const ioTraceHubConfig = injeca.provide('configs:io-trace-hub', () => createIOTraceHubConfig())
   const electronApp = injeca.provide('host:electron:app', () => app)
+  injeca.provide('services:auto-updater:cleanup', () => cleanupRedundantPendingInstallers)
   const autoUpdater = injeca.provide('services:auto-updater', {
     dependsOn: { appConfig },
     build: ({ dependsOn }) => setupAutoUpdater({
