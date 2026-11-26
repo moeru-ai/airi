@@ -1,7 +1,7 @@
 import type { ImageThumbnail } from '@proj-airi/server-sdk-shared/v2'
 
-import { decodeBase64, encodeBase64 } from '@moeru/std/base64'
-import { rgbaToThumbHash, thumbHashToDataURL } from 'thumbhash'
+import { encodeBase64 } from '@moeru/std/base64'
+import { rgbaToThumbHash } from 'thumbhash'
 
 export async function createImageThumbnail(blob: Blob): Promise<ImageThumbnail | undefined> {
   const image = await createImageBitmap(blob)
@@ -22,8 +22,4 @@ export async function createImageThumbnail(blob: Blob): Promise<ImageThumbnail |
   finally {
     image.close()
   }
-}
-
-export function thumbnailDataUrl(hash: string) {
-  return thumbHashToDataURL(decodeBase64(hash))
 }

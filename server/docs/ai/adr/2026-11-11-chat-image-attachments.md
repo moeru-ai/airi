@@ -37,11 +37,13 @@ flowchart LR
 ```
 
 ```text
-packages/stage-ui/src/
-├── libs/chat-sync/attachments.ts
-├── libs/chat-sync/image-thumbnail.ts
-├── components/scenarios/chat/components/chat-image.vue
-└── stores/chat/session-store.ts
+packages/
+├── stage-ui/src/
+│   ├── libs/chat-sync/attachments.ts
+│   ├── libs/chat-sync/image-thumbnail.ts
+│   ├── components/scenarios/chat/components/chat-image.vue
+│   └── stores/chat/session-store.ts
+└── ui/src/components/misc/thumb-hash-image.vue
 server/
 ├── apps/api/src/routes/attachments/
 ├── apps/api/src/schemas/attachments.ts
