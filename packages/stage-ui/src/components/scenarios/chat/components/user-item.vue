@@ -3,10 +3,10 @@ import type { ChatHistoryItem } from '../../../../types/chat'
 import type { ChatHistoryReplyPayload } from '../reply'
 
 import { isStageCapacitor, isStageWeb } from '@proj-airi/stage-shared'
+import { ThumbHashImage } from '@proj-airi/ui'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import ChatImage from './chat-image.vue'
 import InvokedSkills from './invoked-skills.vue'
 import ChatReplyQuote from './reply-quote.vue'
 import VoiceMessagePlayer from './voice-message-player.vue'
@@ -61,22 +61,34 @@ const content = computed(() => {
 })
 
 const emptySources: readonly string[] = Object.freeze([])
-const images = computed(() => {
-  const sources = typeof props.message.content === 'string'
-    ? emptySources
-    : props.message.content.flatMap(part => part.type === 'image_url' ? [part.image_url.url] : [])
-
+const images = computed<{
+  key: string | number
+  source?: string
+  thumbnail?: InstanceType<typeof ThumbHashImage>['$props']['thumbnail']
+  style?: { width: string }
+}[]>((previous) => {
   if (props.message.cloudImages) {
-    let sourceIndex = 0
-    return props.message.cloudImages.map(image => ({
-      key: image.id,
-      source: image.assetRef ? sources[sourceIndex++] : undefined,
-      thumbnail: image.thumbnail,
-    }))
+    return props.message.cloudImages.map(({ id: key, assetRef: source, thumbnail }) => {
+      if (!thumbnail)
+        return { key, source }
+
+      const { width, height } = thumbnail
+      const previousImage = previous?.find(image => image.key === key)
+      const showPreview = previousImage ? !!previousImage.thumbnail?.hash : !source
+      return {
+        key,
+        source,
+        thumbnail: { width, height, hash: showPreview ? thumbnail.hash : undefined },
+        style: { width: `min(${width}px, ${16 * width / height}rem)` },
+      }
+    })
   }
 
-  return sources.map((source, key) => ({ key, source, thumbnail: undefined }))
+  return typeof props.message.content === 'string'
+    ? []
+    : props.message.content.flatMap((part, key) => part.type === 'image_url' ? [{ key, source: part.image_url.url }] : [])
 })
+const imageSources = useChatAssetUrls(() => images.value.map(image => image.source))
 const voiceControls = useVoiceControlsStore()
 /** The voice host still transcribes this message after its submit. */
 const transcribing = computed(() => voiceControls.messages.some(item => item.id === props.message.id && (item.phase === 'sending' || item.phase === 'transcribing')))
@@ -148,13 +160,22 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message))
               <span :class="['inline <sm:hidden text-sm font-normal', 'text-black/60 dark:text-white/65']">{{ label }}</span>
             </div>
             <div v-if="images.length" :class="['flex flex-wrap gap-2 py-2']">
-              <ChatImage
-                v-for="image in images"
-                :key="image.key"
-                :source="image.source"
-                :thumbnail="image.thumbnail"
-                :alt="t('stage.chat.images.description')"
-              />
+              <template v-for="(image, index) in images" :key="image.key">
+                <ThumbHashImage
+                  v-if="image.thumbnail"
+                  :src="imageSources[index]"
+                  :thumbnail="image.thumbnail"
+                  :alt="t('stage.chat.images.description')"
+                  :style="image.style"
+                  :class="['rounded-xl']"
+                />
+                <img
+                  v-else-if="imageSources[index]"
+                  :src="imageSources[index]"
+                  :alt="t('stage.chat.images.description')"
+                  :class="['max-h-64 max-w-full rounded-xl object-contain']"
+                >
+              </template>
             </div>
             <div v-for="(recording, index) in audio" :key="index" :class="['flex flex-col gap-0.5', !voiceOnly && 'py-1']">
               <VoiceMessagePlayer :audio="recording.source" surface="none" :aria-label="t('stage.chat.voice-message.preview')" />

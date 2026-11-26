@@ -26,6 +26,7 @@ This change does not synchronize model inputs other than images. It does not add
 flowchart LR
   Store[Chat session store] --> Client[Attachment client]
   History[Chat history] --> Store
+  History --> Image[ThumbHashImage]
   Client --> Thumbnail[ThumbHash codec]
   Client --> Routes[Attachment routes]
   Routes --> Attachments[Attachment service]
@@ -41,7 +42,7 @@ packages/
 ├── stage-ui/src/
 │   ├── libs/chat-sync/attachments.ts
 │   ├── libs/chat-sync/image-thumbnail.ts
-│   ├── components/scenarios/chat/components/chat-image.vue
+│   ├── components/scenarios/chat/components/user-item.vue
 │   └── stores/chat/session-store.ts
 └── ui/src/components/misc/thumb-hash-image.vue
 server/

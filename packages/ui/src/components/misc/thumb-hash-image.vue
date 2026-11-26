@@ -1,26 +1,25 @@
 <script setup lang="ts">
 import { decodeBase64 } from '@moeru/std/base64'
 import { thumbHashToDataURL } from 'thumbhash'
-import { computed, shallowRef, useTemplateRef, watch } from 'vue'
+import { computed, shallowRef, useTemplateRef } from 'vue'
 
 const props = defineProps<{
   alt: string
-  width: number
-  height: number
   src?: string
-  thumbHash?: string
+  thumbnail: { width: number, height: number, hash?: string }
 }>()
 
 const size = computed(() => ({
-  aspectRatio: `${props.width} / ${props.height}`,
-  width: `${props.width}px`,
+  aspectRatio: `${props.thumbnail.width} / ${props.thumbnail.height}`,
+  width: `${props.thumbnail.width}px`,
 }))
 const preview = computed(() => {
-  if (!props.thumbHash)
+  const { hash } = props.thumbnail
+  if (!hash)
     return
 
   try {
-    return thumbHashToDataURL(decodeBase64(props.thumbHash))
+    return thumbHashToDataURL(decodeBase64(hash))
   }
   catch {
     return undefined
@@ -28,11 +27,12 @@ const preview = computed(() => {
 })
 
 const original = useTemplateRef<HTMLImageElement>('original')
-const originalReady = shallowRef(false)
+const decodedImage = shallowRef<HTMLImageElement>()
+const originalReady = computed(() => decodedImage.value === original.value && original.value?.getAttribute('src') === props.src)
 
-watch(original, async (image) => {
-  originalReady.value = false
-  if (!image)
+async function showOriginal(event: Event) {
+  const image = event.currentTarget
+  if (!(image instanceof HTMLImageElement))
     return
 
   try {
@@ -43,8 +43,8 @@ watch(original, async (image) => {
   }
 
   if (image === original.value)
-    originalReady.value = true
-})
+    decodedImage.value = image
+}
 </script>
 
 <template>
@@ -68,6 +68,7 @@ watch(original, async (image) => {
         'absolute inset-0 size-full object-contain',
         preview && (originalReady ? 'animate-fadeIn motion-reduce:animate-none' : 'opacity-0'),
       ]"
+      @load="showOriginal"
     >
   </div>
 </template>
