@@ -79,3 +79,23 @@ Reported search abilities do not select a native tool implementation.
 OpenAI reasoning controls use the exact model entry and effort levels from the pinned catalog.
 Unsupported effort values are omitted. In particular, models without a `none` effort keep their server default when reasoning is disabled.
 Generation validation uses the configured model before consulting the endpoint model list.
+
+## AnonRouter
+
+AnonRouter exposes an OpenAI-compatible chat API. AIRI discovers available models from the endpoint and uses bearer authentication with a compatible inference key.
+
+1. Create an account and an API key at [AnonRouter](https://anonrouter.ai/).
+2. Enable **OpenAI-compatible access** for the key. See [compatibility mode](https://docs.anonrouter.ai/compatibility).
+3. Keep the key private. Do not commit it or include it in screenshots.
+4. Open **Settings → Providers → Chat → AnonRouter**.
+5. Enter the API key. Keep the default Base URL, `https://api.anonrouter.ai/v1`.
+6. Wait for automatic validation. If **Ping API** appears, use it for a live request.
+7. Open **Settings → Modules → Consciousness** and select the provider and model.
+
+Model IDs use the `creator/model` format, for example `openai/gpt-4o-mini`. The provider catalog gives each exact ID.
+If the catalog cannot load, enter the exact model ID manually on the Consciousness page.
+If validation fails, check the key, credits, quota, rate limits, and network connection.
+If the API returns `permission_error`, enable compatibility mode or create a compatible inference key.
+If a key is exposed, revoke it and create another key in the provider dashboard.
+
+The documentation site lives in `moeru-ai/airi-docs`. Its provider navigation requires a separate update there.
