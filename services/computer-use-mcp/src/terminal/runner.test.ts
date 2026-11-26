@@ -196,7 +196,7 @@ describe('createLocalShellRunner', () => {
   // timeout to reap background grandchildren rather than leaving them orphaned.
   it('reaps background grandchildren when a command times out', { skip: isWindows }, async () => {
     const runner = createLocalShellRunner(createTestConfig({
-      terminalShell: '/bin/zsh',
+      terminalShell: 'sh',
       timeoutMs: 300,
     }))
 

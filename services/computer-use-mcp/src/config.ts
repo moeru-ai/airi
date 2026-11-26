@@ -56,10 +56,10 @@ function resolveDefaultTerminalShell(hostPlatform: NodeJS.Platform) {
   }
 
   if (hostPlatform === 'linux') {
-    return '/bin/bash'
+    return 'bash'
   }
 
-  return '/bin/zsh'
+  return 'zsh'
 }
 
 function parseBoolean(value: string | undefined, fallback: boolean) {
