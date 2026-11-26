@@ -294,6 +294,11 @@ chat:
     unarchive: Restore
     selected: '{count} selected'
     empty-archive: No archived chats. Archived chats stay here.
+    search: Search chats
+    search-close: Close search
+    search-empty: 'No chats contain "{query}"'
+    searching: Searching chats…
+    search-failed: Some chats could not be searched
     save-failed: The change could not be saved
 avatar-model-missing:
   title: No model selected

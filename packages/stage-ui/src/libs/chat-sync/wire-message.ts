@@ -1,5 +1,8 @@
 import type { ChatAssistantMessage, ChatHistoryItem } from '@proj-airi/core-agent'
 import type { NewMessagesPayload, WireMessage } from '@proj-airi/server-sdk-shared'
+import type { CommonContentPart } from '@xsai/shared-chat'
+
+const EMPTY_ATTACHMENT_REFS: ReadonlyMap<string, string> = new Map()
 
 /**
  * Extract a plain-text payload from a local `ChatHistoryItem` for upload.
@@ -111,10 +114,7 @@ export function isCloudSyncableMessage(message: ChatHistoryItem): boolean {
  *   that the wire format does not, so we synthesize minimal placeholders
  *   for them.
  */
-export function wireMessageToLocal(wire: WireMessage): ChatHistoryItem {
-  // Server wire format only stores plain text content; we recreate the
-  // local shape with empty tool_results / slices so downstream UI code can
-  // assume the invariants documented in core-agent's ChatAssistantMessage.
+export function wireMessageToLocal(wire: WireMessage, attachmentRefs: ReadonlyMap<string, string> = EMPTY_ATTACHMENT_REFS): ChatHistoryItem {
   switch (wire.role) {
     case 'assistant': {
       const assistant: ChatAssistantMessage = {
@@ -129,14 +129,22 @@ export function wireMessageToLocal(wire: WireMessage): ChatHistoryItem {
         ...(wire.replyToMessageId ? { replyToMessageId: wire.replyToMessageId } : {}),
       })
     }
-    case 'user':
+    case 'user': {
+      const images: CommonContentPart[] = (wire.attachments ?? []).flatMap((attachment) => {
+        const url = attachmentRefs.get(attachment.id)
+        return url ? [{ type: 'image_url', image_url: { url } }] : []
+      })
+      const content: string | CommonContentPart[] = images.length > 0
+        ? [{ type: 'text', text: wire.content }, ...images]
+        : wire.content
       return {
         role: 'user',
-        content: wire.content,
+        content,
         id: wire.id,
         createdAt: wire.createdAt,
         ...(wire.replyToMessageId ? { replyToMessageId: wire.replyToMessageId } : {}),
       }
+    }
     case 'system':
       return {
         role: 'system',
@@ -203,6 +211,7 @@ export function mergeCloudMessagesIntoLocal(
   currentMessages: ChatHistoryItem[],
   currentMaxSeq: number,
   payload: Pick<NewMessagesPayload, 'messages'> & { toSeq?: number },
+  attachmentRefs: ReadonlyMap<string, string> = EMPTY_ATTACHMENT_REFS,
 ): CloudMergeResult {
   const knownIds = new Set<string>()
   for (const message of currentMessages) {
@@ -222,7 +231,7 @@ export function mergeCloudMessagesIntoLocal(
       maxSeq = wire.seq
     if (knownIds.has(wire.id))
       continue
-    additions.push(wireMessageToLocal(wire))
+    additions.push(wireMessageToLocal(wire, attachmentRefs))
   }
 
   // The server may report a higher seq than the highest message in the

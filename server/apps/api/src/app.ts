@@ -7,6 +7,7 @@ import type { AccountEventPublisher } from './services/adapters/account-events'
 import type { ConfigKVService } from './services/adapters/config-kv'
 import type { RevenuecatSubscriberClient } from './services/adapters/revenuecat-subscriber'
 import type { RevenuecatSubscriptionSync } from './services/adapters/revenuecat-subscriptions'
+import type { AttachmentService } from './services/domain/attachments'
 import type { BillingService } from './services/domain/billing/billing-service'
 import type { LlmBillingService } from './services/domain/billing/llm-billing'
 import type { CharacterCardService } from './services/domain/character-cards'
@@ -55,6 +56,7 @@ import { registerTtsPoolGauge } from './otel/gauges/tts-pool'
 import { registerWsOnlineUsersGauge } from './otel/gauges/ws-online-users'
 import { createAppleIapRoutes } from './routes/apple-iap'
 import { createVerifier as createAppleIapVerifier } from './routes/apple-iap/verifier'
+import { createAttachmentRoutes } from './routes/attachments'
 import { createAudioSpeechWsHandlers } from './routes/audio-speech-ws'
 import { createAudioTranscriptionStreamHandler } from './routes/audio-transcription-stream/route'
 import { createCharacterCardRoutes } from './routes/character-cards'
@@ -69,6 +71,7 @@ import { createFluxRoutes } from './routes/flux'
 import { createInternalAuthRoutes } from './routes/internal-auth'
 import { createLlmRequestRoutes } from './routes/llm-requests'
 import { createV1Routes } from './routes/openai/v1'
+import { createPaymentRoutes } from './routes/payments'
 import { createProviderRoutes } from './routes/providers'
 import { createRevenuecatRoutes } from './routes/revenuecat'
 import { createStripeRoutes } from './routes/stripe'
@@ -82,6 +85,7 @@ import { createPosthogSink } from './services/adapters/posthog'
 import { createFanoutSink } from './services/adapters/product-analytics'
 import { createRevenuecatSubscriberClient } from './services/adapters/revenuecat-subscriber'
 import { createRevenuecatSubscriptionSync } from './services/adapters/revenuecat-subscriptions'
+import { createAttachmentService } from './services/domain/attachments'
 import { createBillingService } from './services/domain/billing/billing-service'
 import { createLlmBillingService } from './services/domain/billing/llm-billing'
 import { SpeechBilling } from './services/domain/billing/speech-billing'
@@ -93,6 +97,7 @@ import { createFluxService } from './services/domain/flux'
 import { createFluxTransactionService } from './services/domain/flux-transaction'
 import { createConcurrencyLedger, createConfigSyncSubscriber, createLlmRouterService } from './services/domain/llm-router'
 import { createPaymentService } from './services/domain/payment'
+import { createPaymentReceiptService } from './services/domain/payment/receipt'
 import { createProductEventService } from './services/domain/product-events'
 import { createProviderCatalogService } from './services/domain/provider-catalog'
 import { createProviderService } from './services/domain/providers'
@@ -106,6 +111,7 @@ import { getTrustedOrigin } from './utils/origin'
 
 interface AppDeps {
   db: Database
+  attachmentService: AttachmentService
   characterCardService: CharacterCardService
   characterService: CharacterService
   chatService: ChatService
@@ -153,6 +159,7 @@ export async function buildApp(deps: AppDeps) {
   const logger = useLogger('app').useGlobalConfig()
   const webAppUrl = deps.env.WEB_APP_URL
   const docsUrl = new URL('/docs', webAppUrl).toString()
+  const paymentReceipts = createPaymentReceiptService(deps.db, deps.stripe)
 
   const app = new Hono<HonoEnv>()
     .use('*', async (c, next) => {
@@ -424,6 +431,8 @@ export async function buildApp(deps: AppDeps) {
      */
     .route('/api/v1/chats', createChatRoutes(deps.chatService))
 
+    .route('/api/v1/attachments', createAttachmentRoutes(deps.attachmentService))
+
     /**
      * V1 OpenAI-compatible and audio routes. The factory returns two
      * sibling routers because the audio surface deliberately lives outside
@@ -437,6 +446,7 @@ export async function buildApp(deps: AppDeps) {
      * Flux routes.
      */
     .route('/api/v1/flux', createFluxRoutes(deps.fluxService, deps.fluxTransactionService, deps.billingService))
+    .route('/api/v1/payments', createPaymentRoutes(paymentReceipts))
     .route('/api/v1/llm-requests', createLlmRequestRoutes(deps.requestLogService))
 
     /**
@@ -653,6 +663,11 @@ export async function createApp() {
     },
   })
 
+  const attachmentService = injeca.provide('services:attachments', {
+    dependsOn: { db, objectStore },
+    build: ({ dependsOn }) => createAttachmentService(dependsOn.db, dependsOn.objectStore),
+  })
+
   const characterService = injeca.provide('services:characters', {
     dependsOn: { db, otel },
     build: ({ dependsOn }) => createCharacterService(dependsOn.db, dependsOn.otel?.engagement),
@@ -791,7 +806,7 @@ export async function createApp() {
   // Domain knowledge stays inside each service instead of being copied into
   // a parallel handler file.
   const userDeletionService = injeca.provide('services:userDeletion', {
-    dependsOn: { paymentService, fluxService, providerService, characterService, characterCardService, chatService, accountEvents },
+    dependsOn: { paymentService, fluxService, providerService, characterService, characterCardService, chatService, attachmentService, accountEvents },
     build: ({ dependsOn }) => {
       const service = createUserDeletionService()
       // priority: 20 = financial / cache state (Flux balance + Redis),
@@ -803,6 +818,7 @@ export async function createApp() {
       service.register({ name: 'characters', priority: 30, softDelete: ({ userId }) => dependsOn.characterService.deleteAllForUser(userId) })
       service.register({ name: 'characterCards', priority: 30, softDelete: ({ userId }) => dependsOn.characterCardService.deleteAllForUser(userId) })
       service.register({ name: 'chats', priority: 30, softDelete: ({ userId }) => dependsOn.chatService.deleteAllForUser(userId) })
+      service.register({ name: 'attachments', priority: 30, softDelete: ({ userId }) => dependsOn.attachmentService.deleteAllForUser(userId) })
       service.register(createUserDeletedEventHandler(dependsOn.accountEvents))
       return service
     },
@@ -834,6 +850,7 @@ export async function createApp() {
   const resolved = await injeca.resolve({
     objectStore,
     db,
+    attachmentService,
     characterCardService,
     characterService,
     chatService,
@@ -870,6 +887,7 @@ export async function createApp() {
 
   const appDeps = {
     db: resolved.db,
+    attachmentService: resolved.attachmentService,
     characterCardService: resolved.characterCardService,
     characterService: resolved.characterService,
     chatService: resolved.chatService,

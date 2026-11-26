@@ -129,6 +129,9 @@ export const useAuthStore = defineStore('auth', () => {
   const verifiedSessionVersion = ref(0)
   /** False while the token can belong to another account than `user`. Requests that move private data must wait. */
   const isSessionVerified = computed(() => verifiedSessionVersion.value === sessionVersion.value)
+  const verifiedSession = computed(() => isAuthenticated.value && isSessionVerified.value
+    ? { userId: userId.value, sessionVersion: sessionVersion.value } as const
+    : null)
 
   const credits = ref(0)
   /** Whole percent of the capacitor Flux left. Null without an active capacitor. */
@@ -688,6 +691,7 @@ export const useAuthStore = defineStore('auth', () => {
     sessionVersion,
     verifiedSessionVersion,
     isSessionVerified,
+    verifiedSession,
     consumeLoginRequest,
     requestLogin,
     expireSession,

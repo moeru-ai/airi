@@ -1927,6 +1927,24 @@ pages:
       title: Flux top-up packs
       buy: Charge
       description: One-time purchase. It does not expire.
+  billing:
+    receipts: Flux top-up receipts
+    receiptsHint: Manage subscription billing in the subscription section above.
+    date: Date
+    descriptionColumn: Description
+    status: Status
+    amount: Amount
+    receipt: Receipt
+    paid: Paid
+    topUp: Flux top-up
+    fluxTopUp: '{amount} Flux top-up'
+    viewReceipt: View receipt
+    receiptError: Failed to open the receipt. Try again.
+    loadError: Failed to load receipts.
+    empty: No receipts yet.
+    unavailable: Unavailable
+    retry: Retry
+    loadMore: Load more
   capacitor:
     name: Capacitor
     left: 'Capacitor: {percent} left'

@@ -5,19 +5,29 @@ import { defineInvokeEventa, defineOutboundEventa } from '@moeru/eventa'
 import * as v from 'valibot'
 
 export type {
+  CreateAttachmentRequest,
+  CreateAttachmentResponse,
+  DownloadAttachmentResponse,
   MessageRole,
   NewMessagesPayload,
   PullMessagesRequest,
   PullMessagesResponse,
   SendMessagesRequest,
   SendMessagesResponse,
+  WireAttachment,
   WireMessage,
 } from './chat'
 export {
+  ChatImageMimeTypeSchema,
+  CreateAttachmentRequestSchema,
+  CreateAttachmentResponseSchema,
+  DownloadAttachmentResponseSchema,
+  NewMessagesPayloadSchema,
   parsePullMessagesRequest,
   parseSendMessagesRequest,
   PullMessagesRequestSchema,
   SendMessagesRequestSchema,
+  WireAttachmentSchema,
 } from './chat'
 
 export const AuthenticateRequestSchema = v.object({

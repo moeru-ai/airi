@@ -1,3 +1,4 @@
+export * from './attachments'
 export * from './character-cards'
 export * from './characters'
 export * from './chats'
