@@ -23,6 +23,7 @@ export {
   CreateAttachmentRequestSchema,
   CreateAttachmentResponseSchema,
   DownloadAttachmentResponseSchema,
+  ImageThumbnailSchema,
   NewMessagesPayloadSchema,
   parsePullMessagesRequest,
   parseSendMessagesRequest,

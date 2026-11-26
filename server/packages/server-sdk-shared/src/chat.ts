@@ -28,7 +28,7 @@ export const PullMessagesRequestSchema = v.object({
   limit: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1))),
 })
 
-const ImageThumbnailSchema = v.object({
+export const ImageThumbnailSchema = v.object({
   hash: v.pipe(v.string(), v.minLength(20), v.maxLength(40), v.base64()),
   width: v.pipe(v.number(), v.safeInteger(), v.minValue(1)),
   height: v.pipe(v.number(), v.safeInteger(), v.minValue(1)),
@@ -67,6 +67,7 @@ export const DownloadAttachmentResponseSchema = v.object({
   attachment: WireAttachmentSchema,
   url: v.pipe(v.string(), v.url()),
   sha256: Sha256Schema,
+  canBackfillThumbnail: v.optional(v.literal(true)),
 })
 
 export type CreateAttachmentRequest = v.InferOutput<typeof CreateAttachmentRequestSchema>

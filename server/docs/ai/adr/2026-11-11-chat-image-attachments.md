@@ -15,10 +15,13 @@ The shared object store signs a write-once PUT with a SHA-256 checksum. Finaliza
 The download authorization includes the expected SHA-256. The client checks the size and checksum before it saves the image.
 The sender creates the preview from the image it uploads. The receiver displays and saves the message while it downloads the originals.
 The receiver displays the preview until the original decodes. It retries pending downloads on a new history pull.
+If a ready attachment has no preview, the owner's client creates one after it verifies the downloaded bytes.
+The API fills the empty thumbnail field with one atomic update. Later history pulls include the saved preview.
 
 ## Non-goals
 
 This change does not synchronize model inputs other than images. It does not add public object access or provision a new bucket.
+Backfill runs on cloud downloads. Images that stay on a device and bulk scans are outside its scope.
 
 ## Modules
 
@@ -75,6 +78,11 @@ sequenceDiagram
   API-->>B: Signed GET URL
   B->>S3: GET image bytes
   B->>B: Verify and save bytes, then show original
+  opt Owner downloads an attachment with an empty thumbnail
+    B->>B: Compute preview from verified bytes
+    B->>API: PUT thumbnail
+    API->>API: Fill the empty thumbnail field
+  end
 ```
 
 ## Tests
@@ -83,3 +91,5 @@ Check upload retry, finalization, and download authorization in the attachment s
 Check descriptor handling in the WebSocket contract and browser tests.
 Send a test image from one client and load the same conversation from a second client against local RustFS.
 Hold the download response. Check that the receiving client shows the message and thumbnail before the original arrives.
+Download a ready attachment with no preview as its owner. Check that the next download descriptor contains the preview.
+Check that a member cannot write back and that repeated writes preserve the first preview.

@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mockDB } from '../../libs/mock-db'
 import { attachments } from '../../schemas/attachments'
 import { createAttachmentService } from './attachments'
+import { createChatService } from './chats'
 
 import * as schema from '../../schemas/chats'
 
@@ -83,7 +84,7 @@ describe('attachment service', () => {
     })
   })
 
-  it('authorizes downloads for an owner and a member of the linked chat', async () => {
+  it('lets only the owner backfill a ready attachment and shares the result with chat members', async () => {
     await db.insert(attachments).values({
       id: 'attachment-1',
       ownerId: 'owner-1',
@@ -113,10 +114,23 @@ describe('attachment service', () => {
     await expect(service.createDownload('owner-1', 'attachment-1')).resolves.toMatchObject({
       url: 'https://objects.test/attachments/attachment-1/original',
       sha256: 'a'.repeat(64),
+      canBackfillThumbnail: true,
     })
-    await expect(service.createDownload('member-1', 'attachment-1')).resolves.toMatchObject({
-      attachment: { id: 'attachment-1' },
-    })
+    const memberDownload = await service.createDownload('member-1', 'attachment-1')
+    expect(memberDownload.attachment.id).toBe('attachment-1')
+    expect(memberDownload.canBackfillThumbnail).toBeUndefined()
     await expect(service.createDownload('stranger', 'attachment-1')).rejects.toMatchObject({ statusCode: 404 })
+
+    const thumbnail = { hash: 'HikOLYh4eXepiHecd/d3eoaAdwh4', width: 640, height: 480 }
+    await expect(service.backfillThumbnail('member-1', 'attachment-1', thumbnail)).rejects.toMatchObject({ statusCode: 404 })
+    await service.backfillThumbnail('owner-1', 'attachment-1', thumbnail)
+    await service.backfillThumbnail('owner-1', 'attachment-1', { ...thumbnail, width: 800 })
+
+    const ownerDownload = await service.createDownload('owner-1', 'attachment-1')
+    expect(ownerDownload.attachment.thumbnail).toEqual(thumbnail)
+    expect(ownerDownload.canBackfillThumbnail).toBeUndefined()
+
+    const history = await createChatService(db).pullMessages('member-1', 'chat-1', 0)
+    expect(history.messages[0]?.attachments?.[0]?.thumbnail).toEqual(thumbnail)
   })
 })

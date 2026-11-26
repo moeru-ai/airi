@@ -2,6 +2,7 @@ import type { WireAttachment } from '@proj-airi/server-sdk-shared/v2'
 
 import type { ChatHistoryItem } from '../../types/chat'
 
+import { errorMessageFrom } from '@moeru/std'
 import { CreateAttachmentRequestSchema, CreateAttachmentResponseSchema, DownloadAttachmentResponseSchema, WireAttachmentSchema } from '@proj-airi/server-sdk-shared/v2'
 
 import * as v from 'valibot'
@@ -9,7 +10,7 @@ import * as v from 'valibot'
 import { chatAssetIdFrom, chatEventAttachmentsOf, readChatAsset } from '../chat-assets'
 import { TransferRequestError } from '../file-transfer/request-error'
 import { downloadVerified, putToTarget } from '../file-transfer/transfer'
-import { readJsonOrThrow } from './http-response'
+import { readJsonOrThrow, throwOnError } from './http-response'
 import { createImageThumbnail } from './image-thumbnail'
 
 interface CloudAttachmentClientOptions {
@@ -58,11 +59,27 @@ export async function uploadCloudAttachment(attachmentId: string, assetRef: stri
   return created.attachment.id
 }
 
+async function backfillThumbnail(attachmentId: string, blob: Blob, options: CloudAttachmentClientOptions) {
+  const thumbnail = await createImageThumbnail(blob).catch(() => undefined)
+  if (!thumbnail)
+    return
+
+  const response = await options.apiFetch(
+    new URL(`/api/v1/attachments/${encodeURIComponent(attachmentId)}/thumbnail`, options.serverUrl),
+    { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(thumbnail) },
+  )
+  await throwOnError(response)
+}
+
 export async function downloadCloudAttachment(attachment: WireAttachment, options: CloudAttachmentClientOptions) {
   const response = await options.apiFetch(
     new URL(`/api/v1/attachments/${encodeURIComponent(attachment.id)}/download`, options.serverUrl),
   )
   const download = await readJsonOrThrow(response, DownloadAttachmentResponseSchema)
   const blob = await downloadVerified({ url: download.url, byteSize: attachment.size, sha256: download.sha256 })
+  if (download.canBackfillThumbnail) {
+    void backfillThumbnail(attachment.id, blob, options)
+      .catch(error => console.warn('[chat-sync] thumbnail backfill failed', errorMessageFrom(error)))
+  }
   return new Uint8Array(await blob.arrayBuffer())
 }

@@ -1,8 +1,8 @@
 import type { AttachmentService } from '../../services/domain/attachments'
 import type { HonoEnv } from '../../types/hono'
 
-import { createBadRequestError, created, ok } from '@proj-airi/http-shared'
-import { CreateAttachmentRequestSchema } from '@proj-airi/server-sdk-shared/v2'
+import { createBadRequestError, created, noContent, ok } from '@proj-airi/http-shared'
+import { CreateAttachmentRequestSchema, ImageThumbnailSchema } from '@proj-airi/server-sdk-shared/v2'
 import { Hono } from 'hono'
 import { safeParse } from 'valibot'
 
@@ -24,6 +24,15 @@ export function createAttachmentRoutes(attachmentService: AttachmentService) {
     .post('/:id/finalize', async (c) => {
       const attachment = await attachmentService.finalizeUpload(c.get('user')!.id, c.req.param('id'))
       return ok(c, attachment)
+    })
+    .put('/:id/thumbnail', async (c) => {
+      const body = await readJsonBody(c.req)
+      const thumbnail = safeParse(ImageThumbnailSchema, body)
+      if (!thumbnail.success)
+        throw createBadRequestError('Invalid Request', 'INVALID_REQUEST', thumbnail.issues)
+
+      await attachmentService.backfillThumbnail(c.get('user')!.id, c.req.param('id'), thumbnail.output)
+      return noContent(c)
     })
     .get('/:id/download', async (c) => {
       return ok(c, await attachmentService.createDownload(c.get('user')!.id, c.req.param('id')))
