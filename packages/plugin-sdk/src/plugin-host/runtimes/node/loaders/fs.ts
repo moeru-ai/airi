@@ -3,6 +3,7 @@ import type { ExtensionLoadOptions, ExtensionManifestV2 } from '../../../shared/
 
 import { isAbsolute, join } from 'node:path'
 import { cwd } from 'node:process'
+import { pathToFileURL } from 'node:url'
 
 function isExtensionDefinition(value: unknown): value is Extension {
   return typeof value === 'object'
@@ -36,7 +37,7 @@ function coerceExtensionFromModule(moduleValue: unknown): Extension {
  * - The host needs to import a `defineExtension(...)` export
  *
  * Expects:
- * - Entry points are valid importable module paths for the active runtime
+ * - Entrypoints are filesystem paths for the active runtime
  *
  * Returns:
  * - Filesystem-backed helpers for resolving and loading extension entrypoints
@@ -70,9 +71,14 @@ export class FileSystemLoader {
     return isAbsolute(entrypoint) ? entrypoint : join(root, entrypoint)
   }
 
+  /** Imports a filesystem entrypoint. A cache key changes only the entry module's Node ESM cache identity. */
   async loadExtensionFor(manifest: ExtensionManifestV2, options?: ExtensionLoadOptions) {
     const entrypoint = this.resolveEntrypointFor(manifest, options)
-    const extensionModule = await import(entrypoint)
+    const url = pathToFileURL(entrypoint)
+    if (options?.cacheBustKey !== undefined) {
+      url.searchParams.set('cacheBust', options.cacheBustKey)
+    }
+    const extensionModule = await import(url.href)
     return coerceExtensionFromModule(extensionModule)
   }
 }

@@ -8,6 +8,7 @@ import { describe, expect, it, onTestFinished, vi } from 'vitest'
 import { ExtensionHost, extensionManifestV2Schema, FileSystemLoader } from '.'
 import { defineExtension } from '../extension'
 import { defineKit, defineKitContract, defineKitMethod } from '../kit'
+import { runNativeEntrypointProbe } from './testdata/run-native-entrypoint-probe'
 
 describe('extension manifest schema', () => {
   it('accepts extension.airi.json v2 manifests', () => {
@@ -1434,6 +1435,11 @@ describe('for ExtensionHost', () => {
       permissions: {},
       entrypoints: { node: './missing-entrypoint.mjs' },
     })).rejects.toThrow('requires AIRI `>=99.0.0`')
+  })
+
+  it('leaves no sessions when Node cannot import the entrypoint', async () => {
+    const { result } = await runNativeEntrypointProbe('missing-entrypoint')
+    expect(result).toEqual({ errorCode: 'ERR_MODULE_NOT_FOUND', sessions: [] })
   })
 
   it('runs extension setup and registers multiple module sessions', async () => {
