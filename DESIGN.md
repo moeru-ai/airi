@@ -92,6 +92,22 @@ Use neutral surface changes to separate ordinary content. Use translucency and b
 | Alerts | Opaque tinted surface without a border, and a tone icon | Show a status or a result that the user must notice. Stay readable over translucent stage panels. |
 | Bottom drawer | Neutral surface, `shadow-xl`, and `bg-black/35` backdrop | Focus attention on a temporary task. |
 
+### Materials
+
+Choose a material by what lies behind the surface.
+
+| Behind the surface | Material | Fill | Examples |
+| --- | --- | --- | --- |
+| The desktop, in a transparent desktop window | Native window glass through `useBackdropSurface`, and a translucent neutral fill | 70% for a window frame, 80% for a floating panel | Chat window frame and title bar, floating chat panel |
+| The character stage | CSS `backdrop-blur` and a translucent neutral fill | The existing overlay fills, from 45% to 80% | Overlay buttons, dock, closed character rail on the web stage |
+| Page content that the surface covers for a moment | Almost opaque neutral fill, `shadow-lg`, and an optional blur | 95% | Menus, the open character rail, popovers |
+| Nothing. The user reads or edits the surface itself. | Opaque neutral fill | 100% | Chat history, conversation list, forms, settings |
+
+- Do not rely on blur to hide page content. In a transparent desktop window, Chromium blends a backdrop blur with transparency, so text under it stays readable. See [Chromium issue 380416865](https://issues.chromium.org/issues/380416865).
+- Native glass blurs only the desktop. It cannot blur page content.
+- Windows and Linux have no window glass. There, a surface on the desktop uses an opaque fill of the same tone.
+- Separate two opaque surfaces side by side with two shades, not a border. Example: the conversation list and the chat.
+
 Button outlines express interaction, not elevation. Leave space for hover and focus outlines instead of clipping them at a container edge.
 
 Check translucent controls against bright, dark, and detailed backgrounds. A blur value alone does not guarantee readable text.
