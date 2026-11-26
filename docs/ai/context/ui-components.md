@@ -366,13 +366,13 @@ A line between groups of buttons in a `Dock`. It runs across the dock.
 
 ### ThumbHashImage
 
-Reserves space using the original dimensions. It shows the ThumbHash until the browser loads and decodes the original.
+Displays an image from a URL. With `thumbnail`, it reserves space and shows the ThumbHash until the original decodes.
 The image fades in unless reduced motion is active. If the original fails to load, the preview stays visible.
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
 | `src` | `string?` | — | Original image URL. It can arrive after the preview |
-| `thumbnail` | `{ width: number, height: number, hash?: string }` | *(required)* | Original dimensions and optional Base64 ThumbHash |
+| `thumbnail` | `{ width: number, height: number, hash?: string }` | — | Original dimensions and optional Base64 ThumbHash |
 | `alt` | `string` | *(required)* | Alternative text for the picture |
 
 **Slots and emits**: None.

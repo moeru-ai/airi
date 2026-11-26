@@ -60,27 +60,17 @@ const content = computed(() => {
   return ''
 })
 
-const emptySources: readonly string[] = Object.freeze([])
 const images = computed<{
   key: string | number
   source?: string
   thumbnail?: InstanceType<typeof ThumbHashImage>['$props']['thumbnail']
-  style?: { width: string }
 }[]>((previous) => {
   if (props.message.cloudImages) {
     return props.message.cloudImages.map(({ id: key, assetRef: source, thumbnail }) => {
-      if (!thumbnail)
-        return { key, source }
+      if (source && thumbnail && !previous?.find(image => image.key === key)?.thumbnail?.hash)
+        return { key, source, thumbnail: { width: thumbnail.width, height: thumbnail.height } }
 
-      const { width, height } = thumbnail
-      const previousImage = previous?.find(image => image.key === key)
-      const showPreview = previousImage ? !!previousImage.thumbnail?.hash : !source
-      return {
-        key,
-        source,
-        thumbnail: { width, height, hash: showPreview ? thumbnail.hash : undefined },
-        style: { width: `min(${width}px, ${16 * width / height}rem)` },
-      }
+      return { key, source, thumbnail }
     })
   }
 
@@ -88,20 +78,17 @@ const images = computed<{
     ? []
     : props.message.content.flatMap((part, key) => part.type === 'image_url' ? [{ key, source: part.image_url.url }] : [])
 })
-const imageSources = useChatAssetUrls(() => images.value.map(image => image.source))
 const voiceControls = useVoiceControlsStore()
 /** The voice host still transcribes this message after its submit. */
 const transcribing = computed(() => voiceControls.messages.some(item => item.id === props.message.id && (item.phase === 'sending' || item.phase === 'transcribing')))
-const audioSources = useChatAssetUrls(() => typeof props.message.content === 'string'
-  ? emptySources
-  : props.message.content.filter(part => part.type === 'input_audio').map(part => chatAssetIdFrom(part.input_audio.data)
-      ? part.input_audio.data
-      : `data:audio/${part.input_audio.format === 'mp3' ? 'mpeg' : 'wav'};base64,${part.input_audio.data}`))
 /** Each recording with its transcript, when one was stored. Transcripts follow the audio part order. */
-const audio = computed(() => audioSources.value.map((source, index) => ({
-  source,
-  transcript: props.message.audioTranscripts?.[index]?.trim(),
-})))
+const audio = computed(() => typeof props.message.content === 'string'
+  ? []
+  : props.message.content.filter(part => part.type === 'input_audio').map(({ input_audio: { data, format } }, index) => ({
+      source: chatAssetIdFrom(data) ? data : `data:audio/${format === 'mp3' ? 'mpeg' : 'wav'};base64,${data}`,
+      transcript: props.message.audioTranscripts?.[index]?.trim(),
+    })))
+const assetUrl = useChatAssetUrls(() => [...images.value, ...audio.value].map(media => media.source))
 
 /** A message that only holds recordings is a voice message. Its bubble fits the player instead of a text block. */
 const voiceOnly = computed(() => audio.value.length > 0 && !images.value.length && !content.value.trim() && !props.replyTarget)
@@ -160,25 +147,18 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message))
               <span :class="['inline <sm:hidden text-sm font-normal', 'text-black/60 dark:text-white/65']">{{ label }}</span>
             </div>
             <div v-if="images.length" :class="['flex flex-wrap gap-2 py-2']">
-              <template v-for="(image, index) in images" :key="image.key">
-                <ThumbHashImage
-                  v-if="image.thumbnail"
-                  :src="imageSources[index]"
-                  :thumbnail="image.thumbnail"
-                  :alt="t('stage.chat.images.description')"
-                  :style="image.style"
-                  :class="['rounded-xl']"
-                />
-                <img
-                  v-else-if="imageSources[index]"
-                  :src="imageSources[index]"
-                  :alt="t('stage.chat.images.description')"
-                  :class="['max-h-64 max-w-full rounded-xl object-contain']"
-                >
-              </template>
+              <ThumbHashImage
+                v-for="{ key, source, thumbnail } in images"
+                :key="key"
+                :src="assetUrl(source)"
+                :thumbnail="thumbnail"
+                :alt="t('stage.chat.images.description')"
+                :style="thumbnail && { width: `min(${thumbnail.width}px, ${16 * thumbnail.width / thumbnail.height}rem)` }"
+                :class="['max-h-64 rounded-xl']"
+              />
             </div>
             <div v-for="(recording, index) in audio" :key="index" :class="['flex flex-col gap-0.5', !voiceOnly && 'py-1']">
-              <VoiceMessagePlayer :audio="recording.source" surface="none" :aria-label="t('stage.chat.voice-message.preview')" />
+              <VoiceMessagePlayer :audio="assetUrl(recording.source)" surface="none" :aria-label="t('stage.chat.voice-message.preview')" />
               <p v-if="recording.transcript" :class="['m-0 max-w-64 px-1 pb-0.5 text-xs leading-snug opacity-75']">
                 {{ recording.transcript }}
               </p>

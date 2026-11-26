@@ -1,24 +1,17 @@
 import type { MaybeRefOrGetter } from 'vue'
 
-import { onScopeDispose, shallowRef, toValue, watch } from 'vue'
+import { onScopeDispose, shallowReactive, toValue, watch } from 'vue'
 
 import { chatAssetIdFrom, readChatAsset } from '../libs/chat-assets'
 
 /**
- * Turns message media sources into URLs that an `img` or `audio` element can load.
- *
- * An asset reference becomes an object URL of the stored bytes. It stays `undefined` while it loads, or when the asset
- * is missing. Any other source, such as a data URL, passes through. Object URLs are revoked after their source
- * leaves the list or when the scope ends.
- *
- * Use when:
- * - A chat message renders its images or recordings
+ * Looks up the object URL for a stored chat asset. Other URLs pass through.
+ * An object URL stays valid while its source is in the list and the scope is active.
  */
 export function useChatAssetUrls(sources: MaybeRefOrGetter<readonly (string | undefined)[]>) {
-  const urls = shallowRef<(string | undefined)[]>([])
-  const objectUrls = new Map<string, string>()
+  const objectUrls = shallowReactive(new Map<string, string>())
 
-  watch(() => [...toValue(sources)], async (values, _, onCleanup) => {
+  watch(() => [...toValue(sources)], (values, _, onCleanup) => {
     let cancelled = false
     onCleanup(() => {
       cancelled = true
@@ -32,24 +25,18 @@ export function useChatAssetUrls(sources: MaybeRefOrGetter<readonly (string | un
       }
     }
 
-    const resolveUrls = () => values.map(value => value && assets.has(value) ? objectUrls.get(value) : value)
-    urls.value = resolveUrls()
-    const missing = [...assets].filter(source => !objectUrls.has(source))
-    if (!missing.length)
-      return
+    for (const source of assets) {
+      if (objectUrls.has(source))
+        continue
 
-    const records = await Promise.all(missing.map(source => readChatAsset(source).catch(() => undefined)))
-    if (cancelled)
-      return
-
-    for (const [index, record] of records.entries()) {
-      if (record)
-        objectUrls.set(missing[index], URL.createObjectURL(record.blob))
+      void readChatAsset(source).then(({ blob }) => {
+        if (!cancelled)
+          objectUrls.set(source, URL.createObjectURL(blob))
+      }, () => undefined)
     }
-    urls.value = resolveUrls()
   }, { immediate: true })
 
   onScopeDispose(() => objectUrls.forEach(url => URL.revokeObjectURL(url)))
 
-  return urls
+  return (source?: string) => source && chatAssetIdFrom(source) ? objectUrls.get(source) : source
 }
