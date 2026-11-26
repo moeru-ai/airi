@@ -1,10 +1,27 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { resizeBoundsByDelta, setWindowAlwaysOnTop } from './window'
+import { resizeBoundsByDelta, setupBaseWindowElectronInvokes, setWindowAlwaysOnTop } from './window'
 
 const mocks = vi.hoisted(() => ({
   isMacOS: false,
   isWindows: false,
+}))
+
+const createI18nServiceMock = vi.hoisted(() => vi.fn())
+const createServerChannelServiceMock = vi.hoisted(() => vi.fn())
+
+vi.mock('../../services/airi/i18n', () => ({
+  createI18nService: createI18nServiceMock,
+}))
+
+vi.mock('../../services/airi/channel-server', () => ({
+  createServerChannelService: createServerChannelServiceMock,
+}))
+
+vi.mock('../../services/electron/window-backdrop', () => ({
+  WindowBackdropService: {
+    install: vi.fn(),
+  },
 }))
 
 vi.mock('electron', () => ({
@@ -12,6 +29,11 @@ vi.mock('electron', () => ({
     openExternal: vi.fn(),
   },
   BrowserWindow: vi.fn(),
+  ipcMain: {
+    handle: vi.fn(),
+    on: vi.fn(),
+    removeHandler: vi.fn(),
+  },
 }))
 
 vi.mock('std-env', () => ({
@@ -98,5 +120,62 @@ describe('resizeBoundsByDelta', () => {
 
     expect(resizeBoundsByDelta(bounds, { deltaX: 1000, deltaY: 1000, direction: 'nw', minWidth: 300, minHeight: 250 }))
       .toEqual({ x: 200, y: 350, width: 300, height: 250 })
+  })
+})
+
+describe('setupBaseWindowElectronInvokes', () => {
+  it('rejects when window is destroyed before setup', async () => {
+    createI18nServiceMock.mockClear()
+    createServerChannelServiceMock.mockClear()
+
+    const window = { isDestroyed: vi.fn(() => true) } as never
+    await expect(
+      setupBaseWindowElectronInvokes({
+        context: {} as never,
+        window,
+        serverChannel: {} as never,
+        i18n: {} as never,
+      }),
+    ).rejects.toThrow('Window was closed before base invokes setup')
+    expect(createI18nServiceMock).not.toHaveBeenCalled()
+  })
+
+  it('rejects when signal is already aborted', async () => {
+    createI18nServiceMock.mockClear()
+    createServerChannelServiceMock.mockClear()
+
+    const window = { isDestroyed: vi.fn(() => false) } as never
+    const signal = AbortSignal.abort(new Error('Widget window was closed during setup'))
+    await expect(
+      setupBaseWindowElectronInvokes({
+        context: {} as never,
+        window,
+        serverChannel: {} as never,
+        i18n: {} as never,
+        signal,
+      }),
+    ).rejects.toThrow('Window was closed before base invokes setup')
+    expect(createI18nServiceMock).not.toHaveBeenCalled()
+  })
+
+  it('rejects and skips server channel registration when window is destroyed during i18n setup', async () => {
+    createI18nServiceMock.mockClear()
+    createServerChannelServiceMock.mockClear()
+
+    let isDestroyed = false
+    const window = { isDestroyed: vi.fn(() => isDestroyed) } as never
+    createI18nServiceMock.mockImplementationOnce(async () => {
+      isDestroyed = true
+    })
+
+    await expect(
+      setupBaseWindowElectronInvokes({
+        context: {} as never,
+        window,
+        serverChannel: {} as never,
+        i18n: {} as never,
+      }),
+    ).rejects.toThrow('Window was closed during base invokes setup')
+    expect(createServerChannelServiceMock).not.toHaveBeenCalled()
   })
 })

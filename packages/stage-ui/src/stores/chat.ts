@@ -15,6 +15,7 @@ import { decodeBase64 } from '@moeru/std/base64'
 import { fileSource } from '@proj-airi/audio/encoding'
 import { ConversationCompact, createChatOrchestratorRuntime, DEFAULT_CONTEXT_SOFT_LIMIT_BYTES, isBackgroundRecipe, matchKeywordRecipes, renderConversationPreview } from '@proj-airi/core-agent'
 import { supportsResponsesAudioInputEndpoint } from '@proj-airi/provider-inference'
+import { waitWithSignal } from '@proj-airi/stage-shared'
 import { ATTR_GEN_AI_AGENT_ID, ATTR_GEN_AI_CONVERSATION_ID, ATTR_GEN_AI_OPERATION_NAME, ATTR_GEN_AI_PROVIDER_NAME, ATTR_GEN_AI_REQUEST_MODEL, ATTR_GEN_AI_TOOL_CALL_ARGUMENTS, ATTR_GEN_AI_TOOL_CALL_ID, ATTR_GEN_AI_TOOL_CALL_RESULT, ATTR_GEN_AI_TOOL_NAME, beginSpan, TraceLinkRelations, trackPath } from '@proj-airi/trace-kit'
 import { AgentAttributes, AgentIdKeys, AgentNames, AgentTracks } from '@proj-airi/trace-kit/agent'
 import { VoiceIdKeys } from '@proj-airi/trace-kit/voice'
@@ -169,17 +170,6 @@ function ownsProjectedTurn(message: ChatHistoryItem, turnId: string) {
   // buildContext converts one stored message at a time. The Chat projection
   // adds its only array index to the stored message ID.
   return message.id === turnId || `${message.id}-0` === turnId
-}
-
-/** Resolves with `promise`, or rejects with the abort reason once `signal` aborts. */
-function waitWithSignal<T>(promise: Promise<T>, signal: AbortSignal) {
-  return new Promise<T>((resolve, reject) => {
-    if (signal.aborted)
-      return reject(signal.reason)
-    const abort = () => reject(signal.reason)
-    signal.addEventListener('abort', abort, { once: true })
-    promise.then(resolve, reject).finally(() => signal.removeEventListener('abort', abort))
-  })
 }
 
 /** Whether a consciousness selection can send. The `prompt-api` provider runs without a selected model. */
