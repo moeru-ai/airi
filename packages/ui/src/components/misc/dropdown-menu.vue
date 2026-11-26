@@ -60,9 +60,11 @@ const open = defineModel<boolean>('open', { default: false })
           'z-[10000] rounded-xl border p-1 shadow-lg outline-none',
           props.variant === 'blurry'
             ? [
+              // The menu covers page content and is almost opaque. In a transparent desktop window, the blur alone
+              // cannot hide that content: https://issues.chromium.org/issues/380416865
               'backdrop-blur-md',
-              'border-neutral-100/80 bg-neutral-100/80 text-neutral-700',
-              'dark:border-neutral-800/60 dark:bg-neutral-800/80 dark:text-neutral-100',
+              'border-neutral-100/80 bg-neutral-100/95 text-neutral-700',
+              'dark:border-neutral-800/60 dark:bg-neutral-800/95 dark:text-neutral-100',
             ]
             : [],
           props.variant === 'default'

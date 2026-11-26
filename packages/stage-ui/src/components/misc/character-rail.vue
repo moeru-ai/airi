@@ -121,7 +121,10 @@ const labelClasses = computed(() => [
         'max-h-[70dvh] flex flex-col gap-1 overflow-x-hidden overflow-y-auto rounded-[28px] p-2 [scrollbar-width:none]',
         'border border-white/40 backdrop-blur-xl backdrop-saturate-150 dark:border-white/10',
         'transition-[width,background-color,box-shadow] duration-300 ease-in-out motion-reduce:transition-none',
-        open ? 'w-48 bg-white/70 shadow-lg dark:bg-neutral-900/70' : 'w-14 bg-white/45 shadow-sm dark:bg-neutral-900/45',
+        // The open rail covers page content. It is almost opaque, like a menu, because the blur alone cannot hide that
+        // content in a transparent window. Chromium blends the blurred backdrop with transparency there:
+        // https://issues.chromium.org/issues/380416865
+        open ? 'w-48 bg-white/95 shadow-lg dark:bg-neutral-900/95' : 'w-14 bg-white/45 shadow-sm dark:bg-neutral-900/45',
       ]"
     @focusin="trackFocus"
     @focusout="trackBlur"
