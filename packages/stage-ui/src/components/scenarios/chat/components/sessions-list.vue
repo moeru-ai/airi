@@ -11,6 +11,7 @@ import SessionRowItem from './session-row.vue'
 import SessionsListHeader from './sessions-list-header.vue'
 import SessionsSearchField from './sessions-search-field.vue'
 
+import { useDragSelection } from '../composables/use-drag-selection'
 import { useListReorderMotion } from '../composables/use-list-reorder-motion'
 import { iconButtonClasses, quietIconClasses } from './icon-button-classes'
 
@@ -198,7 +199,23 @@ function setPlace(target: ChatSessionsPlace) {
     chosenPlace.value = target
 }
 
+const listBox = useTemplateRef<HTMLElement>('listBox')
+const scrollArea = useTemplateRef<{ viewport: HTMLElement | undefined }>('scrollArea')
+
+// While selecting, a mouse drag over the rows selects or clears them, and Shift and a click selects a range.
+const dragSelection = useDragSelection({
+  container: listBox,
+  viewport: () => scrollArea.value?.viewport,
+  enabled: selecting,
+  ids: () => visibleRows.value.map(row => row.meta.sessionId),
+  selected: selectedIds,
+})
+
 function toggleSelected(sessionId: string) {
+  // A drag or a Shift click already changed the selection. The browser still sends the click of that press.
+  if (dragSelection.consumeClick())
+    return
+  dragSelection.noteClick(sessionId)
   const next = new Set(selectedIds.value)
   if (!next.delete(sessionId))
     next.add(sessionId)
@@ -294,7 +311,6 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
   event.preventDefault()
   void openSearch()
 })
-const listBox = useTemplateRef<HTMLElement>('listBox')
 /**
  * The most height that the list can take. The list grows with its rows until its surface, the drawer or the dialog,
  * reaches the maximum height of that surface. Then only the list scrolls. A surface without a maximum height, such as
@@ -466,8 +482,8 @@ const { holdLeavingItem } = useListReorderMotion({
       the empty state fades in where it lands, and an item that leaves fades out without holding space.
     -->
     <!-- A drawer that closes on a drag leaves the rows alone, because a swipe on a row shows its actions. -->
-    <div ref="listBox" :data-vaul-no-drag="props.touch ? '' : undefined" :class="[props.fill ? 'min-h-0 flex-1' : 'shrink-0', props.compact ? '' : 'mt-3']">
-      <ScrollableArea :class="[props.fill ? 'h-full' : props.compact ? 'max-h-[min(24rem,60dvh)]' : '']" :style="listMaxStyle">
+    <div ref="listBox" :data-vaul-no-drag="props.touch ? '' : undefined" :class="[props.fill ? 'min-h-0 flex-1' : 'shrink-0', props.compact ? '' : 'mt-3', selecting ? 'select-none' : '']">
+      <ScrollableArea ref="scrollArea" :class="[props.fill ? 'h-full' : props.compact ? 'max-h-[min(24rem,60dvh)]' : '']" :style="listMaxStyle">
         <AnimatedHeight>
           <!-- The padding keeps the focus rings of the rows inside the clip area. -->
           <div :class="[props.fill ? 'py-0.5 pl-0.5 pr-2.5' : props.compact ? 'p-0.5' : 'p-1']">
