@@ -11,6 +11,7 @@ import './kokoro-local'
 import './nvidia'
 import './official'
 import './prompt-api'
+import './voicebox'
 
 registerProviders(portableProviderDefinitions)
 

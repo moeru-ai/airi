@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computedAsync } from '@vueuse/core'
-import { storeToRefs } from 'pinia'
 import { computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
@@ -22,7 +21,7 @@ const props = defineProps<{
   // Default model to use if not specified in provider settings
   defaultModel?: string
   // Additional provider-specific settings
-  additionalSettings?: Record<string, any>
+  additionalSettings?: Record<string, unknown>
   placeholder?: string
 }>()
 
@@ -30,45 +29,44 @@ const { t } = useI18n()
 const router = useRouter()
 const providersStore = useProviderStore()
 const providerStore = useProviderConfigStore()
-const { configs: providers } = storeToRefs(providerStore)
+const config = computed<Record<string, unknown> | undefined>(() => providerStore.getProviderConfig(props.providerId))
 
 const providerMetadata = computedAsync(async () => {
   const definition = providersStore.getProviderDefinition(props.providerId)
   return await selectProviderMetadata(definition, t, { id: props.providerId })
 }, undefined)
 
-// Common provider settings
-const apiKey = computed({
-  get: () => providers.value[props.providerId]?.apiKey as string | undefined || '',
-  set: (value) => {
-    if (!providers.value[props.providerId])
-      providers.value[props.providerId] = {}
-
-    providers.value[props.providerId].apiKey = value
-  },
+const defaultBaseUrl = computed(() => {
+  const value = providerMetadata.value?.defaultConfig.baseUrl
+  return typeof value === 'string' ? value : ''
 })
 
-const baseUrl = computed({
-  get: () => providers.value[props.providerId]?.baseUrl as string | undefined || providerMetadata.value?.defaultConfig.baseUrl as string | undefined || '',
-  set: (value) => {
-    if (!providers.value[props.providerId])
-      providers.value[props.providerId] = {}
+async function updateConfig(field: 'apiKey' | 'baseUrl', value: string) {
+  const providerId = props.providerId
+  await providersStore.initializeProvider(providerId)
+  await providerStore.patchProviderConfig(providerId, { [field]: value })
+}
 
-    providers.value[props.providerId].baseUrl = value
-  },
+const apiKey = computed({
+  get: () => typeof config.value?.apiKey === 'string' ? config.value.apiKey : '',
+  set: async (value: string) => { await updateConfig('apiKey', value) },
+})
+const baseUrl = computed({
+  get: () => typeof config.value?.baseUrl === 'string' ? config.value.baseUrl : defaultBaseUrl.value,
+  set: async (value: string) => { await updateConfig('baseUrl', value) },
 })
 
 onMounted(async () => {
   await providersStore.initializeProvider(props.providerId)
-
-  // Initialize refs with current values
-  apiKey.value = providers.value[props.providerId]?.apiKey as string | undefined || ''
-  baseUrl.value = providers.value[props.providerId]?.baseUrl as string | undefined || providerMetadata.value?.defaultConfig.baseUrl as string | undefined || ''
 })
 
-function handleResetTranscriptionSettings() {
-  apiKey.value = ''
-  baseUrl.value = providerMetadata.value?.defaultConfig.baseUrl as string | undefined || ''
+async function handleResetTranscriptionSettings() {
+  const providerId = props.providerId
+  const patch: Record<string, unknown> = { baseUrl: defaultBaseUrl.value }
+  if (providerMetadata.value?.requiresCredentials !== false)
+    patch.apiKey = ''
+  await providersStore.initializeProvider(providerId)
+  await providerStore.patchProviderConfig(providerId, patch)
 }
 </script>
 
@@ -87,7 +85,7 @@ function handleResetTranscriptionSettings() {
           :description="t('settings.pages.providers.common.section.basic.description')"
           :on-reset="handleResetTranscriptionSettings"
         >
-          <ProviderApiKeyInput v-model="apiKey" :provider-name="providerMetadata?.localizedName ?? ''" :placeholder="props.placeholder || 'API Key'" />
+          <ProviderApiKeyInput v-if="providerMetadata?.requiresCredentials !== false" v-model="apiKey" :provider-name="providerMetadata?.localizedName ?? ''" :placeholder="props.placeholder || 'API Key'" />
           <!-- Slot for provider-specific basic settings -->
           <slot name="basic-settings" />
         </ProviderBasicSettings>

@@ -599,11 +599,6 @@
       "count": 11
     }
   },
-  "packages/stage-ui/src/components/scenarios/providers/transcription-provider-settings.vue": {
-    "ts/no-explicit-any": {
-      "count": 1
-    }
-  },
   "packages/stage-ui/src/composables/markdown.ts": {
     "ts/no-explicit-any": {
       "count": 6
