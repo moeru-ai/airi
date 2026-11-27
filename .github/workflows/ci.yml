@@ -48,8 +48,6 @@ jobs:
       docs_only: ${{ steps.detect.outputs.docs_only }}
       markdown: ${{ steps.detect.outputs.markdown }}
       skip_heavy: ${{ steps.detect.outputs.skip_heavy }}
-      godot: ${{ steps.detect.outputs.godot }}
-      swift: ${{ steps.detect.outputs.swift }}
       lockfile: ${{ steps.detect.outputs.lockfile }}
     steps:
       - id: detect
@@ -62,7 +60,7 @@ jobs:
           CHANGED_FILES: ${{ github.event.pull_request.changed_files }}
           HEAD_LABEL: ${{ github.event.pull_request.head.label }}
         run: |
-          docs_only=false godot=true swift=true lockfile=true markdown='[]'
+          docs_only=false lockfile=true markdown='[]'
 
           if [ "$EVENT_NAME" = pull_request ]; then
             files_json=$(gh api --paginate --slurp "repos/$REPOSITORY/pulls/$PR_NUMBER/files" | jq 'add')
@@ -80,8 +78,6 @@ jobs:
 
               # This file controls the jobs below, so a change here runs all of them.
               if ! grep -qE '^\.github/(workflows/ci\.yml|actions/)' <<<"$paths"; then
-                grep -q '^engines/stage-tamagotchi-godot/' <<<"$paths" || godot=false
-                grep -q '^apps/stage-pocket/' <<<"$paths" || swift=false
                 grep -q '^pnpm-lock\.yaml$' <<<"$paths" || lockfile=false
               fi
             fi
@@ -98,8 +94,6 @@ jobs:
             echo "docs_only=$docs_only"
             echo "markdown=$markdown"
             echo "skip_heavy=$skip_heavy"
-            echo "godot=$godot"
-            echo "swift=$swift"
             echo "lockfile=$lockfile"
           } | tee -a "$GITHUB_OUTPUT"
 
@@ -110,24 +104,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-
-      # Setup .NET for Godot C# linting
-      - name: Setup .NET
-        if: needs.changes.outputs.docs_only != 'true' && needs.changes.outputs.godot != 'false'
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '10.0.x'
-
-      # Lint Godot C# code
-      - name: Lint Godot C#
-        if: needs.changes.outputs.docs_only != 'true' && needs.changes.outputs.godot != 'false'
-        working-directory: ./engines/stage-tamagotchi-godot
-        run: dotnet format stage-tamagotchi-godot.slnx --verify-no-changes
-
-      - name: Lint Swift
-        if: needs.changes.outputs.docs_only != 'true' && needs.changes.outputs.swift != 'false'
-        run: docker run -v `pwd`:`pwd` -w `pwd` ghcr.io/realm/swiftlint:latest
-        working-directory: ./apps/stage-pocket
 
       # A filtered install is enough for the Markdown files of a documentation change.
       - uses: ./.github/actions/setup-workspace
@@ -180,9 +156,6 @@ jobs:
           path: .eslintcache
           key: ${{ runner.os }}-eslint-${{ hashFiles('pnpm-lock.yaml', 'eslint.config.ts', 'uno.config.ts', 'eslint-suppressions.json') }}-${{ github.sha }}
 
-  # The ruleset requires the names `Build Test (stage-web)` and `Build Test (stage-tamagotchi)`.
-  # These jobs do not use a matrix, because a skipped matrix job reports the name
-  # `Build Test (${{ matrix.app_name }})` and the required check never completes.
   build-stage-web:
     name: Build Test (stage-web)
     needs: changes
@@ -194,16 +167,6 @@ jobs:
       - run: pnpm -F @proj-airi/stage-web run build
       - run: pnpm -F @proj-airi/stage-ui run story:build
 
-  build-stage-tamagotchi:
-    name: Build Test (stage-tamagotchi)
-    needs: changes
-    if: ${{ !cancelled() && needs.changes.outputs.skip_heavy != 'true' }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - uses: ./.github/actions/setup-workspace
-      - run: pnpm -F @proj-airi/stage-tamagotchi run build
-
   build-ui-playgrounds:
     name: Build Test (ui-playgrounds)
     needs: changes
@@ -214,39 +177,6 @@ jobs:
       - uses: ./.github/actions/setup-workspace
       - run: pnpm -F @proj-airi/ui-transitions run play:build
       - run: pnpm -F @proj-airi/ui-loading-screens run play:build
-
-  # The Godot project uses only .NET and Godot, so this job does not install the pnpm workspace.
-  build-stage-tamagotchi-godot:
-    name: Build Test (stage-tamagotchi-godot)
-    needs: changes
-    if: ${{ !cancelled() && needs.changes.outputs.skip_heavy != 'true' && needs.changes.outputs.godot != 'false' }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '10.0.x'
-
-      - name: Setup Godot
-        uses: chickensoft-games/setup-godot@v2
-        with:
-          version: 4.7.1
-          use-dotnet: true
-          include-templates: true
-
-      - name: Build Godot project
-        working-directory: ./engines/stage-tamagotchi-godot
-        run: |
-          dotnet restore
-          dotnet build -c ExportRelease
-
-      - name: Export Godot Linux sidecar
-        working-directory: ./engines/stage-tamagotchi-godot
-        run: |
-          mkdir -p out/linux
-          godot --headless --export-release "Linux x64" out/linux/godot-stage
 
   unit-test-shard:
     name: Unit Test (${{ matrix.shard }})
@@ -272,15 +202,11 @@ jobs:
             browser: true
             args: -F @proj-airi/stage-ui -- --shard=2/2
 
-          - shard: stage-tamagotchi
-            browser: true
-            args: -F @proj-airi/stage-tamagotchi
-
           # The exclude filters add each new package to this shard.
           - shard: others
             browser: true
             root: true
-            args: -F '!@proj-airi/api-server' -F '!@proj-airi/stage-ui' -F '!@proj-airi/stage-tamagotchi' --concurrency=2
+            args: -F '!@proj-airi/api-server' -F '!@proj-airi/stage-ui' --concurrency=2
 
     runs-on: ubuntu-latest
     steps:
@@ -325,18 +251,14 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - shard: desktop
-            filter: -F @proj-airi/stage-tamagotchi -F @proj-airi/stage-tamagotchi-kirie -F @proj-airi/stage-ui
-
           - shard: web
-            filter: -F @proj-airi/stage-web -F @proj-airi/stage-pocket -F @proj-airi/stage-pages -F @proj-airi/stage-layouts -F @proj-airi/ui-server-auth -F @proj-airi/api-server
+            filter: -F @proj-airi/stage-web -F @proj-airi/stage-ui -F @proj-airi/stage-pages -F @proj-airi/stage-layouts -F @proj-airi/ui-server-auth -F @proj-airi/api-server
 
           # The exclude filters add each new package to this shard.
           - shard: others
             filter: >-
               -F './packages/*' -F './apps/*' -F './server/**' -F './services/*'
-              -F '!@proj-airi/stage-tamagotchi' -F '!@proj-airi/stage-tamagotchi-kirie' -F '!@proj-airi/stage-ui'
-              -F '!@proj-airi/stage-web' -F '!@proj-airi/stage-pocket' -F '!@proj-airi/stage-pages' -F '!@proj-airi/stage-layouts'
+              -F '!@proj-airi/stage-ui' -F '!@proj-airi/stage-web' -F '!@proj-airi/stage-pages' -F '!@proj-airi/stage-layouts'
               -F '!@proj-airi/ui-server-auth' -F '!@proj-airi/api-server'
 
     runs-on: ubuntu-latest

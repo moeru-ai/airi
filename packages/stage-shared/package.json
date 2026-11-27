@@ -36,7 +36,6 @@
     "./stores/screen-ambient-light": "./src/stores/screen-ambient-light.ts",
     "./types/io-trace": "./src/types/io-trace.ts",
     "./types/pinia-action-event": "./src/types/pinia-action-event.ts",
-    "./electron-renderer": "./src/electron-renderer.d.ts",
     "./composables": "./src/composables/index.ts",
     "./webgpu": "./src/webgpu/index.ts"
   },
@@ -55,10 +54,8 @@
     "vue": "catalog:"
   },
   "devDependencies": {
-    "@electron-toolkit/preload": "catalog:",
     "@moeru/eventa": "catalog:",
     "@nekopaw/tempora": "catalog:",
-    "@proj-airi/electron-screen-capture": "workspace:^",
     "@sentry/bundler-plugins": "catalog:",
     "@types/audioworklet": "catalog:"
   }

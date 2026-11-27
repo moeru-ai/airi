@@ -35,6 +35,15 @@ const stageUIAssetsRoot = resolve(join(import.meta.dirname, '..', '..', 'package
 const sharedCacheDir = resolve(join(import.meta.dirname, '..', '..', '.cache'))
 const settingsSearch = createSettingsSearch()
 
+function normalizeAppBase(rawBase: string | undefined): string {
+  const value = rawBase?.trim() || '/'
+  if (value === '/')
+    return '/'
+  return value.endsWith('/') ? value : `${value}/`
+}
+
+const appBase = normalizeAppBase(env.STAGE_WEB_BASE)
+
 function hasFlagEnableMkcert(): boolean {
   if (process.argv.includes('--mkcert')) {
     return true
@@ -47,6 +56,7 @@ function hasFlagEnableMkcert(): boolean {
 }
 
 export default defineConfig({
+  base: appBase,
   optimizeDeps: {
     exclude: [
       // Internal Packages
@@ -216,27 +226,29 @@ export default defineConfig({
           manifest: {
             name: 'AIRI',
             short_name: 'AIRI',
+            scope: appBase,
+            start_url: appBase,
             icons: [
               {
-                src: '/web-app-manifest-192x192.png',
+                src: 'web-app-manifest-192x192.png',
                 sizes: '192x192',
                 type: 'image/png',
               },
               {
-                src: '/web-app-manifest-512x512.png',
+                src: 'web-app-manifest-512x512.png',
                 sizes: '512x512',
                 type: 'image/png',
               },
               {
                 purpose: 'maskable',
                 sizes: '192x192',
-                src: '/maskable_icon_x192.png',
+                src: 'maskable_icon_x192.png',
                 type: 'image/png',
               },
               {
                 purpose: 'maskable',
                 sizes: '512x512',
-                src: '/maskable_icon_x512.png',
+                src: 'maskable_icon_x512.png',
                 type: 'image/png',
               },
             ],
