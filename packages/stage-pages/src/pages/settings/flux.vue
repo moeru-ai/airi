@@ -380,5 +380,5 @@ meta:
   layout: settings
   onboarding: false
   titleKey: settings.pages.flux.pageTitle
-  icon: i-solar:star-bold-duotone
+  icon: i-airi-icons:capacitor
 </route>

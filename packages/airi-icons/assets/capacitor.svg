@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+  <defs>
+    <clipPath id="below-shell">
+      <path d="M2.5 17.75a9.5 2.75 0 0 0 19 0V24H2.5Z" />
+    </clipPath>
+  </defs>
+  <path d="M9 17.75V22.75M15 17.75V22.25" clip-path="url(#below-shell)" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+  <ellipse cx="12" cy="3.5" rx="9.5" ry="2.5" opacity=".32" />
+  <path d="M2.5 3.5a9.5 2.5 0 0 0 19 0V17.75a9.5 2.75 0 0 1 -19 0Z" opacity=".55" />
+  <path d="M13.25 8.5 10 12h4L10.75 15.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+</svg>

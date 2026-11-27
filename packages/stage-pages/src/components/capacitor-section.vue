@@ -13,8 +13,6 @@ import { storeToRefs } from 'pinia'
 import { computed, onScopeDispose, ref, useId, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import capacitorIcon from '../assets/capacitor.png'
-
 import { capacitorCurve, CURVE_FULL_Y, CURVE_HEIGHT, CURVE_WIDTH } from './capacitor-usage'
 
 const { t, locale } = useI18n()
@@ -419,7 +417,14 @@ async function handleSubscribe(pkg: CapacitorPackage) {
 
         <div :class="[curve ? 'absolute bottom-10 left-7 right-7' : 'relative p-7', 'flex flex-col items-start']">
           <!-- On a narrow card the text wraps to more lines. With the curve, the icon then has no room under the line of a full Capacitor. -->
-          <img :src="capacitorIcon" alt="" :class="['mb-2.5 size-11', curve ? 'hidden sm:block' : '']">
+          <span
+            aria-hidden="true"
+            :class="[
+              'i-airi-icons:capacitor mb-2.5 size-11',
+              'text-primary-500 dark:text-primary-400',
+              { 'hidden sm:block': curve },
+            ]"
+          />
           <div :class="['max-w-full flex items-center gap-2 text-xs tracking-widest font-mono uppercase', 'text-neutral-500 dark:text-neutral-400']">
             <span :class="['truncate']">{{ capacitorTitle.product }}</span>
             <span
@@ -499,7 +504,7 @@ async function handleSubscribe(pkg: CapacitorPackage) {
       data-testid="capacitor-offer"
       :class="['flex flex-col items-start rounded-2xl px-8 py-7', 'bg-neutral-100 dark:bg-neutral-800']"
     >
-      <img :src="capacitorIcon" alt="" :class="['mb-3.5 size-14']">
+      <span aria-hidden="true" :class="['i-airi-icons:capacitor mb-3.5 size-14', 'text-primary-500 dark:text-primary-400']" />
       <div :class="['text-xs tracking-widest', 'text-neutral-500 dark:text-neutral-400']">
         {{ t('settings.pages.capacitor.offer.none') }}
       </div>

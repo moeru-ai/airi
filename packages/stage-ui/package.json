@@ -227,6 +227,7 @@
     "@iconify-json/vscode-icons": "catalog:",
     "@moeru/std": "catalog:",
     "@pinia/testing": "catalog:",
+    "@proj-airi/airi-icons": "workspace:*",
     "@proj-airi/api-server": "workspace:*",
     "@proj-airi/lobe-icons": "catalog:",
     "@proj-airi/stream-kit": "workspace:*",
