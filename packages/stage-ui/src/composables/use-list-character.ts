@@ -20,7 +20,8 @@ import { useAiriCardStore } from '../stores/modules/airi-card'
  *   picked character.
  *
  * The pick ends when another chat opens, so the list follows the open chat again. The list shows the character of that
- * chat at once. The stage activates it later, after the chat loads, and a pick during the load stays.
+ * chat at once. The stage activates it later, after the chat loads, and a pick during the load stays. A pick of a
+ * character whose card is gone, for example deleted in the settings window, counts as no pick.
  */
 export function useListCharacter() {
   const { activeCardId, cards } = storeToRefs(useAiriCardStore())
@@ -33,7 +34,9 @@ export function useListCharacter() {
     const [characterId] = chatSession.characterMembersOf(activeSessionId.value)
     return characterId && cards.value.has(characterId) ? characterId : undefined
   })
-  const shownCharacterId = computed(() => picked.value ?? chatCharacterId.value ?? (activeCardId.value || 'default'))
+  /** The picked character, while this device has its card. */
+  const pickedCharacterId = computed(() => picked.value && cards.value.has(picked.value) ? picked.value : undefined)
+  const shownCharacterId = computed(() => pickedCharacterId.value ?? chatCharacterId.value ?? (activeCardId.value || 'default'))
   watch(activeSessionId, () => {
     picked.value = undefined
   })
