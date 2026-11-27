@@ -10,6 +10,9 @@ import { CharacterRail, ChatSessionsDrawer } from '@proj-airi/stage-ui/component
 import { useBackdropSurface } from '@proj-airi/stage-ui/composables/backdrop-surface'
 import { useCharacterActivation } from '@proj-airi/stage-ui/composables/use-character-activation'
 import { useDanmakuFeedExpiry } from '@proj-airi/stage-ui/composables/use-danmaku-feed-expiry'
+import { useCharacterLastChatsStore } from '@proj-airi/stage-ui/stores/chat/character-last-chats'
+import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
+import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { Dock, DockButton, dockItemClasses, DockSeparator, Tooltip, TransitionBud } from '@proj-airi/ui'
 import { refDebounced, useElementSize, useEventListener, useFocusWithin, useLocalStorage, useMutationObserver, usePreferredReducedMotion } from '@vueuse/core'
@@ -239,13 +242,35 @@ const islandControls = computed(() => [
 ])
 
 const { activateCharacter } = useCharacterActivation()
+const chatSession = useChatSessionStore()
+const { sessionMetas, index: sessionIndex } = storeToRefs(chatSession)
+const { activeCardId } = storeToRefs(useAiriCardStore())
+const { lastChatOf, remember } = useCharacterLastChatsStore()
+
+/** A chat that the user deleted or archived since, or the hidden chat of a background task, does not open on a pick. */
+function opensOnPick(sessionId: string | undefined): sessionId is string {
+  const meta = sessionId ? sessionMetas.value[sessionId] : undefined
+  return !!meta && !meta.hidden && meta.archivedAt === undefined
+}
+
 /**
  * Puts a character of the rail on the stage, with or without a chat, so the user can talk to it by voice at once. The
  * list then shows its conversations, so the user can pick one.
+ *
+ * The chat that the user leaves becomes the last chat of its character. The pick opens the last chat of the picked
+ * character, else the chat that the character opens. See `useCharacterLastChatsStore`. Opening a chat activates its
+ * character, and of quick picks only the last one activates. A character without a chat only activates.
  */
 async function selectCharacter(characterId: string) {
   listOpen.value = true
-  await activateCharacter(characterId)
+  if (characterId === activeCardId.value)
+    return
+  await remember(chatSession.activeSessionId)
+  const chatId = [await lastChatOf(characterId), sessionIndex.value?.characters[characterId]?.activeSessionId].find(opensOnPick)
+  if (chatId)
+    await chatSession.setActiveSession(chatId)
+  else
+    await activateCharacter(characterId)
 }
 
 // The panel and the column beside the message feed change what is painted under a still cursor.
