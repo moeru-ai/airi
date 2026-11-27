@@ -120,15 +120,23 @@ const labelClasses = computed(() => [
   open.value ? 'opacity-100 delay-100' : 'opacity-0',
 ])
 
-/** The ring of an avatar: the theme color for the character on the stage, and a neutral ring under the pointer. */
-function avatarRingClasses(onStage: boolean) {
+/**
+ * The marks of an avatar. The island rings the character on the stage in the theme color, and the avatar under the
+ * pointer in a neutral color. The other rails ring the character on the stage while they are closed, and the other
+ * avatars are fainter. The open rail marks the character on the stage by its row and its bold name instead.
+ */
+function avatarStateClasses(onStage: boolean) {
   if (island.value) {
     return [
       'ring-offset-1 ring-offset-neutral-50 transition-shadow duration-150 motion-reduce:transition-none dark:ring-offset-neutral-800',
       onStage ? 'ring-2 ring-primary-500' : 'group-hover:ring-2 group-hover:ring-neutral-400/40 dark:group-hover:ring-neutral-500/50',
     ]
   }
-  return onStage && !open.value ? 'ring-2 ring-primary-500 ring-offset-1 ring-offset-white dark:ring-offset-neutral-900' : ''
+  return [
+    'transition-opacity duration-300 ease-in-out motion-reduce:transition-none',
+    onStage && !open.value ? 'ring-2 ring-primary-500 ring-offset-1 ring-offset-white dark:ring-offset-neutral-900' : '',
+    !onStage && !open.value ? 'opacity-70' : '',
+  ]
 }
 </script>
 
@@ -206,7 +214,7 @@ function avatarRingClasses(onStage: boolean) {
               // The avatar root is an inline element. It takes a size only as a block.
               'block size-8 shrink-0 rounded-full bg-neutral-200/70 text-neutral-600 dark:bg-neutral-700/70 dark:text-neutral-300',
               '[&_[data-avatar-image]]:object-top',
-              avatarRingClasses(entry.onStage),
+              avatarStateClasses(entry.onStage),
             ]"
           >
             <template #fallback>
