@@ -50,8 +50,8 @@ const { t } = useI18n()
  */
 const listOpen = shallowRef(false)
 const listLevel = useTemplateRef<HTMLElement>('list-level')
-// The list takes the focus when it opens, so Escape reaches it. The button that opened it is often in the conversation,
-// which turns inert and drops the focus to the page.
+// The list takes the focus when it opens, so Escape reaches the content. The button that opened it is often in the
+// conversation, which turns inert and drops the focus to the page.
 watch(listOpen, async (open) => {
   await nextTick()
   if (open && !listLevel.value?.contains(document.activeElement))
@@ -589,10 +589,12 @@ const gripListeners = {
       <!--
         The column of the window buttons and the characters stands on the side away from the character, beside the panel.
         A character on the left mirrors the row. The message feed has no panel and no column, until its list opens.
+        While the list is open, Escape that the list does not use goes back to the conversation, also from the column.
       -->
       <div
         v-show="contentShown"
         :class="['absolute inset-0 flex gap-2', characterOnLeft ? 'flex-row-reverse' : '']"
+        @keydown.esc="listOpen = false"
       >
         <!--
           The islands of the column are as wide as the rail of the characters. The window buttons are icons, so they fill
@@ -642,7 +644,7 @@ const gripListeners = {
         >
           <!--
             The list of the conversations. It steps back to the start under the conversation, and slides in again when it
-            opens. Escape that the list does not use goes back to the conversation.
+            opens.
           -->
           <div
             ref="list-level"
@@ -652,7 +654,6 @@ const gripListeners = {
               'absolute inset-0 outline-none transition-[transform,opacity] duration-340 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none',
               listOpen ? '' : '-translate-x-1/4 opacity-0',
             ]"
-            @keydown.esc="listOpen = false"
             @transitionend.self="hitTest()"
           >
             <ChatSessionsDrawer

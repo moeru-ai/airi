@@ -1,6 +1,7 @@
 import { storeToRefs } from 'pinia'
 import { computed, shallowRef, watch } from 'vue'
 
+import { useChatSessionStore } from '../stores/chat/session-store'
 import { useAiriCardStore } from '../stores/modules/airi-card'
 
 /**
@@ -14,19 +15,26 @@ import { useAiriCardStore } from '../stores/modules/airi-card'
  *   as its character.
  *
  * Returns:
- * - `shownCharacterId`, the picked character, else the character on the stage.
+ * - `shownCharacterId`, the picked character, else the character of the open chat, else the character on the stage.
  * - `pick`, which changes only the list. The stage keeps its character until the user opens or starts a chat of the
  *   picked character.
  *
- * The pick ends when the stage changes its character, so the list follows the stage again. Opening a chat selects the
- * chat at once and activates its character later. Ending the pick at the selection would show the chats of the earlier
- * character until the activation finishes.
+ * The pick ends when another chat opens, so the list follows the open chat again. The list shows the character of that
+ * chat at once. The stage activates it later, after the chat loads, and a pick during the load stays.
  */
 export function useListCharacter() {
-  const { activeCardId } = storeToRefs(useAiriCardStore())
+  const { activeCardId, cards } = storeToRefs(useAiriCardStore())
+  const chatSession = useChatSessionStore()
+  const { activeSessionId } = storeToRefs(chatSession)
   const picked = shallowRef<string>()
-  const shownCharacterId = computed(() => picked.value ?? (activeCardId.value || 'default'))
-  watch(activeCardId, () => {
+
+  /** The character of the open chat. A chat of a character that this device does not have keeps the stage character. */
+  const chatCharacterId = computed(() => {
+    const [characterId] = chatSession.characterMembersOf(activeSessionId.value)
+    return characterId && cards.value.has(characterId) ? characterId : undefined
+  })
+  const shownCharacterId = computed(() => picked.value ?? chatCharacterId.value ?? (activeCardId.value || 'default'))
+  watch(activeSessionId, () => {
     picked.value = undefined
   })
 
