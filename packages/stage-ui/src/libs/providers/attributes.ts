@@ -69,6 +69,7 @@ const providerAttributesById = {
   'groq': paidCloud,
   'index-tts-vllm': freeLocal,
   'kokoro-local': freeLocal,
+  'llmtr': paidCloud,
   'lm-studio': freeLocal,
   'microsoft-speech': paidCloud,
   'mimo': paidCloud,

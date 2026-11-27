@@ -19,6 +19,7 @@ import { providerFireworksAI } from './cloud/fireworks-ai'
 import { providerGoogleGeminiAudioSpeech } from './cloud/google-gemini-audio-speech'
 import { providerGoogleGenerativeAI } from './cloud/google-generative-ai'
 import { providerGroq } from './cloud/groq'
+import { providerLlmtr } from './cloud/llmtr'
 import { providerMimo } from './cloud/mimo'
 import { providerMimoAudioSpeech, providerMimoAudioTranscription } from './cloud/mimo-audio'
 import { providerMinimax, providerMinimaxGlobal } from './cloud/minimax'
@@ -107,6 +108,7 @@ export const portableProviderDefinitions = eraseProviderDefinitions(
   providerGoogleGeminiAudioSpeech,
   providerGoogleGenerativeAI,
   providerGroq,
+  providerLlmtr,
   providerMinimax,
   providerMinimaxGlobal,
   providerMinimaxSpeech,
