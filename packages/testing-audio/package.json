@@ -12,7 +12,7 @@
   "license": "MIT",
   "exports": "./src/index.ts",
   "scripts": {
-    "build:targets": "pnpm -F @proj-airi/stage-web build && pnpm -F @proj-airi/stage-tamagotchi build",
+    "build:targets": "pnpm -F @proj-airi/stage-web build",
     "test": "vitest",
     "test:e2e": "pnpm run build:targets && vitest run",
     "test:existing-builds": "vitest run",
