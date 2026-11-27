@@ -1,0 +1,16 @@
+{
+  "name": "@proj-airi/airi-icons",
+  "type": "module",
+  "private": true,
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./icons.json": "./dist/icons.json"
+  },
+  "scripts": {
+    "build": "tsdown"
+  },
+  "devDependencies": {
+    "@iconify/tools": "catalog:",
+    "tsdown": "catalog:"
+  }
+}

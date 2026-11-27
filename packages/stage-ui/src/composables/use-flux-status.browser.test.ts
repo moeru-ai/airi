@@ -66,6 +66,6 @@ describe('useFluxStatus', () => {
     const screen = renderEntry(true)
 
     await expect.element(screen.getByTestId('flux-entry')).toHaveTextContent('40%')
-    await expect.element(screen.getByTestId('flux-entry')).toHaveAttribute('data-icon', 'i-solar:star-bold-duotone')
+    await expect.element(screen.getByTestId('flux-entry')).toHaveAttribute('data-icon', 'i-airi-icons:capacitor')
   })
 })

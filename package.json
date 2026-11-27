@@ -57,6 +57,7 @@
     "@electron-toolkit/eslint-config-ts": "catalog:",
     "@iconify/utils": "catalog:",
     "@moeru/eslint-config": "catalog:",
+    "@proj-airi/airi-icons": "workspace:*",
     "@proj-airi/unocss-preset-chromatic": "catalog:",
     "@types/node": "catalog:",
     "@unocss/eslint-config": "catalog:",

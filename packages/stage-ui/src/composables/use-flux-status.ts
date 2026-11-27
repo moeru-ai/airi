@@ -29,7 +29,7 @@ export function useFluxStatus() {
 
   /** The short value of an entry: the Capacitor percent for a subscriber, otherwise the Flux balance. */
   const valueLabel = computed(() => subscribed.value ? percentLabel.value ?? '' : balanceLabel.value)
-  const icon = computed(() => subscribed.value ? 'i-solar:star-bold-duotone' : 'i-solar:battery-charge-bold-duotone')
+  const icon = computed(() => subscribed.value ? 'i-airi-icons:capacitor' : 'i-solar:battery-charge-bold-duotone')
 
   return {
     visible,

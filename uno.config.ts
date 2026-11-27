@@ -162,6 +162,7 @@ export function sharedUnoConfig() {
       presetIcons({
         scale: 1.2,
         collections: {
+          ...createExternalPackageIconLoader('@proj-airi/airi-icons'),
           ...createExternalPackageIconLoader('@proj-airi/lobe-icons'),
           ...createExternalPackageIconLoader('@proj-airi/iconify-meteocons'),
         },
