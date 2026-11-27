@@ -977,6 +977,7 @@ export class ExtensionHost {
     const extension = await this.loader.loadExtensionFor(manifest, {
       cwd: options.cwd,
       runtime,
+      cacheBustKey: options.cacheBustKey,
     })
 
     const session = await this.startExtension(extension, {
@@ -1042,7 +1043,10 @@ export class ExtensionHost {
     return extensionSession
   }
 
-  /** Starts a fresh session only after cleanup succeeds. A cleanup that reloads its own session waits until the stop timeout. */
+  /**
+   * Starts a fresh session only after cleanup succeeds. Pass a new cacheBustKey to re-evaluate the entry module.
+   * A cleanup that reloads its own session waits until the stop timeout.
+   */
   async reload(sessionId: string, options: ExtensionStartOptions = {}): Promise<ExtensionSession> {
     // Reload preserves manifest/runtime intent, then performs stop + fresh start.
     // This intentionally creates a new session identity for deterministic re-bootstrap.
