@@ -3,6 +3,12 @@ import type { InferInput, InferOutput } from 'valibot'
 import { defineInvokeEventa } from '@moeru/eventa'
 import { array, number, object, optional, record, string, unknown } from 'valibot'
 
+/** Shared defaults for OpenAI image settings and generation. */
+export const OPENAI_IMAGE_DEFAULTS = {
+  baseUrl: 'https://api.openai.com/v1/',
+  model: 'gpt-image-2.6-sunburst',
+} as const
+
 const comfyUIWorkflowTemplateSchema = object({
   id: string(),
   name: string(),
@@ -22,6 +28,11 @@ export const artistryGlobalsSchema = object({
   nanobananaApiKey: optional(string(), ''),
   nanobananaModel: optional(string(), 'gemini-3.1-flash-image-preview'),
   nanobananaResolution: optional(string(), '1K'),
+  openaiImageApiKey: optional(string(), ''),
+  openaiImageBaseUrl: optional(string(), OPENAI_IMAGE_DEFAULTS.baseUrl),
+  openaiImageModel: optional(string(), OPENAI_IMAGE_DEFAULTS.model),
+  openaiImageWidth: optional(string(), ''),
+  openaiImageHeight: optional(string(), ''),
 })
 
 /** Provider-wide settings shared between the renderer and main. */

@@ -245,6 +245,7 @@ const artistryProviderOptions = computed(() => {
       : [
           { value: 'replicate', label: 'Replicate' },
           { value: 'nanobanana', label: 'Nano Banana' },
+          { value: 'openai-image', label: t('settings.pages.providers.provider.openai-image.title') },
         ]),
   ], selectedArtistryProvider.value)
 })
