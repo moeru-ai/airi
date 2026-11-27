@@ -7,7 +7,10 @@ import { useI18n } from 'vue-i18n'
 
 import { useBackdropSurface } from '../../composables/backdrop-surface'
 import { useCharacterPreviews } from '../../composables/use-character-previews'
+import { useAuthStore } from '../../stores/auth'
+import { useChatSessionStore } from '../../stores/chat/session-store'
 import { useAiriCardStore } from '../../stores/modules/airi-card'
+import { useListReorderMotion } from '../scenarios/chat/composables/use-list-reorder-motion'
 
 const props = withDefaults(defineProps<{
   /**
@@ -19,20 +22,14 @@ const props = withDefaults(defineProps<{
    * @default 'floating'
    */
   variant?: 'floating' | 'docked' | 'island'
-  /**
-   * The character that the rail marks as picked. A rail beside a conversation list passes the character whose
-   * conversations the list shows, which can differ from the character on the stage. Without it, the rail marks the
-   * character on the stage.
-   */
-  selected?: string
   /** The side of the tooltips of a docked rail or an island. Pick the side that faces into the window. @default 'right' */
   tooltipSide?: 'left' | 'right'
 }>(), { variant: 'floating', tooltipSide: 'right' })
 
 const emit = defineEmits<{
   /**
-   * The user picked a character. The host decides what the pick does: a rail over the stage makes it the active
-   * character, and a rail beside a conversation list shows its conversations.
+   * The user picked a character. The host activates it, because each host has its own steps around the switch, for
+   * example the floating chat opens the last chat of the character.
    */
   select: [characterId: string]
   /** The user asked for the character management page. The host opens it, because each app opens settings its own way. */
@@ -41,23 +38,44 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const { cards, activeCardId } = storeToRefs(useAiriCardStore())
+const { sessionMetas } = storeToRefs(useChatSessionStore())
+const { userId } = storeToRefs(useAuthStore())
 const previews = useCharacterPreviews()
 
-/** The picked character. A ring marks the character on the stage, and the fill of its row marks the picked one. */
-const selectedId = computed(() => props.selected ?? activeCardId.value)
+/** The time of the latest visible conversation of each character. */
+const lastActivityByCharacter = computed(() => {
+  const effectiveUserId = userId.value || 'local'
+  const activity = new Map<string, number>()
+  for (const meta of Object.values(sessionMetas.value)) {
+    // A hidden conversation is a background task. It is not a chat with the character.
+    if (meta.userId !== effectiveUserId || meta.hidden)
+      continue
+    activity.set(meta.characterId, Math.max(activity.get(meta.characterId) ?? 0, meta.updatedAt))
+  }
+  return activity
+})
 
-// The rail keeps the order of the cards, so each character keeps its place while the user chats.
-const entries = computed(() => Array.from(cards.value, ([id, card]) => ({
+// Characters with a recent conversation come first. Characters without one keep the card order.
+const entries = computed(() => Array.from(cards.value, ([id, card], order) => ({
   id,
   name: card.name,
   preview: previews.value.get(id),
   onStage: id === activeCardId.value,
-})))
+  lastActivity: lastActivityByCharacter.value.get(id) ?? 0,
+  order,
+})).sort((first, second) => second.lastActivity - first.lastActivity || first.order - second.order))
 
 const floating = computed(() => props.variant === 'floating')
 const island = computed(() => props.variant === 'island')
 
 const rail = useTemplateRef<HTMLElement>('rail')
+const items = useTemplateRef<HTMLElement>('items')
+// A recent chat moves its character up. The avatars slide to their new places in every form of the rail.
+useListReorderMotion({
+  list: items,
+  keys: () => entries.value.map(entry => entry.id),
+  keyOf: item => item.dataset.characterKey,
+})
 // The floating rail and the island are glass. Over the stage the CSS blur draws it. Over the desktop, for example beside
 // the floating chat window, the host draws native window glass behind it.
 useBackdropSurface(rail, { enabled: () => props.variant !== 'docked' })
@@ -143,12 +161,16 @@ function avatarRingClasses(onStage: boolean) {
   >
     <!--
       Only the island scrolls its avatars apart from Manage. It pads the scroll area, so the focus rings of the rows are
-      not cut, and the rows stay 8px inside the island. The other rails lay the rows out in the rail itself.
+      not cut, and the rows stay 8px inside the island. The other rails keep the gaps of the rail. The rows move inside
+      this box when the order changes, so it is the positioned parent of the rows.
     -->
     <div
+      ref="items"
       :class="island
-        ? ['min-h-0 w-full flex flex-1 flex-col items-center gap-1 overflow-x-hidden overflow-y-auto px-2 py-0.5 [scrollbar-width:none]']
-        : ['contents']"
+        ? ['relative min-h-0 w-full flex flex-1 flex-col items-center gap-1 overflow-x-hidden overflow-y-auto px-2 py-0.5 [scrollbar-width:none]']
+        : variant === 'docked'
+          ? ['relative w-full flex shrink-0 flex-col items-center gap-2']
+          : ['relative w-full flex shrink-0 flex-col gap-1']"
     >
       <Tooltip
         v-for="entry in entries"
@@ -158,22 +180,22 @@ function avatarRingClasses(onStage: boolean) {
         :disabled="floating"
       >
         <!--
-          The fill of the row marks the picked character, in the open rail and in the docked rail. A ring marks the
-          character on the stage, except in the open rail, where its name is bold. The island picks the character on the
-          stage, so its ring is its only mark.
+          The fill of the row marks the character on the stage, in the open rail and in the docked rail. A ring marks it
+          too, except in the open rail, where its name is bold. The island marks it with the ring only.
         -->
         <BasicButton
           size="unset"
           data-testid="character-rail-item"
+          :data-character-key="entry.id"
           :aria-label="labelOf(entry)"
-          :aria-pressed="entry.id === selectedId"
+          :aria-pressed="entry.onStage"
           :title="floating && !open ? labelOf(entry) : undefined"
           :class="island
             ? islandRowClasses
             : [
               rowClasses,
               open || variant === 'docked' ? 'hover:bg-neutral-500/10' : '',
-              (open || variant === 'docked') && entry.id === selectedId ? 'bg-neutral-500/15' : '',
+              (open || variant === 'docked') && entry.onStage ? 'bg-neutral-500/15' : '',
             ]"
           @click="emit('select', entry.id)"
         >

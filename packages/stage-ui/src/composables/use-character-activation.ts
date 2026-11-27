@@ -6,7 +6,8 @@ import { toast } from 'vue-sonner'
 import { useAiriCardStore } from '../stores/modules/airi-card'
 
 /**
- * Makes a picked character the active character, for a `CharacterRail` over the stage or beside the floating chat.
+ * Makes a picked character the active character, for every `CharacterRail`: over the stage, beside the floating chat,
+ * and beside the chat list of the classic window and of the phone drawer.
  *
  * A pick of the active character does nothing. A pick while a switch runs waits, and the last such pick runs after the
  * switch. A failed switch tells the user with a toast and keeps the earlier character.

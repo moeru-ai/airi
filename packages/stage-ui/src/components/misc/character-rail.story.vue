@@ -36,10 +36,7 @@ cardStore.cards = new Map([
 cardStore.activeCardId = 'relu'
 
 const lastEvent = shallowRef('None')
-// The docked rail beside a chat list picks the chats to show. The pick stays apart from the character on the stage.
-const picked = shallowRef('aria')
-
-/** The rail over the stage makes the pick the active character. The story has no model runtime, so only the mark moves. */
+/** Every host makes the pick the active character. The story has no model runtime, so only the mark moves. */
 function activate(characterId: string) {
   lastEvent.value = `select: ${characterId}`
   cardStore.activeCardId = characterId
@@ -64,10 +61,10 @@ function activate(characterId: string) {
     <Variant id="docked" title="Docked beside a chat list">
       <div :class="['flex flex-col gap-3 p-4']">
         <div :class="['h-96 w-16 rounded-2xl bg-neutral-100 dark:bg-neutral-900']">
-          <CharacterRail variant="docked" :selected="picked" :class="['bg-neutral-500/8 dark:bg-black/25']" @select="picked = $event" @manage="lastEvent = 'manage'" />
+          <CharacterRail variant="docked" :class="['bg-neutral-100 dark:bg-neutral-950/60']" @select="activate" @manage="lastEvent = 'manage'" />
         </div>
         <p :class="['text-sm text-neutral-500']">
-          The list shows: {{ picked }}. On the stage: {{ cardStore.activeCardId }}.
+          Last event: {{ lastEvent }}
         </p>
       </div>
     </Variant>

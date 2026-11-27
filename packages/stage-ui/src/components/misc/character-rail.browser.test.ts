@@ -1,4 +1,5 @@
 import type { AiriCard } from '../../stores/modules/airi-card'
+import type { ChatSessionMeta } from '../../types/chat-session'
 
 import { PiniaColada } from '@pinia/colada'
 import { createPinia } from 'pinia'
@@ -8,6 +9,7 @@ import { createI18n } from 'vue-i18n'
 
 import CharacterRail from './character-rail.vue'
 
+import { useChatSessionStore } from '../../stores/chat/session-store'
 import { useAiriCardStore } from '../../stores/modules/airi-card'
 
 import 'virtual:uno.css'
@@ -31,7 +33,11 @@ function card(name: string): AiriCard {
   }
 }
 
-async function renderRail(props: { variant?: 'floating' | 'docked' | 'island', selected?: string } = {}) {
+function session(sessionId: string, characterId: string, updatedAt: number, hidden?: boolean): ChatSessionMeta {
+  return { sessionId, characterId, userId: 'local', createdAt: updatedAt, updatedAt, hidden }
+}
+
+async function renderRail(props: { variant?: 'floating' | 'docked' | 'island' } = {}) {
   const pinia = createPinia()
   const i18n = createI18n({
     legacy: false,
@@ -44,24 +50,23 @@ async function renderRail(props: { variant?: 'floating' | 'docked' | 'island', s
   const cardStore = useAiriCardStore(pinia)
   cardStore.cards = new Map([['first', card('First')], ['second', card('Second')], ['third', card('Third')]])
   cardStore.activeCardId = 'second'
+  useChatSessionStore(pinia).sessionMetas = {
+    a: session('a', 'first', 1),
+    b: session('b', 'second', 5),
+    // A background task does not count as a chat with the character.
+    c: session('c', 'first', 9, true),
+  }
   return { screen, cardStore }
 }
 
 describe('character rail', () => {
-  it('keeps the card order and marks the character on the stage', async () => {
+  it('lists recent characters first and marks the character on the stage', async () => {
     const { screen } = await renderRail()
 
     await expect.poll(() => Array.from(document.querySelectorAll('[data-testid="character-rail-item"]'), item => item.getAttribute('aria-label')))
-      .toEqual(['First', 'Second · on stage', 'Third'])
+      .toEqual(['Second · on stage', 'First', 'Third'])
     await expect.element(screen.getByRole('button', { name: 'Second · on stage' })).toHaveAttribute('aria-pressed', 'true')
     await expect.element(screen.getByRole('button', { name: 'First' })).toHaveAttribute('aria-pressed', 'false')
-  })
-
-  it('marks the picked character apart from the character on the stage', async () => {
-    const { screen } = await renderRail({ variant: 'docked', selected: 'third' })
-
-    await expect.element(screen.getByRole('button', { name: 'Third' })).toHaveAttribute('aria-pressed', 'true')
-    await expect.element(screen.getByRole('button', { name: 'Second · on stage' })).toHaveAttribute('aria-pressed', 'false')
   })
 
   it('tells the host which character the user picked and when the user asks for character management', async () => {
@@ -69,7 +74,7 @@ describe('character rail', () => {
 
     await screen.getByRole('button', { name: 'Third' }).click()
     expect(screen.emitted('select')).toEqual([['third']])
-    // The pick alone keeps the character on the stage. The host decides what the pick does.
+    // The rail only tells the host. The host activates the character.
     expect(cardStore.activeCardId).toBe('second')
 
     await screen.getByRole('button', { name: 'Manage characters' }).click()

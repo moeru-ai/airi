@@ -15,10 +15,11 @@ On a wide screen, the web header held the character switcher as a popover. The u
 - The rail is a translucent capsule that floats over the stage. It does not change the position of the stage or of the chat panel.
 - The closed rail shows avatars only. It opens to show names while the pointer is over it or the keyboard focus is in it.
 - The rail opens 80 ms after the pointer enters and closes 200 ms after the pointer leaves. The width changes in 300 ms with an ease-in-out curve. With reduced motion, it changes at once.
-- The rail keeps the order of the cards, so each character keeps its place while the user chats.
+- The list puts characters with a recent visible conversation first. The other characters keep the card order.
+- When a recent conversation changes the order, the avatars slide to their new places in 300 ms, in every form of the rail. With reduced motion, they move at once.
 - A ring marks the character on the stage. Its accessible name and its tooltip say so in words.
 - The rail shows no badge and no message preview.
-- A pick on the rail goes to its host. The rail over the stage and the rail beside the floating chat activate the character. The docked rail beside a chat list picks the chats that the list shows, as `2026-11-13-chat-selects-character.md` describes.
+- A pick on the rail goes to its host, and every host activates the character.
 - The rail does not open the character management page. It asks its host, because each app opens settings in its own way.
 
 The header has no character switcher. The rail replaces it, so the header keeps no control and no prop for it. `ProfileSwitcherPopover` stays in the package, because stage-tamagotchi-kirie uses it.

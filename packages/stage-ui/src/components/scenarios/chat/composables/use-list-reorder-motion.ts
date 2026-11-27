@@ -27,8 +27,11 @@ export function useListReorderMotion(options: {
   keys: MaybeRefOrGetter<readonly string[]>
   /** The key of an item element. An element without a key, for example an empty state, does not move. */
   keyOf: (item: HTMLElement) => string | undefined
-  /** The class that `TransitionGroup` gives to an item while it leaves. A leaving item does not move. */
-  leaveActiveClass: string
+  /**
+   * The class that `TransitionGroup` gives to an item while it leaves. A leaving item does not move. A list without
+   * leave transitions leaves it out.
+   */
+  leaveActiveClass?: string
 }) {
   const reducedMotion = usePreferredReducedMotion()
   const moves = new WeakMap<HTMLElement, Animation>()
@@ -42,7 +45,7 @@ export function useListReorderMotion(options: {
 
   function items(list: HTMLElement) {
     return [...list.children].filter((item): item is HTMLElement =>
-      item instanceof HTMLElement && options.keyOf(item) !== undefined && !item.classList.contains(options.leaveActiveClass))
+      item instanceof HTMLElement && options.keyOf(item) !== undefined && (!options.leaveActiveClass || !item.classList.contains(options.leaveActiveClass)))
   }
 
   watch(order, () => {
