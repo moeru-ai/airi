@@ -20,14 +20,15 @@ import { useAuthStore } from '../../../../stores/auth'
 import { useChatStore } from '../../../../stores/chat'
 import { normalizeSessionQuery, searchSessions } from '../../../../stores/chat/session-search'
 import { useChatSessionStore } from '../../../../stores/chat/session-store'
-import { summarizeSessionMessages } from '../../../../stores/chat/session-summary'
+import { chatNameOf, chatSummaryOf } from '../../../../stores/chat/session-summary'
 import { useChatSessionsViewStore } from '../../../../stores/chat/sessions-view-store'
 import { useAiriCardStore } from '../../../../stores/modules/airi-card'
 import { useConsciousnessStore } from '../../../../stores/modules/consciousness'
 import { formatSessionFullTime, formatSessionRowTime } from './session-time'
 
 const props = withDefaults(defineProps<{
-  desktopMode?: 'dialog' | 'popover' | 'inline'
+  /** Where the list shows. See `SessionsDialog`. */
+  desktopMode?: 'dialog' | 'popover' | 'inline' | 'floating'
   /** The host is a desktop window. A narrow desktop window then keeps the desktop surfaces and never shows the phone drawer. */
   desktop?: boolean
   /** The inline list is on a touch screen, for example in the side drawer of the phone. */
@@ -66,7 +67,7 @@ const isCreatingSession = ref(false)
 const effectiveUserId = computed(() => userId.value || 'local')
 
 const currentCharacterId = computed(() => activeCardId.value || 'default')
-/** The current character, for the title of a list that stands beside the chat. */
+/** The current character, for the title, the new-chat button, and the empty state of the list. */
 const currentCharacter = computed(() => {
   const card = cards.value.get(currentCharacterId.value)
   return card ? { name: card.name } : undefined
@@ -78,25 +79,14 @@ const currentCharacter = computed(() => {
 const ownedSessions = computed(() => Object.values(sessionMetas.value)
   .filter(meta => meta.userId === effectiveUserId.value && !meta.hidden && chatSession.characterMembersOf(meta.sessionId).includes(currentCharacterId.value)))
 
-/**
- * The summary of a conversation for its row. Loaded messages give the newest summary, for example while a reply
- * streams in. A conversation that is not loaded uses the summary that its metadata stores, so the list needs no
- * message records.
- */
+/** The summary of a conversation for its row. The list reads stored summaries, so it needs no message records. */
 function summaryFor(meta: ChatSessionMeta): ChatSessionSummary {
-  const loaded = sessionMessages.value[meta.sessionId]
-  return loaded?.length ? summarizeSessionMessages(loaded) : meta.summary ?? {}
+  return chatSummaryOf(meta, sessionMessages.value[meta.sessionId])
 }
 
-/**
- * The title of a row: the title of the conversation, else its first message.
- *
- * @example
- * previewFor({ title: 'Moon notes', ...meta }, {})
- * // => 'Moon notes'
- */
+/** The title of a row: the name of the conversation, else the fallback for a conversation without one. */
 function previewFor(meta: ChatSessionMeta, summary: ChatSessionSummary): string {
-  return meta.title || summary.firstText || t('stage.chat.sessions.new-chat-fallback')
+  return chatNameOf(meta, summary) ?? t('stage.chat.sessions.new-chat-fallback')
 }
 
 /** The second line of a row. The words of the user carry a prefix, as in a messenger. */
@@ -291,6 +281,7 @@ async function renameSession(payload: { sessionId: string, title: string }) {
     :desktop-mode="props.desktopMode"
     :touch="props.touch"
     :character="currentCharacter"
+    :character-id="currentCharacterId"
     @open-character="emit('openCharacterSettings', currentCharacterId)"
     @new-session="reportFailure(startNewSession)"
     @select-session="selectSession"

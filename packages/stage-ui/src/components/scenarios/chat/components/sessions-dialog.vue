@@ -14,10 +14,15 @@ const props = withDefaults(defineProps<{
   rows: SessionRow[]
   isDesktop: boolean
   isCreatingSession: boolean
-  /** `inline` renders the list in place, without a surface, and ignores `open`. A window that keeps the list beside the chat uses it. */
-  desktopMode?: 'dialog' | 'popover' | 'inline'
+  /**
+   * `inline` renders the list in place, without a surface, and ignores `open`. A window that keeps the list beside the
+   * chat uses it. `floating` renders it in place too, with its actions in islands, for the floating chat.
+   */
+  desktopMode?: 'dialog' | 'popover' | 'inline' | 'floating'
   /** The character of the conversations. The inline list names it in its title. */
   character?: { name: string }
+  /** The ID of the character of the rows. See `SessionsList`. */
+  characterId?: string
   /** The inline list is on a touch screen, so its rows take swipes and long presses. */
   touch?: boolean
   /** The owner reads stored messages for the search. See `SessionsList`. */
@@ -59,14 +64,16 @@ function preserveTriggerFocus(event: Event) {
 </script>
 
 <template>
-  <div v-if="desktopMode === 'inline'" data-testid="sessions-inline" :class="['h-full min-h-0 py-2 pl-2']">
+  <div v-if="desktopMode === 'inline' || desktopMode === 'floating'" data-testid="sessions-inline" :class="['h-full min-h-0 py-2 pl-2']">
     <SessionsList
       v-model:selecting="selecting"
       v-model:place="place"
       v-model:query="query"
       :searching="searching"
+      :character-id="characterId"
       compact
       fill
+      :islands="desktopMode === 'floating'"
       :touch="touch"
       :character="character"
       :class="['h-full']"
@@ -98,6 +105,7 @@ function preserveTriggerFocus(event: Event) {
       v-model:place="place"
       v-model:query="query"
       :searching="searching"
+      :character-id="characterId"
       :rows="rows"
       :is-creating-session="isCreatingSession"
       @new-session="emit('newSession')"
@@ -129,6 +137,7 @@ function preserveTriggerFocus(event: Event) {
           v-model:place="place"
           v-model:query="query"
           :searching="searching"
+          :character-id="characterId"
           compact
           :rows="rows"
           :is-creating-session="isCreatingSession"
@@ -166,6 +175,7 @@ function preserveTriggerFocus(event: Event) {
           v-model:place="place"
           v-model:query="query"
           :searching="searching"
+          :character-id="characterId"
           :rows="rows"
           :is-creating-session="isCreatingSession"
           @new-session="emit('newSession')"

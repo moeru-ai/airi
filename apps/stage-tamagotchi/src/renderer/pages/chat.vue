@@ -2,9 +2,10 @@
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { isElectronWindow } from '@proj-airi/stage-shared'
 import { CharacterRail, ChatSessionsDrawer } from '@proj-airi/stage-ui/components'
-import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
-import { storeToRefs } from 'pinia'
+import { useActiveChatName } from '@proj-airi/stage-ui/composables/use-active-chat-name'
+import { useCharacterActivation } from '@proj-airi/stage-ui/composables/use-character-activation'
 import { useTemplateRef } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import ChatSpeechMuteButton from '../components/chat-window/chat-speech-mute-button.vue'
 import ChatWindowStyleMenu from '../components/chat-window/chat-window-style-menu.vue'
@@ -15,7 +16,11 @@ import ChatPageShell from './chat-page-shell.vue'
 import { electronOpenSettings } from '../../shared/eventa'
 import { useChatDraftHandover } from '../composables/use-chat-draft-handover'
 
-const { activeCard } = storeToRefs(useAiriCardStore())
+const { t } = useI18n()
+/** The title bar names the open chat, as a messenger names the channel above the messages. The column names the character. */
+const activeChatName = useActiveChatName()
+/** A pick on the rail activates the character, as the rail over the stage does. */
+const { activateCharacter } = useCharacterActivation()
 const hasNativeControls = isElectronWindow(window) && window.platform === 'darwin'
 const interactiveArea = useTemplateRef<InstanceType<typeof InteractiveArea>>('interactive-area')
 const openSettings = useElectronEventaInvoke(electronOpenSettings)
@@ -27,9 +32,10 @@ useChatDraftHandover(interactiveArea)
   <ChatPageShell>
     <WindowTitleBar
       transparent
-      :title="activeCard?.name || 'AIRI'"
+      :title="activeChatName ?? t('stage.chat.sessions.new-chat-fallback')"
+      :title-muted="!activeChatName"
       :class="{ 'pl-20!': hasNativeControls }"
-      icon="i-solar:chat-line-bold"
+      icon="i-mingcute:chat-2-line"
     >
       <template #actions>
         <ChatSpeechMuteButton />
@@ -44,7 +50,8 @@ useChatDraftHandover(interactiveArea)
     -->
     <div :class="['h-full min-h-0 flex pb-1.5 pr-1.5']">
       <CharacterRail
-        docked
+        variant="docked"
+        @select="activateCharacter"
         @manage="openSettings({ route: '/settings/airi-card' })"
       />
       <div

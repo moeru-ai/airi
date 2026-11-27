@@ -33,8 +33,8 @@ import { attachedChatOffset, chooseAttachedChatLayout, keepChatOnDisplay, prefer
 type EventaContext = ReturnType<typeof createContext>['context']
 
 /**
- * Smallest floating chat that still shows the composer above one short bubble, with the 72px character rail beside
- * the panel. A size that the config saved before the rail grows to it.
+ * Smallest floating chat that still shows the composer above one short bubble, with the 56px column of the window
+ * buttons and the characters beside the panel. A smaller size that the config saved grows to it.
  */
 const minimumSize = { width: 440, height: 360 }
 

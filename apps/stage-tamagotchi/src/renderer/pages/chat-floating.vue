@@ -8,7 +8,9 @@ import { getElectronEventaContext, useElectronEventaInvoke, useElectronMouseArou
 import { isElectronWindow } from '@proj-airi/stage-shared'
 import { CharacterRail, ChatSessionsDrawer } from '@proj-airi/stage-ui/components'
 import { useBackdropSurface } from '@proj-airi/stage-ui/composables/backdrop-surface'
+import { useCharacterActivation } from '@proj-airi/stage-ui/composables/use-character-activation'
 import { useDanmakuFeedExpiry } from '@proj-airi/stage-ui/composables/use-danmaku-feed-expiry'
+import { useCharacterLastChatsStore } from '@proj-airi/stage-ui/stores/chat/character-last-chats'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { Dock, DockButton, dockItemClasses, DockSeparator, Tooltip, TransitionBud } from '@proj-airi/ui'
@@ -18,7 +20,9 @@ import { storeToRefs } from 'pinia'
 import { computed, nextTick, onMounted, onScopeDispose, shallowRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import ChatConversationButton from '../components/chat-window/chat-conversation-button.vue'
 import ChatDanmakuFeedMenu from '../components/chat-window/chat-danmaku-feed-menu.vue'
+import ChatMoveGrip from '../components/chat-window/chat-move-grip.vue'
 import ChatSpeechMuteButton from '../components/chat-window/chat-speech-mute-button.vue'
 import ChatWindowStyleMenu from '../components/chat-window/chat-window-style-menu.vue'
 import InteractiveArea from '../components/InteractiveArea.vue'
@@ -39,11 +43,22 @@ import { dismissOverlays, useChatFloatingClickThrough } from '../composables/use
 import { useControlsIslandStore } from '../stores/controls-island'
 
 const panel = useTemplateRef<HTMLElement>('panel')
+const windowIsland = useTemplateRef<HTMLElement>('window-island')
 
 const { t } = useI18n()
-const sessionsDrawerOpen = shallowRef(false)
-const { activeSessionId, sessionMetas } = storeToRefs(useChatSessionStore())
-const activeSessionTitle = computed(() => sessionMetas.value[activeSessionId.value]?.title?.trim() || t('stage.chat.sessions.new-chat-fallback'))
+/**
+ * The panel has two levels: the conversations of the character on the stage, and the open conversation. The list
+ * pushes in from the start. A conversation that the list opens pushes back in from the end.
+ */
+const listOpen = shallowRef(false)
+const listLevel = useTemplateRef<HTMLElement>('list-level')
+// The list takes the focus when it opens, so Escape reaches the content. The button that opened it is often in the
+// conversation, which turns inert and drops the focus to the page.
+watch(listOpen, async (open) => {
+  await nextTick()
+  if (open && !listLevel.value?.contains(document.activeElement))
+    listLevel.value?.focus({ preventScroll: true })
+})
 const interactiveArea = useTemplateRef<InstanceType<typeof InteractiveArea>>('interactive-area')
 
 // Folded until the main process answers, so the first unfold plays the same
@@ -74,10 +89,15 @@ useChatDraftHandover(interactiveArea)
 const freePlacement = computed(() => state.value.placement === 'free')
 const danmaku = computed(() => state.value.danmaku)
 // The message feed has no glass and no fill. Its messages float over the
-// desktop, so a feed that fades out leaves nothing behind.
-useBackdropSurface(panel, { enabled: () => !danmaku.value })
+// desktop, so a feed that fades out leaves nothing behind. Its list of
+// conversations shows on the panel, with the window buttons and the
+// characters beside it.
+const panelShown = computed(() => !danmaku.value || listOpen.value)
+useBackdropSurface(panel, { enabled: panelShown })
+useBackdropSurface(windowIsland, { enabled: panelShown })
 // The window draws native glass only on macOS. See `services/electron/window-backdrop.ts`.
-const glassBackdrop = computed(() => isElectronWindow(window) && window.platform === 'darwin' && !danmaku.value)
+const nativeGlass = isElectronWindow(window) && window.platform === 'darwin'
+const glassBackdrop = computed(() => nativeGlass && !danmaku.value)
 // The danmaku feed starts with its composer folded, because it is mostly read.
 const composerFolded = useLocalStorage('chat-window/danmaku/composer-folded', true)
 // Fade on hover, which the main window's controls island switches, turns the
@@ -135,8 +155,11 @@ useEventListener(window, 'focus', () => {
 })
 
 // The character stands on the other side of the chat, and the chat folds
-// toward it. The dock sits on the other side.
+// toward it. The dock, the window buttons, and the characters sit on the
+// other side.
 const characterOnLeft = computed(() => state.value.side === 'right')
+/** The tooltips of the column of the window buttons and the characters open toward the panel. */
+const columnTooltipSide = computed(() => characterOnLeft.value ? 'left' : 'right')
 
 function savePreference(changes: Partial<ChatWindowPreferences>) {
   void setPreferences(changes).catch(error => console.error('[chat-floating] Failed to save the chat preferences:', error))
@@ -179,11 +202,90 @@ const dockTooltipSide = computed<TooltipContentProps['side']>(() => {
     return 'bottom'
   return characterOnLeft.value ? 'right' : 'left'
 })
-// The conversation button of the dock names the current conversation and opens the conversation list. A dock that
-// stands up has no room for the name, so its title gives the name too.
-const conversationsLabel = computed(() => {
-  const label = t('tamagotchi.stage.chat-window.conversations')
-  return verticalDock.value ? `${activeSessionTitle.value} · ${label}` : label
+/** Opens a page of the character settings. */
+function openCharacterPage(route: string) {
+  void openSettings({ route })
+}
+
+/**
+ * The buttons of the island of the window: 52px squares 2px inside it, 2px less round than the island. The island meets
+ * the window edge, which would cut a focus ring around a button, so the ring lies inside the button.
+ */
+const windowButtonClasses = [
+  'size-13 shrink-0 flex items-center justify-center rounded-[18px] outline-none transition-colors',
+  'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary-300',
+]
+
+/** A button of the window. The window island and the dock of the message feed show the same definition. */
+interface WindowControl {
+  icon: string
+  /** The icon of a toggle that is on. */
+  pressedIcon?: string
+  label: string
+  /** The state of a toggle. A plain action has none. */
+  pressed?: boolean
+}
+
+const foldControl = computed<WindowControl>(() => ({ icon: 'i-lucide:minimize-2', label: t('tamagotchi.stage.chat-window.fold') }))
+const pinControl = computed<WindowControl>(() => ({
+  icon: 'i-mingcute:pin-2-line',
+  pressedIcon: 'i-mingcute:pin-2-fill',
+  label: t('tamagotchi.stage.chat-window.pin'),
+  pressed: state.value.pinned,
+}))
+const danmakuControl = computed<WindowControl>(() => ({ icon: 'i-mingcute:subtitle-line', label: t('tamagotchi.stage.chat-window.danmaku'), pressed: danmaku.value }))
+/** The buttons of the window island, in their order. The grip of a free chat follows them. */
+const islandControls = computed(() => [
+  { key: 'fold', control: foldControl.value, run: () => void foldChat() },
+  { key: 'pin', control: pinControl.value, run: togglePinned },
+])
+
+const { activateCharacter } = useCharacterActivation()
+const chatSession = useChatSessionStore()
+const { sessionMetas, index: sessionIndex } = storeToRefs(chatSession)
+const { lastChatOf, remember } = useCharacterLastChatsStore()
+
+/**
+ * Whether a pick of a character opens a chat. A chat that the user deleted or archived since, the hidden chat of a
+ * background task, and a chat that no longer has the character as a member, for example after a sync, do not open.
+ */
+function opensOnPick(sessionId: string | undefined, characterId: string): sessionId is string {
+  const meta = sessionId ? sessionMetas.value[sessionId] : undefined
+  return !!meta && !meta.hidden && meta.archivedAt === undefined && chatSession.characterMembersOf(meta.sessionId).includes(characterId)
+}
+
+/** The number of the latest pick on the rail. A pick that a newer one overtakes selects no chat. */
+let latestPick = 0
+
+/**
+ * Puts a character of the rail on the stage, with or without a chat, so the user can talk to it by voice at once. The
+ * list then shows its conversations, so the user can pick one.
+ *
+ * The chat that the user leaves becomes the last chat of its character. The pick opens the last chat of the picked
+ * character, else the chat that the character opens, else a new chat. See `useCharacterLastChatsStore`. Every pick
+ * opens a chat, because opening a chat activates its character, and of quick selections only the last one activates.
+ * Before the chats are ready, the pick only activates the character.
+ */
+async function selectCharacter(characterId: string) {
+  listOpen.value = true
+  const pick = ++latestPick
+  await remember(chatSession.activeSessionId)
+  const chatId = [await lastChatOf(characterId), sessionIndex.value?.characters[characterId]?.activeSessionId]
+    .find(sessionId => opensOnPick(sessionId, characterId))
+    ?? await chatSession.ensureCharacterSession(characterId).catch(() => undefined)
+  // A newer pick started while this one looked for its chat. The newer pick decides the chat and the character.
+  if (pick !== latestPick)
+    return
+  if (chatId)
+    await chatSession.setActiveSession(chatId)
+  else
+    await activateCharacter(characterId)
+}
+
+// The panel and the column beside the message feed change what is painted under a still cursor.
+watch(panelShown, async () => {
+  await nextTick()
+  hitTest()
 })
 
 const dockInstance = useTemplateRef<InstanceType<typeof Dock>>('dock')
@@ -341,6 +443,8 @@ const nearResizeEdgeFor250Ms = refDebounced(nearResizeEdge, 250)
 
 /** The width of the resize band along an edge, in pixels. It matches the `w-[5px]` and `h-[5px]` of the bands below. */
 const RESIZE_BAND = 5
+// The history keeps its scrollbar clear of the band along the right edge, where the panel reaches that edge.
+const rightResizeBand = computed(() => state.value.resizeEdges.includes('e') && (!panelShown.value || !characterOnLeft.value) ? RESIZE_BAND : undefined)
 /** Where each resize handle sits: a band along each edge, and a square in each corner, over the bands. */
 const resizeHandleClasses: Record<ResizeDirection, string[]> = {
   n: ['left-[5px] right-[5px] top-0 h-[5px]', 'cursor-n-resize'],
@@ -497,6 +601,14 @@ function handleArrowKey(event: KeyboardEvent, applyDelta: (delta: WindowDelta) =
 function moveByKeyboard(delta: WindowDelta) {
   return moveTo({ x: window.screenX + delta.deltaX, y: window.screenY + delta.deltaY })
 }
+
+/** The listeners of the grip, in the window island or in the dock: a drag or the arrow keys move the window. */
+const gripListeners = {
+  pointerdown: (event: PointerEvent) => holdPointer(event),
+  pointermove: moveWithHeldPointer,
+  lostpointercapture: releasePointer,
+  keydown: (event: KeyboardEvent) => handleArrowKey(event, moveByKeyboard),
+}
 </script>
 
 <template>
@@ -508,142 +620,190 @@ function moveByKeyboard(delta: WindowDelta) {
       @after-enter="hitTest()"
       @after-leave="reportContentHidden()"
     >
+      <!--
+        The column of the window buttons and the characters stands on the side away from the character, beside the panel.
+        A character on the left mirrors the row. The message feed has no panel and no column, until its list opens.
+        While the list is open, Escape that the list does not use goes back to the conversation, also from the column.
+      -->
       <div
         v-show="contentShown"
-        ref="panel"
-        :class="[
-          'absolute inset-y-0 flex flex-col gap-1 rounded-3xl pt-3',
-          // The character rail floats outside the panel, on the side away from the character, as on the web stage.
-          danmaku ? 'inset-x-0' : characterOnLeft ? 'left-0 right-18' : 'left-18 right-0',
-          // macOS draws native glass behind this fill. Other platforms have no glass, so the same 80% fill shows the desktop.
-          danmaku ? '' : glassBackdrop ? 'bg-white/80 dark:bg-neutral-900/80' : 'bg-neutral-50 dark:bg-neutral-950',
-        ]"
+        :class="['absolute inset-0 flex gap-2', characterOnLeft ? 'flex-row-reverse' : '']"
+        @keydown.esc="listOpen = false"
       >
         <!--
-          The dock sits on the side away from the character. A character on the left mirrors the row and the dock, so
-          the fold button stays at the outer end. A dock that stands up sits at the middle of the side of the character,
-          with the island of the feed below it. Closed, it shrinks into a narrow bar. The dock stands 10px from the window
-          edge, past the 10px hover scrollbar there, so it never covers the scrollbar. Closed, only its bar opens it. Its
-          16px padding on the other sides is the zone that keeps an open dock open, and the scrollbar is outside it. The
-          zone takes no pointer, so the history under it still takes hover, wheel, and clicks. A dock that stands up stays
-          over the composer layer of `ChatViewportLayout` (z-index 20), so a tall composer or setup callout cannot cover it.
+          The islands of the column are as wide as the rail of the characters. The window buttons are icons, so they fill
+          their island as the buttons of a `Dock` do: 52px squares 2px inside it. The rail holds avatars, which are
+          heavier, so it leaves them room. Both islands are rounded rectangles with 20px corners.
         -->
-        <div
-          ref="dock-zone"
-          :class="verticalDock
-            ? ['pointer-events-none absolute top-1/2 z-30 w-12 flex flex-col items-center gap-2 py-4', characterOnLeft ? 'left-2.5 pr-4' : 'right-2.5 pl-4']
-            : ['flex items-center gap-2 px-4', characterOnLeft ? 'flex-row-reverse' : '']"
-          :style="verticalDock ? verticalDockZoneStyle : undefined"
-        >
-          <!--
-            The dock stays over the island, so the island can hide under its edge. A dock that stands up draws its
-            shadow on this wrapper, because the clip that turns it into its bar would cut a box shadow.
-          -->
-          <div :class="['relative z-1 min-w-0', verticalDock ? 'drop-shadow-md' : '']">
-            <Dock
-              ref="dock"
-              variant="blurry"
-              :orientation="verticalDock ? 'vertical' : 'horizontal'"
-              :tooltip-side="dockTooltipSide"
-              :shadow="!verticalDock"
-              :class="['pointer-events-auto min-w-0', !verticalDock && characterOnLeft ? 'flex-row-reverse' : '']"
-            >
-              <DockButton icon="i-lucide:minimize-2" :label="t('tamagotchi.stage.chat-window.fold')" @click="foldChat()" />
-              <Tooltip v-if="freePlacement" :label="t('tamagotchi.stage.chat-window.move')" :side="dockTooltipSide">
-                <button
-                  :aria-label="t('tamagotchi.stage.chat-window.move')"
-                  :class="[
-                    'h-7 w-5 shrink-0 cursor-grab touch-none rounded-full',
-                    'flex items-center justify-center outline-none transition-colors',
-                    'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-300',
-                    dockItemClasses('blurry'),
-                  ]"
-                  @pointerdown="holdPointer"
-                  @pointermove="moveWithHeldPointer"
-                  @lostpointercapture="releasePointer"
-                  @keydown="handleArrowKey($event, moveByKeyboard)"
-                >
-                  <div class="i-ph:dots-six-vertical-bold size-4" />
-                </button>
-              </Tooltip>
-              <!--
-                A plain button: GhostButton wraps its slot in a span that cannot shrink, so a long name could not
-                truncate.
-              -->
-              <ChatSessionsDrawer v-model="sessionsDrawerOpen" desktop desktop-mode="popover">
-                <template #trigger>
-                  <button
-                    :aria-label="conversationsLabel"
-                    :title="conversationsLabel"
-                    :class="[
-                      'group min-w-0 flex items-center gap-1.5 rounded-full outline-none transition-colors',
-                      'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-300',
-                      dockItemClasses('blurry'),
-                      verticalDock ? 'p-0.5' : characterOnLeft ? 'flex-row-reverse py-0.5 pl-2 pr-0.5' : 'py-0.5 pl-0.5 pr-2',
-                    ]"
-                  >
-                    <!-- The icon and the name take the icon color of the dock. Hover shows the background of the button. -->
-                    <span :class="['size-6 shrink-0', 'flex items-center justify-center text-base']">
-                      <span class="i-mingcute:chat-2-line" />
-                    </span>
-                    <span v-if="!verticalDock" class="truncate text-sm font-medium">{{ activeSessionTitle }}</span>
-                  </button>
-                </template>
-              </ChatSessionsDrawer>
-              <DockSeparator />
-              <div :class="['flex shrink-0 items-center', verticalDock ? 'flex-col' : characterOnLeft ? 'flex-row-reverse' : '']">
-                <ChatSpeechMuteButton variant="dock" />
-                <DockButton
-                  icon="i-mingcute:subtitle-line"
-                  :label="t('tamagotchi.stage.chat-window.danmaku')"
-                  :pressed="danmaku"
-                  @click="toggleDanmaku"
-                />
-                <DockButton
-                  icon="i-mingcute:pin-2-line"
-                  pressed-icon="i-mingcute:pin-2-fill"
-                  :label="t('tamagotchi.stage.chat-window.pin')"
-                  :pressed="state.pinned"
-                  @click="togglePinned"
-                />
-                <ChatWindowStyleMenu variant="dock" />
-              </div>
-            </Dock>
+        <div v-if="panelShown" :class="['min-h-0 w-14 flex shrink-0 flex-col gap-2']">
+          <div
+            ref="window-island"
+            :class="[
+              'flex shrink-0 flex-col items-center rounded-[20px] p-0.5',
+              // The surface of a blurry `Dock`. It meets the window edge, which would cut a shadow, so it has none, as the panel.
+              'bg-neutral-50/80 backdrop-blur-[12px] dark:bg-neutral-800/70',
+            ]"
+          >
+            <Tooltip v-for="item in islandControls" :key="item.key" :label="item.control.label" :side="columnTooltipSide" variant="blurry">
+              <button
+                type="button"
+                :aria-label="item.control.label"
+                :aria-pressed="item.control.pressed"
+                :class="[windowButtonClasses, dockItemClasses('blurry', item.control.pressed)]"
+                @click="item.run"
+              >
+                <div :class="[item.control.pressed && item.control.pressedIcon ? item.control.pressedIcon : item.control.icon, 'size-5']" />
+              </button>
+            </Tooltip>
+            <!-- The grip of a free chat sits at the end of the island that faces into the window, as the grip of the Controls Island. -->
+            <ChatMoveGrip v-if="freePlacement" variant="island" :tooltip-side="columnTooltipSide" v-on="gripListeners" />
           </div>
-          <!--
-            The settings of the message feed are an island of their own while the feed is on. It buds off the dock on
-            the side that leaves the dock in place, and goes back under the dock when the feed turns off. Under a dock
-            that stands up, the island waits until the dock has grown out of its bar.
-          -->
-          <TransitionBud :from="verticalDock ? 'top' : characterOnLeft ? 'right' : 'left'" :delay="verticalDock ? 160 : 0">
-            <Dock
-              v-if="danmaku && dockOpen"
-              ref="feed-dock"
-              variant="blurry"
-              :tooltip-side="dockTooltipSide"
-              :class="['pointer-events-auto relative z-0 shrink-0']"
-            >
-              <ChatDanmakuFeedMenu variant="dock" />
-            </Dock>
-          </TransitionBud>
+          <!-- A pick puts the character on the stage at once, and the list shows its conversations. -->
+          <CharacterRail
+            variant="island"
+            :tooltip-side="columnTooltipSide"
+            :class="['min-h-0 flex-1']"
+            @select="selectCharacter"
+            @manage="openCharacterPage('/settings/airi-card')"
+          />
         </div>
 
-        <div :class="['relative min-h-0 flex-1']">
+        <div
+          ref="panel"
+          :class="[
+            'relative min-w-0 flex-1 overflow-hidden rounded-[28px]',
+            // macOS draws native glass behind this fill. Other platforms have no glass, so the same 80% fill shows the desktop.
+            panelShown ? nativeGlass ? 'bg-white/80 dark:bg-neutral-900/80' : 'bg-neutral-50 dark:bg-neutral-950' : '',
+          ]"
+        >
           <!--
-            TODO: When Windows and Linux draw native glass behind a transparent window, the floating panel there can
-            use the chat window surfaces too. Then `glassBackdrop` only needs to check the danmaku feed.
+            The list of the conversations. It steps back to the start under the conversation, and slides in again when it
+            opens.
           -->
-          <InteractiveArea
-            ref="interactive-area"
-            v-model:composer-folded="composerFolded"
-            floating
-            :glass-backdrop="glassBackdrop"
-            :composer-foldable="danmaku"
-            :dock-side="verticalDock && dockOpen ? (characterOnLeft ? 'left' : 'right') : undefined"
-            :right-resize-band="state.resizeEdges.includes('e') ? RESIZE_BAND : undefined"
-            :passive="passiveFeed"
-            :expired-before="expiredBefore"
-          />
+          <div
+            ref="list-level"
+            tabindex="-1"
+            :inert="!listOpen"
+            :class="[
+              'absolute inset-0 outline-none transition-[transform,opacity] duration-340 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none',
+              listOpen ? '' : '-translate-x-1/4 opacity-0',
+            ]"
+            @transitionend.self="hitTest()"
+          >
+            <ChatSessionsDrawer
+              v-model="listOpen"
+              desktop-mode="floating"
+              desktop
+              @open-character-settings="characterId => openCharacterPage(`/settings/airi-card/${encodeURIComponent(characterId)}`)"
+            />
+          </div>
+
+          <div
+            :inert="listOpen"
+            :class="[
+              'absolute inset-0 flex flex-col transition-transform duration-340 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none',
+              danmaku ? 'gap-1 pt-3' : '',
+              listOpen ? 'translate-x-full' : '',
+            ]"
+            @transitionend.self="hitTest()"
+          >
+            <!--
+              The conversation opens under two islands, 8px inside the panel: the conversation, which goes back to the
+              list, and the buttons of the chat. The conversation island is as wide as its names.
+            -->
+            <div v-if="!danmaku" :class="['flex shrink-0 items-center gap-1.5 p-2 pb-1']">
+              <Dock variant="blurry" size="md" :class="['mr-auto min-w-0']">
+                <ChatConversationButton layout="names" @click="listOpen = true" />
+              </Dock>
+              <Dock variant="blurry" size="md" :class="['shrink-0']">
+                <ChatSpeechMuteButton variant="dock" />
+                <DockButton v-bind="danmakuControl" @click="toggleDanmaku" />
+                <ChatWindowStyleMenu variant="dock" />
+              </Dock>
+            </div>
+            <!--
+              The message feed keeps its dock. The dock sits on the side away from the character. A character on the left
+              mirrors the row and the dock, so the fold button stays at the outer end. A dock that stands up sits at the
+              middle of the side of the character, with the island of the feed below it. Closed, it shrinks into a narrow
+              bar. The dock stands 10px from the window edge, past the 10px hover scrollbar there, so it never covers the
+              scrollbar. Closed, only its bar opens it. Its 16px padding on the other sides is the zone that keeps an open
+              dock open, and the scrollbar is outside it. The zone takes no pointer, so the history under it still takes
+              hover, wheel, and clicks. A dock that stands up stays over the composer layer of `ChatViewportLayout`
+              (z-index 20), so a tall composer or setup callout cannot cover it.
+            -->
+            <div
+              v-else
+              ref="dock-zone"
+              :class="verticalDock
+                ? ['pointer-events-none absolute top-1/2 z-30 w-12 flex flex-col items-center gap-2 py-4', characterOnLeft ? 'left-2.5 pr-4' : 'right-2.5 pl-4']
+                : ['flex items-center gap-2 px-4', characterOnLeft ? 'flex-row-reverse' : '']"
+              :style="verticalDock ? verticalDockZoneStyle : undefined"
+            >
+              <!--
+                The dock stays over the island, so the island can hide under its edge. A dock that stands up draws its
+                shadow on this wrapper, because the clip that turns it into its bar would cut a box shadow.
+              -->
+              <div :class="['relative z-1 min-w-0', verticalDock ? 'drop-shadow-md' : '']">
+                <Dock
+                  ref="dock"
+                  variant="blurry"
+                  :orientation="verticalDock ? 'vertical' : 'horizontal'"
+                  :tooltip-side="dockTooltipSide"
+                  :shadow="!verticalDock"
+                  :class="['pointer-events-auto min-w-0', !verticalDock && characterOnLeft ? 'flex-row-reverse' : '']"
+                >
+                  <DockButton v-bind="foldControl" @click="foldChat()" />
+                  <ChatMoveGrip v-if="freePlacement" variant="dock" :tooltip-side="dockTooltipSide" v-on="gripListeners" />
+                  <!--
+                    The conversation button opens the list of the conversations on the panel, with the window buttons and
+                    the characters beside it. Its title is the only part of the dock that shrinks.
+                  -->
+                  <ChatConversationButton :layout="verticalDock ? 'avatar' : 'title'" :mirrored="characterOnLeft" @click="listOpen = true" />
+                  <DockSeparator />
+                  <div :class="['flex shrink-0 items-center', verticalDock ? 'flex-col' : characterOnLeft ? 'flex-row-reverse' : '']">
+                    <ChatSpeechMuteButton variant="dock" />
+                    <DockButton v-bind="danmakuControl" @click="toggleDanmaku" />
+                    <DockButton v-bind="pinControl" @click="togglePinned" />
+                    <ChatWindowStyleMenu variant="dock" />
+                  </div>
+                </Dock>
+              </div>
+              <!--
+                The settings of the message feed are an island of their own while the feed is on. It buds off the dock
+                on the side that leaves the dock in place, and goes back under the dock when the feed turns off. Under a
+                dock that stands up, the island waits until the dock has grown out of its bar.
+              -->
+              <TransitionBud :from="verticalDock ? 'top' : characterOnLeft ? 'right' : 'left'" :delay="verticalDock ? 160 : 0">
+                <Dock
+                  v-if="dockOpen"
+                  ref="feed-dock"
+                  variant="blurry"
+                  :tooltip-side="dockTooltipSide"
+                  :class="['pointer-events-auto relative z-0 shrink-0']"
+                >
+                  <ChatDanmakuFeedMenu variant="dock" />
+                </Dock>
+              </TransitionBud>
+            </div>
+
+            <div :class="['relative min-h-0 flex-1']">
+              <!--
+                TODO: When Windows and Linux draw native glass behind a transparent window, the floating panel there can
+                use the chat window surfaces too. Then `glassBackdrop` only needs to check the danmaku feed.
+              -->
+              <InteractiveArea
+                ref="interactive-area"
+                v-model:composer-folded="composerFolded"
+                floating
+                :glass-backdrop="glassBackdrop"
+                :composer-foldable="danmaku"
+                :dock-side="verticalDock && dockOpen ? (characterOnLeft ? 'left' : 'right') : undefined"
+                :right-resize-band="rightResizeBand"
+                :passive="passiveFeed"
+                :expired-before="expiredBefore"
+              />
+            </div>
+          </div>
         </div>
         <!--
           The corners are buttons that take keyboard focus and the arrow keys. The edges take only the pointer. The
@@ -665,19 +825,13 @@ function moveByKeyboard(delta: WindowDelta) {
           @lostpointercapture="releasePointer"
           @keydown="handleArrowKey($event, (delta: WindowDelta) => resizeBy({ ...delta, direction: edge }))"
         />
-        <WindowResizeBorder :shown="nearResizeEdge || nearResizeEdgeFor250Ms" :class="['rounded-3xl']" />
+        <!--
+          The border frames the whole window, the column included. Its corners are as round as the islands of the column,
+          the tighter corners at the window edge, so no corner of an island reaches past it.
+        -->
+        <WindowResizeBorder :shown="nearResizeEdge || nearResizeEdgeFor250Ms" :class="[panelShown ? 'rounded-[20px]' : 'rounded-[28px]']" />
       </div>
     </Transition>
-    <!--
-      The character rail floats beside the panel, like on the web stage. It opens on hover to show the names, over the
-      panel. The message feed has no panel, so it shows the chat only.
-    -->
-    <CharacterRail
-      v-if="!danmaku"
-      v-show="contentShown"
-      :class="['absolute top-1/2 z-40 -translate-y-1/2', characterOnLeft ? 'right-2' : 'left-2']"
-      @manage="openSettings({ route: '/settings/airi-card' })"
-    />
   </div>
 </template>
 
@@ -709,14 +863,14 @@ function moveByKeyboard(delta: WindowDelta) {
 
 .chat-floating-fold-right-enter-from,
 .chat-floating-fold-right-leave-to {
-  clip-path: inset(100% 0 0 100% round 24px);
+  clip-path: inset(100% 0 0 100% round 28px);
   transform: scale(0.94);
   opacity: 0;
 }
 
 .chat-floating-fold-left-enter-from,
 .chat-floating-fold-left-leave-to {
-  clip-path: inset(100% 100% 0 0 round 24px);
+  clip-path: inset(100% 100% 0 0 round 28px);
   transform: scale(0.94);
   opacity: 0;
 }
@@ -725,7 +879,7 @@ function moveByKeyboard(delta: WindowDelta) {
 .chat-floating-fold-right-leave-from,
 .chat-floating-fold-left-enter-to,
 .chat-floating-fold-left-leave-from {
-  clip-path: inset(0 0 0 0 round 24px);
+  clip-path: inset(0 0 0 0 round 28px);
 }
 
 @media (prefers-reduced-motion: reduce) {

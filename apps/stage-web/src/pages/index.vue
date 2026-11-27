@@ -8,6 +8,7 @@ import { useBackgroundThemeColor } from '@proj-airi/stage-layouts/composables/th
 import { useBackgroundStore } from '@proj-airi/stage-layouts/stores/background'
 import { CharacterRail, HoloCoupon } from '@proj-airi/stage-ui/components'
 import { ViewControlSlider, WidgetStage } from '@proj-airi/stage-ui/components/scenes'
+import { useCharacterActivation } from '@proj-airi/stage-ui/composables/use-character-activation'
 import { useVoiceHoldKey } from '@proj-airi/stage-ui/composables/voice-hold'
 import { useVoiceListening, useVoicePushToTalk } from '@proj-airi/stage-ui/composables/voice-input-mode'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
@@ -82,6 +83,8 @@ const cursorPosition = computed(() => ({
 }))
 
 const router = useRouter()
+// The rail over the stage switches the active character.
+const { activateCharacter } = useCharacterActivation()
 </script>
 
 <template>
@@ -119,6 +122,7 @@ const router = useRouter()
           <CharacterRail
             v-if="!isMobile"
             :class="['absolute left-3 top-1/2 z-16 -translate-y-1/2']"
+            @select="activateCharacter"
             @manage="router.push('/settings/airi-card')"
           />
           <WidgetStage

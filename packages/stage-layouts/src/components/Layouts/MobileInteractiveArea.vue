@@ -7,6 +7,8 @@ import { CharacterRail, ChatBackgroundTasks, ChatHistory, Swipeable } from '@pro
 import { ChatArchivedSessionCallout, ChatComposerAddMenu, ChatComposerVoiceInput, ChatImageAttachmentPreview, ChatProviderSetupCallout, ChatReplyPreview, ChatSessionsDrawer, useChatImages, useStartVoiceCall, VoiceCallCapsule, VoicePresence } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { ModelPlacementPanel, ModelPlacementSurface } from '@proj-airi/stage-ui/components/scenarios/settings/model-settings'
 import { useAnalytics, useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
+import { useActiveChatName } from '@proj-airi/stage-ui/composables/use-active-chat-name'
+import { useCharacterActivation } from '@proj-airi/stage-ui/composables/use-character-activation'
 import { useCharacterPreviews } from '@proj-airi/stage-ui/composables/use-character-previews'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
@@ -189,6 +191,10 @@ const contactsOpen = shallowRef(false)
 const { activeCard, activeCardId } = storeToRefs(useAiriCardStore())
 const characterPreviews = useCharacterPreviews()
 const activeCharacterName = computed(() => activeCard.value?.name ?? t('stage.character-switcher.empty'))
+/** The second line of the title names the open chat, as its row does, so the user knows where they are without the drawer. */
+const activeChatName = useActiveChatName()
+/** A pick on the rail of the drawer activates the character, as the rail over the stage does. */
+const { activateCharacter } = useCharacterActivation()
 
 /** Settings are a page of their own, so the drawer closes before the page opens. */
 function openFromContacts(path: string) {
@@ -370,10 +376,19 @@ onUnmounted(() => {
           </template>
         </Avatar>
       </BasicButton>
-      <!-- The name is the title of the stage. The side drawer changes the character. -->
-      <div :class="['min-w-0 flex flex-1 justify-center px-2']">
-        <span data-testid="active-character-name" :class="['truncate text-base font-semibold text-neutral-700 dark:text-neutral-200']">
+      <!-- The name is the title of the stage, and the line below it names the open chat. The side drawer changes both. -->
+      <div :class="['min-w-0 flex flex-1 flex-col items-center px-2 leading-tight']">
+        <span data-testid="active-character-name" :class="['max-w-full truncate text-base font-semibold text-neutral-700 dark:text-neutral-200']">
           {{ activeCharacterName }}
+        </span>
+        <span
+          data-testid="active-chat-title"
+          :class="[
+            'max-w-full truncate text-xs',
+            activeChatName ? 'text-neutral-600 dark:text-neutral-400' : 'text-neutral-500 dark:text-neutral-500',
+          ]"
+        >
+          {{ activeChatName ?? t('stage.chat.sessions.new-chat-fallback') }}
         </span>
       </div>
       <MobileSettingsDrawer
@@ -465,8 +480,9 @@ onUnmounted(() => {
           <SideDrawer v-model="contactsOpen" :title="t('stage.chat.sessions.title')">
             <div data-testid="contacts-drawer" :class="['min-h-0 flex flex-1']">
               <CharacterRail
-                docked
+                variant="docked"
                 :class="['bg-neutral-100 dark:bg-neutral-950/60']"
+                @select="activateCharacter"
                 @manage="openFromContacts('/settings/airi-card')"
               />
               <ChatSessionsDrawer

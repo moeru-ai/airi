@@ -27,8 +27,11 @@ export function useListReorderMotion(options: {
   keys: MaybeRefOrGetter<readonly string[]>
   /** The key of an item element. An element without a key, for example an empty state, does not move. */
   keyOf: (item: HTMLElement) => string | undefined
-  /** The class that `TransitionGroup` gives to an item while it leaves. A leaving item does not move. */
-  leaveActiveClass: string
+  /**
+   * The class that `TransitionGroup` gives to an item while it leaves. A leaving item does not move. A list without
+   * leave transitions leaves it out.
+   */
+  leaveActiveClass?: string
 }) {
   const reducedMotion = usePreferredReducedMotion()
   const moves = new WeakMap<HTMLElement, Animation>()
@@ -42,7 +45,7 @@ export function useListReorderMotion(options: {
 
   function items(list: HTMLElement) {
     return [...list.children].filter((item): item is HTMLElement =>
-      item instanceof HTMLElement && options.keyOf(item) !== undefined && !item.classList.contains(options.leaveActiveClass))
+      item instanceof HTMLElement && options.keyOf(item) !== undefined && (!options.leaveActiveClass || !item.classList.contains(options.leaveActiveClass)))
   }
 
   watch(order, () => {
@@ -74,11 +77,18 @@ export function useListReorderMotion(options: {
 
   /**
    * Keeps a leaving item at its place while it fades. The item leaves the flow at once, so the items after it slide up.
-   * Without a fixed top, items that leave together share the place of the first one.
+   *
+   * Items that leave together leave the flow one after another. When the second one starts to leave, the first one is
+   * already out of the flow, so its layout place is the place of the first one. Each item takes its place from before
+   * the update instead. An item without that place, for example the empty state, takes its layout place.
    */
   function holdLeavingItem(element: Element) {
-    if (element instanceof HTMLElement)
-      element.style.top = `${element.offsetTop}px`
+    if (!(element instanceof HTMLElement))
+      return
+    const key = options.keyOf(element)
+    // The place before includes a running move. The move stops, so the item fades at the place where it was.
+    moves.get(element)?.cancel()
+    element.style.top = `${(key === undefined ? undefined : topsBefore.get(key)) ?? element.offsetTop}px`
   }
 
   return { holdLeavingItem }

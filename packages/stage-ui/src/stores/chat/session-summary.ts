@@ -1,5 +1,5 @@
 import type { ChatHistoryItem } from '../../types/chat'
-import type { ChatSessionSummary } from '../../types/chat-session'
+import type { ChatSessionMeta, ChatSessionSummary } from '../../types/chat-session'
 
 import { extractMessageText } from '../../libs/chat-sync'
 
@@ -40,4 +40,24 @@ export function summarizeSessionMessages(messages: readonly ChatHistoryItem[]): 
       summary.lastAt = Math.max(summary.lastAt ?? at, at)
   }
   return summary
+}
+
+/**
+ * The summary of a chat for its row and its title. Loaded messages give the newest summary, for example while a reply
+ * streams in. A chat that is not loaded uses the summary that its metadata stores.
+ */
+export function chatSummaryOf(meta: ChatSessionMeta, loaded?: readonly ChatHistoryItem[]): ChatSessionSummary {
+  return loaded?.length ? summarizeSessionMessages(loaded) : meta.summary ?? {}
+}
+
+/**
+ * The name of a chat: its title, else its first message. A chat with neither has no name yet, and the caller shows a
+ * fallback such as "New chat".
+ *
+ * @example
+ * chatNameOf({ title: '', ...meta }, { firstText: 'Moon notes' })
+ * // => 'Moon notes'
+ */
+export function chatNameOf(meta: ChatSessionMeta, summary: ChatSessionSummary): string | undefined {
+  return meta.title?.trim() || summary.firstText || undefined
 }

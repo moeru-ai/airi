@@ -2,7 +2,7 @@
 import type { ChatSessionsPlace } from '../../../../types/chat-session'
 import type { SessionRow } from './session-row-model'
 
-import { AnimatedHeight, BasicButton, Button, GhostButton, ScrollableArea } from '@proj-airi/ui'
+import { AnimatedHeight, BasicButton, Button, Dock, DockButton, dockItemClasses, GhostButton, ScrollableArea } from '@proj-airi/ui'
 import { useEventListener, useResizeObserver, watchDebounced } from '@vueuse/core'
 import { computed, nextTick, ref, shallowRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -25,15 +25,24 @@ const props = withDefaults(defineProps<{
   fill?: boolean
   /** The character of the conversations. The title names it. See `SessionsListHeader`. */
   character?: { name: string }
+  /** The ID of the character of the rows. The rows of another character replace the rows at once. */
+  characterId?: string
   /** Compact rows for a touch screen, with swipe actions and a long-press menu. See `SessionRowItem`. */
   touch?: boolean
   /** The owner still reads stored messages for the search, so more rows can match. */
   searching?: boolean
+  /**
+   * The list of the floating chat. Its actions stand in islands, as the dock of the chat does: Select, the title, and
+   * New above the search field, which stays open. Its batch actions rise in an island too. Use it with `compact` and
+   * `fill`. `SessionsDialog` sets it for its `floating` mode.
+   */
+  islands?: boolean
 }>(), {
   compact: false,
   fill: false,
   touch: false,
   searching: false,
+  islands: false,
 })
 
 const emit = defineEmits<{
@@ -162,7 +171,9 @@ const actionButtons = computed(() => {
 
 /** The buttons of the batch actions at the bottom: two equal halves, an icon and a label each. */
 const batchButtonClasses = computed(() => [
-  'min-w-0 flex-1 rounded-lg outline-none [&_.basic-button-content]:gap-1.5',
+  // In the island, the round ends share their centers with the ends of the island.
+  'min-w-0 flex-1 outline-none [&_.basic-button-content]:gap-1.5',
+  props.islands ? 'rounded-full' : 'rounded-lg',
   props.compact ? 'h-9 text-sm' : 'h-11 text-base',
   'focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-[-2px]',
 ])
@@ -174,8 +185,22 @@ const emptyState = computed(() => {
     return { icon: 'i-mingcute:search-line', text: t('stage.chat.sessions.search-empty', { query: query.value.trim() }) }
   if (place.value.kind === 'archive')
     return { icon: 'i-mingcute:archive-line', text: t('stage.chat.sessions.empty-archive') }
+  if (props.character)
+    return { icon: 'i-mingcute:chat-1-line', text: t('stage.chat.sessions.empty-character', { name: props.character.name }) }
   return { icon: 'i-mingcute:chat-1-line', text: t('stage.chat.sessions.empty') }
 })
+
+/** The check of the select-all control: a check for every row, a minus for some rows, and an empty ring for none. */
+const selectAllCheckClasses = computed(() => selectionState.value === 'all'
+  ? 'i-mingcute:check-circle-fill text-primary-500'
+  : selectionState.value === 'some'
+    ? 'i-mingcute:minus-circle-fill text-primary-500'
+    : 'border-2 border-solid border-neutral-300 rounded-full dark:border-neutral-600')
+
+/** The new chat belongs to the character of the list, so the button names it. */
+const newSessionLabel = computed(() => props.character
+  ? t('stage.chat.sessions.new-with-character', { name: props.character.name })
+  : t('stage.chat.sessions.new'))
 
 watch(selectedIds, () => {
   confirmingBatchDelete.value = false
@@ -358,9 +383,81 @@ const { holdLeavingItem } = useListReorderMotion({
 
 <template>
   <div ref="root" :class="['min-h-0 flex flex-col', props.fill ? 'h-full' : '']" @keydown.esc="handleEscape">
+    <!--
+      The floating chat puts the actions of the list in islands, as the dock of the chat. Outside selection, Select stands
+      at the start and New at the end, around the title. While selecting, the select-all control with the count stands
+      at the start, its check in the column of the row checks, and Done at the end. The search field stays below them.
+    -->
+    <template v-if="props.islands">
+      <div :class="['flex min-h-10 shrink-0 items-center', props.fill ? 'pr-2' : '']">
+        <Transition name="session-action-swap" mode="out-in">
+          <div v-if="!selecting" key="actions" :class="['min-w-0 flex flex-1 items-center gap-1.5']">
+            <Dock variant="blurry" size="md" :class="['shrink-0']">
+              <DockButton icon="i-mingcute:list-check-3-line" :label="t('stage.chat.sessions.select')" @click="selecting = true" />
+            </Dock>
+            <SessionsListHeader
+              :class="['mb-0! min-w-0 flex-1 justify-center']"
+              :place="place"
+              :live-count="liveRows.length"
+              :archived-count="archivedCount"
+              compact
+              :character="props.character"
+              @select-place="setPlace"
+              @open-character="emit('openCharacter')"
+            />
+            <Dock variant="blurry" size="md" :class="['shrink-0']">
+              <DockButton icon="i-mingcute:edit-line" :label="newSessionLabel" :loading="isCreatingSession" @click="emit('newSession')" />
+            </Dock>
+          </div>
+          <div v-else key="selection" :class="['min-w-0 flex flex-1 items-center gap-1.5']">
+            <Dock variant="blurry" size="md" :class="['min-w-0']">
+              <button
+                type="button"
+                :aria-pressed="selectionState === 'all'"
+                :aria-label="selectionState === 'all' ? t('stage.chat.sessions.clear-selection') : t('stage.chat.sessions.select-all')"
+                :title="selectionState === 'all' ? t('stage.chat.sessions.clear-selection') : t('stage.chat.sessions.select-all')"
+                :disabled="visibleRows.length === 0"
+                :class="[
+                  'min-w-0 h-9 flex items-center gap-2.5 rounded-full pl-2 pr-3.5 text-sm font-medium outline-none transition-colors',
+                  'focus-visible:outline-2 focus-visible:outline-primary-500 disabled:opacity-50',
+                  dockItemClasses('blurry'),
+                ]"
+                @click="toggleAllSelected"
+              >
+                <span aria-hidden="true" :class="['size-4 shrink-0', selectAllCheckClasses]" />
+                <span :class="['truncate']">{{ t('stage.chat.sessions.selected', { count: selectedRows.length }) }}</span>
+              </button>
+            </Dock>
+            <Dock variant="blurry" size="md" :class="['ml-auto shrink-0']">
+              <button
+                type="button"
+                :class="[
+                  'h-9 rounded-full px-3.5 text-sm font-medium outline-none transition-colors',
+                  'text-primary-600 hover:bg-neutral-900/8 dark:text-primary-300 dark:hover:bg-white/10',
+                  'focus-visible:outline-2 focus-visible:outline-primary-500',
+                ]"
+                @click="selecting = false"
+              >
+                {{ t('stage.chat.sessions.done-selecting') }}
+              </button>
+            </Dock>
+          </div>
+        </Transition>
+      </div>
+      <!-- A search does not end the selection, so the user can find the conversations to select. -->
+      <SessionsSearchField
+        ref="searchField"
+        v-model="draftQuery"
+        persistent
+        :placeholder="t('stage.chat.sessions.search')"
+        :close-label="t('stage.chat.sessions.search-clear')"
+        compact
+        :class="['mb-1 mt-2', props.fill ? 'mr-2' : '']"
+      />
+    </template>
     <!-- A list that fills its column keeps its scrollbar at the edge of the column, so each part pads its own right side. -->
     <SessionsSearchField
-      v-if="searchOpen"
+      v-else-if="searchOpen"
       ref="searchField"
       v-model="draftQuery"
       :placeholder="t('stage.chat.sessions.search')"
@@ -397,7 +494,7 @@ const { holdLeavingItem } = useListReorderMotion({
       Outside selection, the row creates a conversation and starts selection. While selecting, it shows the select-all
       control with the count, in the column of the row checks, and Done. The actions on the selection are at the bottom.
     -->
-    <div :class="['flex shrink-0 items-center', props.compact ? 'min-h-9' : 'min-h-12', props.fill ? 'pr-2' : '']">
+    <div v-if="!props.islands" :class="['flex shrink-0 items-center', props.compact ? 'min-h-9' : 'min-h-12', props.fill ? 'pr-2' : '']">
       <Transition name="session-action-swap" mode="out-in">
         <div v-if="!selecting" key="actions" :class="['min-w-0 flex flex-1 items-center']">
           <component
@@ -410,7 +507,7 @@ const { holdLeavingItem } = useListReorderMotion({
           >
             <span :class="['min-w-0 max-w-full inline-flex items-center gap-2']">
               <span aria-hidden="true" :class="[props.compact ? 'i-mingcute:add-circle-line' : 'i-mingcute:edit-line', actionButtons.iconSize, 'shrink-0']" />
-              <span :class="['truncate']">{{ t('stage.chat.sessions.new') }}</span>
+              <span :class="['truncate']">{{ newSessionLabel }}</span>
             </span>
           </component>
           <component
@@ -443,18 +540,7 @@ const { holdLeavingItem } = useListReorderMotion({
             ]"
             @click="toggleAllSelected"
           >
-            <span
-              aria-hidden="true"
-              :class="[
-                'shrink-0',
-                props.compact ? 'size-4' : 'size-5',
-                selectionState === 'all'
-                  ? 'i-mingcute:check-circle-fill text-primary-500'
-                  : selectionState === 'some'
-                    ? 'i-mingcute:minus-circle-fill text-primary-500'
-                    : 'border-2 border-solid border-neutral-300 rounded-full dark:border-neutral-600',
-              ]"
-            />
+            <span aria-hidden="true" :class="['shrink-0', props.compact ? 'size-4' : 'size-5', selectAllCheckClasses]" />
             <span :class="['truncate']">{{ t('stage.chat.sessions.selected', { count: selectedRows.length }) }}</span>
           </BasicButton>
           <BasicButton
@@ -473,7 +559,7 @@ const { holdLeavingItem } = useListReorderMotion({
       </Transition>
     </div>
 
-    <div v-if="props.compact" :class="['mb-1 mt-1.5 h-px shrink-0 bg-neutral-200/70 dark:bg-neutral-700/70', props.fill ? 'mr-2' : '']" />
+    <div v-if="props.compact && !props.islands" :class="['mb-1 mt-1.5 h-px shrink-0 bg-neutral-200/70 dark:bg-neutral-700/70', props.fill ? 'mr-2' : '']" />
     <!--
       The list grows with its rows until its surface reaches the maximum height of the surface. `AnimatedHeight` is the
       only place where the height animates. It sits inside the scroll area and clips its rows, so a row that moves or
@@ -487,7 +573,17 @@ const { holdLeavingItem } = useListReorderMotion({
         <AnimatedHeight>
           <!-- The padding keeps the focus rings of the rows inside the clip area. -->
           <div :class="[props.fill ? 'py-0.5 pl-0.5 pr-2.5' : props.compact ? 'p-0.5' : 'p-1']">
-            <TransitionGroup name="session-item" tag="ul" :class="['relative m-0 list-none p-0']" @before-leave="holdLeavingItem">
+            <!--
+              The motion of the rows is for changes inside the list of one character. When the character changes, the new
+              list replaces the old list at once, so the titles of the two lists never fade over each other.
+            -->
+            <TransitionGroup
+              :key="props.characterId"
+              name="session-item"
+              tag="ul"
+              :class="['relative m-0 list-none p-0']"
+              @before-leave="holdLeavingItem"
+            >
               <li
                 v-if="visibleRows.length === 0"
                 key="empty"
@@ -542,12 +638,15 @@ const { holdLeavingItem } = useListReorderMotion({
         selecting ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0',
       ]"
     >
-      <div :class="['min-h-0 overflow-hidden']">
+      <!-- The island draws a shadow, so its clip reaches 6px past it. -->
+      <div :class="['min-h-0 overflow-hidden', props.islands ? '-m-1.5 p-1.5' : '']">
         <div
-          :class="[
-            'flex items-center gap-1 border-t border-neutral-200/70 dark:border-neutral-700/70',
-            props.compact ? 'mt-1 pt-1' : 'mt-2 pt-2',
-          ]"
+          :class="props.islands
+            ? ['mt-1 flex items-center rounded-full bg-neutral-50/80 p-0.5 shadow-md backdrop-blur-[12px] dark:bg-neutral-800/70']
+            : [
+              'flex items-center gap-1 border-t border-neutral-200/70 dark:border-neutral-700/70',
+              props.compact ? 'mt-1 pt-1' : 'mt-2 pt-2',
+            ]"
         >
           <BasicButton
             size="unset"
