@@ -245,10 +245,13 @@ const chatSession = useChatSessionStore()
 const { sessionMetas, index: sessionIndex } = storeToRefs(chatSession)
 const { lastChatOf, remember } = useCharacterLastChatsStore()
 
-/** A chat that the user deleted or archived since, or the hidden chat of a background task, does not open on a pick. */
-function opensOnPick(sessionId: string | undefined): sessionId is string {
+/**
+ * Whether a pick of a character opens a chat. A chat that the user deleted or archived since, the hidden chat of a
+ * background task, and a chat that no longer has the character as a member, for example after a sync, do not open.
+ */
+function opensOnPick(sessionId: string | undefined, characterId: string): sessionId is string {
   const meta = sessionId ? sessionMetas.value[sessionId] : undefined
-  return !!meta && !meta.hidden && meta.archivedAt === undefined
+  return !!meta && !meta.hidden && meta.archivedAt === undefined && chatSession.characterMembersOf(meta.sessionId).includes(characterId)
 }
 
 /** The number of the latest pick on the rail. A pick that a newer one overtakes selects no chat. */
@@ -267,7 +270,8 @@ async function selectCharacter(characterId: string) {
   listOpen.value = true
   const pick = ++latestPick
   await remember(chatSession.activeSessionId)
-  const chatId = [await lastChatOf(characterId), sessionIndex.value?.characters[characterId]?.activeSessionId].find(opensOnPick)
+  const chatId = [await lastChatOf(characterId), sessionIndex.value?.characters[characterId]?.activeSessionId]
+    .find(sessionId => opensOnPick(sessionId, characterId))
     ?? await chatSession.ensureCharacterSession(characterId).catch(() => undefined)
   // A newer pick started while this one looked for its chat. The newer pick decides the chat and the character.
   if (pick !== latestPick)
