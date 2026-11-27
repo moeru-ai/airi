@@ -7,11 +7,13 @@ import { APICallError } from '@xsai/shared'
 
 import { streamChatCompletions } from './chat-completions'
 import { DecisionStepLimitReached, DEFAULT_MAX_STEPS } from './decision-budget'
-import { createContinuationScope, supportsContentArray, supportsTools } from './request-context'
+import { createContinuationScope, supportsContentArray, supportsTools, toolChoiceRequiresTools } from './request-context'
 import { RequestSwitch } from './request-switch'
 import { streamResponses } from './responses'
+import { isPlainTextToolCallError, ToolCallGuard } from './tool-call-guard'
 
 export { modelKey } from './request-context'
+export { isPlainTextToolCallError } from './tool-call-guard'
 
 /**
  * Automatic retry for provider requests that fail with a temporary HTTP status
@@ -79,7 +81,9 @@ async function streamOnce({
   conversation,
   options,
   builtinToolsResolver,
-}: StreamFromOptions) {
+  toolCallGuardNames,
+  onNativeToolCall,
+}: StreamFromOptions, guard: ToolCallGuard) {
   const initialStep = await options?.resolveStep?.()
   const currentModel = initialStep?.model ?? model
   const currentProvider = initialStep?.chatProvider ?? chatProvider
@@ -98,23 +102,27 @@ async function streamOnce({
     : []
   const mergedTools = supportedTools ? [...builtinTools, ...customTools] : []
   const tools = mergedTools.length > 0 ? mergedTools : undefined
+  const webSearchEnabled = request.protocol === 'responses' && supportedTools && options?.providerTools !== false && request.webSearch
+  if (!tools && !webSearchEnabled && toolChoiceRequiresTools(options?.toolChoice))
+    throw new Error('Cannot satisfy a required tool choice because no tools are available for this request.')
+  guard.addTools(mergedTools)
+  if (options?.supportsTools !== false || toolCallGuardNames)
+    guard.addTools(initialStep?.tools)
 
   const scope = createContinuationScope(request.config, { ...options, providerId: initialStep?.providerId ?? options?.providerId })
 
   return new Promise<void>((resolve, reject) => {
+    // Completion closes admission. Failure stops queued work and waits for the active consumer.
+    // This queue owns accepted events because xsAI does not await every onEvent callback.
     let settled = false
     let stepsSettled = false
+    let failed = false
+    let eventQueue = Promise.resolve()
     const resolveOnce = () => {
-      if (settled)
+      if (settled || failed)
         return
       settled = true
       resolve()
-    }
-    const rejectOnce = (error: unknown) => {
-      if (settled || stepsSettled)
-        return
-      settled = true
-      reject(error)
     }
     // A request switch retries the request, and a caller abort is a cancellation that the caller already knows about.
     // Logging either one as a failure fills the console during normal speech, for example when a voice plugin
@@ -123,24 +131,51 @@ async function streamOnce({
       && !(error instanceof DecisionStepLimitReached)
       && !options?.abortSignal?.aborted
 
-    const onEvent = async (streamEvent: StreamEvent) => {
+    const rejectOnce = (error: unknown) => {
+      if (settled || failed)
+        return
+      failed = true
+      const rejectAfterEvents = () => {
+        settled = true
+        reject(error)
+      }
+      void eventQueue.then(rejectAfterEvents, rejectAfterEvents)
+    }
+
+    const emit = async (event: StreamEvent) => {
+      await options?.onStreamEvent?.(event)
+    }
+    const stopped = () => failed
+    const enqueue = (consume: () => Promise<void>) => {
+      if (settled || stepsSettled || failed)
+        return Promise.resolve()
+      eventQueue = eventQueue.then(() => {
+        if (!failed)
+          return consume()
+      })
+      void eventQueue.catch(rejectOnce)
+      // Responses awaits consumers and must stop its reader on failure.
+      // Chat leaves callbacks unawaited, so the owned queue observes their failures.
+      return request.protocol === 'responses' ? eventQueue : Promise.resolve()
+    }
+    const onEvent = (event: StreamEvent) => enqueue(() => guard.consume(event, emit, stopped))
+    const onStepBoundary = () => enqueue(() => guard.inspect(false, emit, stopped))
+    const notifyNativeToolCall = () => {
+      if (settled || stepsSettled || failed)
+        return
+      // Tool execution can begin before queued output inspection. Block replay at event admission.
       try {
-        if (streamEvent != null)
-          await options?.onStreamEvent?.(streamEvent)
-        if (streamEvent?.type === 'error')
-          rejectOnce(streamEvent.error)
+        onNativeToolCall?.()
       }
       catch (error) {
         rejectOnce(error)
-        if (request.protocol === 'responses')
-          throw error
       }
     }
 
     try {
       const streamResult = request.protocol === 'responses'
-        ? streamResponses({ config: request.config, webSearch: supportedTools && options?.providerTools !== false && request.webSearch, conversation, scope, options, tools, initialStep, onEvent })
-        : streamChatCompletions({ config: request.config, conversation, scope, options, tools, initialStep, onEvent, supportsContentArray: contentArraySupported })
+        ? streamResponses({ config: request.config, webSearch: webSearchEnabled, conversation, scope, options, tools, initialStep, onEvent, onStepBoundary, onNativeToolCall: notifyNativeToolCall, onToolsResolved: tools => guard.addTools(tools) })
+        : streamChatCompletions({ config: request.config, conversation, scope, options, tools, initialStep, onEvent, onStepBoundary, onNativeToolCall: notifyNativeToolCall, onToolsResolved: tools => guard.addTools(tools), supportsContentArray: contentArraySupported })
 
       // NOTICE:
       // `steps` settles after all tool rounds, while provider finish events can arrive earlier.
@@ -148,12 +183,14 @@ async function streamOnce({
       // Source: @xsai/stream-text 0.5 steps and AIRI eval runners.
       // Remove this path when xsAI emits one terminal event after all tool rounds.
       void streamResult.steps.then(async () => {
-        if (settled)
-          return
-        // Ignore any late provider error event emitted after xsAI has already
-        // resolved the authoritative full-step lifecycle.
+        const acceptedEvents = eventQueue
+        // Ignore new provider events. Accepted errors remain authoritative even after steps resolve.
         stepsSettled = true
         try {
+          await acceptedEvents
+          if (failed)
+            return
+          await guard.inspect(true, emit, stopped)
           const generatedTurn = await streamResult.generatedTurn
           await options?.onStreamEvent?.({ type: 'finish' })
           if (options?.abortSignal?.aborted)
@@ -163,10 +200,7 @@ async function streamOnce({
         catch (error) {
           // Terminal consumers and generated turn persistence belong to generation
           // completion. Their failures are not ignorable late provider events.
-          if (!settled) {
-            settled = true
-            reject(error)
-          }
+          rejectOnce(error)
           return
         }
         let usage: Usage | undefined
@@ -190,11 +224,15 @@ async function streamOnce({
         }
         resolveOnce()
       }).catch((error) => {
-        // A failure after `steps` resolved belongs to optional usage
-        // observation and cannot invalidate the completed response.
-        if (stepsSettled) {
-          console.error('Stream usage observation error:', error)
-          resolveOnce()
+        if (error instanceof RequestSwitch) {
+          // A provider change continues this generation. Drain accepted events and retain its pending candidates.
+          stepsSettled = true
+          void eventQueue.then(() => {
+            if (settled || failed)
+              return
+            settled = true
+            reject(error)
+          }).catch(rejectOnce)
           return
         }
         rejectOnce(error)
@@ -233,12 +271,17 @@ async function streamOnce({
  * run, so a repeat would duplicate them; those failures surface for manual Retry.
  * Cancelling through `abortSignal` also ends a pending retry wait.
  */
-async function streamWithTransientRetry(input: StreamFromOptions) {
+async function streamWithTransientRetry(input: StreamFromOptions, guard: ToolCallGuard) {
   for (let attempt = 0; ; attempt++) {
     let consumerNotified = false
+    const checkpoint = guard.checkpoint()
     try {
       return await streamOnce({
         ...input,
+        onNativeToolCall: () => {
+          consumerNotified = true
+          input.onNativeToolCall?.()
+        },
         options: {
           ...input.options,
           onStreamEvent: (event) => {
@@ -246,12 +289,13 @@ async function streamWithTransientRetry(input: StreamFromOptions) {
             return input.options?.onStreamEvent?.(event)
           },
         },
-      })
+      }, guard)
     }
     catch (error) {
       const delayMs = consumerNotified ? undefined : transientRetryDelayMs(error, attempt)
       if (delayMs == null)
         throw error
+      guard.restore(checkpoint)
       console.warn(`[llm] Retrying provider request in ${delayMs}ms (retry ${attempt + 1}/${transientRetry.backoffMs.length}):`, error)
       await waitBeforeRetry(delayMs, input.options?.abortSignal)
     }
@@ -271,7 +315,25 @@ function mergeGenerationUsage(rounds: GenerationRound[], last?: Parameters<NonNu
   }
 }
 
-async function finishAtDecisionStepLimit(options: StreamOptions | undefined, reached: DecisionStepLimitReached, previousRounds: GenerationRound[] = []) {
+/**
+ * Inspects held output before storing a settled decision-step checkpoint.
+ *
+ * Triggering workflow:
+ * {@link streamFrom} -> {@link DecisionStepLimitReached} -> {@link finishAtDecisionStepLimit}
+ *
+ * Upstream:
+ * - {@link streamWithTransientRetry} drains accepted events before it rejects.
+ *
+ * Downstream:
+ * - {@link ToolCallGuard.inspect} rejects leaked tool calls before checkpoint publication.
+ * - {@link StreamOptions.onGeneratedTurn} stores the partial turn.
+ */
+async function finishAtDecisionStepLimit(options: StreamOptions | undefined, reached: DecisionStepLimitReached, guard: ToolCallGuard, previousRounds: GenerationRound[] = []) {
+  options?.abortSignal?.throwIfAborted()
+  // The step-limit exception bypasses the normal completion path's final inspection.
+  await guard.inspect(true, async (event) => {
+    await options?.onStreamEvent?.(event)
+  }, () => options?.abortSignal?.aborted === true)
   options?.abortSignal?.throwIfAborted()
   const turn: AssistantTurn = {
     ...reached.partialTurn,
@@ -307,6 +369,7 @@ async function finishAtDecisionStepLimit(options: StreamOptions | undefined, rea
 
 /** Keeps one assistant turn across xsAI tool loops when the next request changes provider scope. */
 export async function streamFrom(input: StreamFromOptions): Promise<void> {
+  const guard = new ToolCallGuard(input.toolCallGuardNames)
   const maxSteps = input.options?.maxSteps ?? DEFAULT_MAX_STEPS
   if (!Number.isSafeInteger(maxSteps) || maxSteps < 1)
     throw new RangeError('maxSteps must be a positive safe integer')
@@ -317,12 +380,12 @@ export async function streamFrom(input: StreamFromOptions): Promise<void> {
   }
   if (!requestInput.options?.resolveStep) {
     try {
-      await streamWithTransientRetry(requestInput)
+      await streamWithTransientRetry(requestInput, guard)
     }
     catch (error) {
       if (!(error instanceof DecisionStepLimitReached))
         throw error
-      await finishAtDecisionStepLimit(input.options, error)
+      await finishAtDecisionStepLimit(requestInput.options, error, guard)
     }
     return
   }
@@ -343,7 +406,7 @@ export async function streamFrom(input: StreamFromOptions): Promise<void> {
           onGeneratedTurn: (turn) => { finalTurn = turn },
           onUsage: (usage) => { lastUsage = usage },
         },
-      })
+      }, guard)
       if (finalTurn)
         await requestInput.options.onGeneratedTurn?.({ ...finalTurn, rounds: [...completedRounds, ...finalTurn.rounds] })
       const usage = mergeGenerationUsage(completedRounds, lastUsage)
@@ -353,7 +416,7 @@ export async function streamFrom(input: StreamFromOptions): Promise<void> {
     }
     catch (error) {
       if (error instanceof DecisionStepLimitReached) {
-        await finishAtDecisionStepLimit(requestInput.options, error, completedRounds)
+        await finishAtDecisionStepLimit(requestInput.options, error, guard, completedRounds)
         return
       }
       if (!(error instanceof RequestSwitch))
@@ -390,6 +453,8 @@ const TOOLS_RELATED_ERROR_PATTERNS: RegExp[] = [
 ]
 
 export function isToolRelatedError(error: unknown): boolean {
+  if (isPlainTextToolCallError(error))
+    return true
   const message = String(error)
   return TOOLS_RELATED_ERROR_PATTERNS.some(pattern => pattern.test(message))
 }
