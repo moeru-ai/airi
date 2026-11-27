@@ -121,21 +121,23 @@ const labelClasses = computed(() => [
 ])
 
 /**
- * The marks of an avatar. The island rings the character on the stage in the theme color, and the avatar under the
- * pointer in a neutral color. The other rails ring the character on the stage while they are closed, and the other
- * avatars are fainter. The open rail marks the character on the stage by its row and its bold name instead.
+ * The marks of an avatar. A closed rail shows the avatars of the other characters fainter. The island rings the
+ * character on the stage in the theme color, and the avatar under the pointer in a neutral color. The other rails ring
+ * the character on the stage while they are closed. The open rail marks it by its row and its bold name instead.
  */
 function avatarStateClasses(onStage: boolean) {
+  const faint = !onStage && !open.value ? 'opacity-70' : ''
   if (island.value) {
     return [
-      'ring-offset-1 ring-offset-neutral-50 transition-shadow duration-150 motion-reduce:transition-none dark:ring-offset-neutral-800',
+      'ring-offset-1 ring-offset-neutral-50 transition-[box-shadow,opacity] duration-150 motion-reduce:transition-none dark:ring-offset-neutral-800',
       onStage ? 'ring-2 ring-primary-500' : 'group-hover:ring-2 group-hover:ring-neutral-400/40 dark:group-hover:ring-neutral-500/50',
+      faint,
     ]
   }
   return [
     'transition-opacity duration-300 ease-in-out motion-reduce:transition-none',
     onStage && !open.value ? 'ring-2 ring-primary-500 ring-offset-1 ring-offset-white dark:ring-offset-neutral-900' : '',
-    !onStage && !open.value ? 'opacity-70' : '',
+    faint,
   ]
 }
 </script>

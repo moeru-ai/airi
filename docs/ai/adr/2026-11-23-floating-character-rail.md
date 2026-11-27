@@ -34,7 +34,7 @@ The floating chat window of the desktop app has a column beside its panel, on th
 - The upper island holds the window buttons: Fold, Keep on top, and the grip of a free chat. The buttons are icons, so they fill the island as the buttons of a `Dock` do.
 - The lower island is the rail in its `island` variant. It shows avatars only, with names in tooltips.
 - An avatar is a solid picture, heavier than an icon. So the island leaves 12 px around each avatar and draws no fill behind it.
-- A ring marks the character on the stage. A neutral ring marks the avatar under the pointer. Manage stands at the end of the island.
+- A ring marks the character on the stage, and the other avatars are fainter, as on the other rails. A neutral ring marks the avatar under the pointer. Manage stands at the end of the island.
 - A pick activates the character at once, with or without a chat. With voice input on, the user can talk to it at once. The panel then shows the conversations of that character.
 - A pick opens the last chat of that character, from `useCharacterLastChatsStore`. The chat that the pick leaves becomes the last chat of its character, so a switch to another character and back returns to it. The record lives in IndexedDB for each account, so it lasts across restarts. Each write drops the chats of deleted character cards.
 - The index session of the character does not change. Voice input and wake words still use it, as after a chat that the user opens from the list.
