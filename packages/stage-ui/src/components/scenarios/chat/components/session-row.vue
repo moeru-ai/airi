@@ -53,17 +53,18 @@ watch(() => props.selecting, (selecting) => {
 })
 
 const archived = computed(() => props.row.meta.archivedAt !== undefined)
+const pinned = computed(() => !!props.row.meta.pinnedAt)
 /**
  * The compact row of a pointer, for example in the popover or beside the chat of a desktop window. A swipe to the left,
- * for example with two fingers on a trackpad, shows Archive only. Its delete stays in the menu. The mobile row and the
- * touch row show Archive and Delete.
+ * for example with two fingers on a trackpad, shows Archive only. Its delete stays in the menu. A swipe to the right
+ * shows Pin, which the menu also keeps. The mobile row and the touch row show Archive and Delete to the left.
  */
-const archiveOnlySwipe = computed(() => props.compact && !props.touch)
+const compactPointer = computed(() => props.compact && !props.touch)
 /**
  * The touch row opens its menu with a long press. The compact pointer row of the desktop app opens it with a right
  * click, so it shows no menu button either. Stage Web keeps the button on its pointer rows.
  */
-const menuButtonHidden = computed(() => props.touch || (archiveOnlySwipe.value && !isStageWeb()))
+const menuButtonHidden = computed(() => props.touch || (compactPointer.value && !isStageWeb()))
 // NOTICE:
 // In a 50px compact row, the swipe action surface sank below the middle and cut its label.
 // `SwipeActionButton` sets a 44px minimum and an 8px inset, sized for 80px rows.
@@ -179,7 +180,9 @@ function saveRename(returnFocus: boolean) {
 }
 
 function runSwipeAction(value: string) {
-  if (value === 'archive')
+  if (value === 'pin')
+    emit('pin', !pinned.value)
+  else if (value === 'archive')
     emit('archive', !archived.value)
   else
     emit('delete')
@@ -230,7 +233,20 @@ function runSwipeAction(value: string) {
         50px high, so its actions show the icon only and the surface fills the row with an even inset. The accessible
         names stay.
       -->
-      <SwipeActionsList :gap="16" :default-action="archiveOnlySwipe ? 'archive' : 'delete'">
+      <SwipeActionsList v-if="compactPointer && !archived" side="start" :gap="16" default-action="pin">
+        <SwipeActionsItem v-slot="{ takeover }" value="pin" as-child>
+          <SwipeActionButton
+            :label="pinned ? t('stage.chat.sessions.unpin') : t('stage.chat.sessions.pin')"
+            :aria-label="pinned ? t('stage.chat.sessions.unpin') : t('stage.chat.sessions.pin')"
+            :icon="pinned ? 'i-mingcute:pin-fill' : 'i-mingcute:pin-line'"
+            :show-label="false"
+            :surface-class="['bg-primary-500 text-white', compactActionSurface].join(' ')"
+            :takeover="takeover"
+            :class="['text-primary-600 focus-visible:outline-2 focus-visible:outline-offset-[-4px] focus-visible:outline-primary-500 dark:text-primary-300', compactActionButton]"
+          />
+        </SwipeActionsItem>
+      </SwipeActionsList>
+      <SwipeActionsList :gap="16" :default-action="compactPointer ? 'archive' : 'delete'">
         <SwipeActionsItem v-slot="{ takeover }" value="archive" as-child>
           <SwipeActionButton
             :label="archived ? t('stage.chat.sessions.unarchive') : t('stage.chat.sessions.archive')"
@@ -242,7 +258,7 @@ function runSwipeAction(value: string) {
             :class="['text-neutral-600 focus-visible:outline-2 focus-visible:outline-offset-[-4px] focus-visible:outline-neutral-500 dark:text-neutral-300', compactActionButton]"
           />
         </SwipeActionsItem>
-        <SwipeActionsItem v-if="!archiveOnlySwipe" v-slot="{ takeover }" value="delete" as-child>
+        <SwipeActionsItem v-if="!compactPointer" v-slot="{ takeover }" value="delete" as-child>
           <SwipeActionButton
             :label="t('stage.chat.sessions.delete-short')"
             :aria-label="t('stage.chat.sessions.delete')"
@@ -311,10 +327,11 @@ function runSwipeAction(value: string) {
           <template v-if="!renaming">
             <!--
               The compact row keeps Archive on the row, because it is the common action and an archived conversation comes
-              back. A swipe to the left archives it too. Delete is in its menu, where the item turns into its own
-              confirmation. The mobile row opens the swipe area, where Archive and Delete are the second press.
+              back. A swipe to the left archives it too, and a swipe to the right pins it. Delete is in its menu, where the
+              item turns into its own confirmation. The mobile row opens the swipe area, where Archive and Delete are the
+              second press.
             -->
-            <template v-if="props.compact && !props.touch">
+            <template v-if="compactPointer">
               <button
                 type="button"
                 :aria-label="`${archived ? t('stage.chat.sessions.unarchive') : t('stage.chat.sessions.archive')}: ${props.row.preview}`"
@@ -372,9 +389,9 @@ function runSwipeAction(value: string) {
                 </button>
               </template>
 
-              <MenuItem v-if="!archived" @select="emit('pin', !props.row.meta.pinnedAt)">
-                <span aria-hidden="true" :class="[props.row.meta.pinnedAt ? 'i-mingcute:pin-fill' : 'i-mingcute:pin-line', 'size-4 shrink-0']" />
-                {{ props.row.meta.pinnedAt ? t('stage.chat.sessions.unpin') : t('stage.chat.sessions.pin') }}
+              <MenuItem v-if="!archived" @select="emit('pin', !pinned)">
+                <span aria-hidden="true" :class="[pinned ? 'i-mingcute:pin-fill' : 'i-mingcute:pin-line', 'size-4 shrink-0']" />
+                {{ pinned ? t('stage.chat.sessions.unpin') : t('stage.chat.sessions.pin') }}
               </MenuItem>
               <MenuItem @select="requestRename">
                 <span aria-hidden="true" :class="['i-mingcute:edit-2-line size-4 shrink-0']" />
