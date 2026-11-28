@@ -165,15 +165,60 @@ describe('consciousness store provider selection', () => {
     const consciousnessStore = useConsciousnessStore()
     const settingsStore = useConsciousnessSettingsStore()
 
+    const defaultProvider = await consciousnessStore.getChatProviderInstance('openai', 'gpt-5.1')
+    expect(defaultProvider.generation('gpt-5.1').config).not.toHaveProperty('reasoning')
+
+    await settingsStore.setReasoning('disabled')
+
     const disabledProvider = await consciousnessStore.getChatProviderInstance('openai', 'gpt-5.1')
     // The provider only sends efforts supported by the selected catalog model.
     expect(disabledProvider.generation('gpt-5.1').config).toMatchObject({ reasoning: { effort: 'none' } })
 
-    await settingsStore.setReasoning(true)
+    await settingsStore.setReasoning('enabled')
 
     const enabledProvider = await consciousnessStore.getChatProviderInstance('openai', 'gpt-5.1')
     expect(enabledProvider.generation('gpt-5.1').config).toMatchObject({ reasoning: { effort: 'medium', summary: 'auto' } })
     expect(enabledProvider.generation('test-model').config).not.toHaveProperty('reasoning')
+  })
+
+  // https://github.com/moeru-ai/airi/issues/3451
+  // ROOT CAUSE:
+  //
+  // Consciousness always passed 'enabled' or 'disabled', turning thinking off
+  // by default and overriding Ollama and DeepSeek thinkingMode settings.
+  //
+  // We fixed this by defaulting to 'default' and omitting the reasoning option.
+  it('preserves provider thinking settings in default mode and overrides them on explicit choices (Issue #3451)', async () => {
+    const providerConfigStore = useProviderConfigStore()
+    providerConfigStore.ensureProvider('ollama', 'ollama', {
+      baseUrl: 'http://localhost:11434/v1/',
+      thinkingMode: 'high',
+    })
+    providerConfigStore.ensureProvider('deepseek', 'deepseek', {
+      apiKey: 'sk-test',
+      thinkingMode: 'enable',
+    })
+    const consciousnessStore = useConsciousnessStore()
+    const settingsStore = useConsciousnessSettingsStore()
+
+    const defaultOllama = await consciousnessStore.getChatProviderInstance('ollama', 'qwen3')
+    expect(defaultOllama.generation('qwen3').config).toMatchObject({ reasoningEffort: 'high' })
+
+    const defaultDeepSeek = await consciousnessStore.getChatProviderInstance('deepseek', 'deepseek-reasoner')
+    expect(defaultDeepSeek.generation('deepseek-reasoner').config).toMatchObject({ thinking: { type: 'enabled' } })
+
+    await settingsStore.setReasoning('disabled')
+
+    const disabledOllama = await consciousnessStore.getChatProviderInstance('ollama', 'qwen3')
+    expect(disabledOllama.generation('qwen3').config).toMatchObject({ reasoningEffort: 'none' })
+
+    const disabledDeepSeek = await consciousnessStore.getChatProviderInstance('deepseek', 'deepseek-reasoner')
+    expect(disabledDeepSeek.generation('deepseek-reasoner').config).toMatchObject({ thinking: { type: 'disabled' } })
+
+    await settingsStore.setReasoning('enabled')
+
+    const enabledOllama = await consciousnessStore.getChatProviderInstance('ollama', 'qwen3')
+    expect(enabledOllama.generation('qwen3').config).toMatchObject({ reasoningEffort: 'medium' })
   })
 
   // https://github.com/moeru-ai/airi/issues/2816
@@ -186,6 +231,8 @@ describe('consciousness store provider selection', () => {
     const providerConfigStore = useProviderConfigStore()
     providerConfigStore.ensureProvider('openrouter-ai', 'openrouter-ai', { apiKey: 'test-key' })
     const consciousnessStore = useConsciousnessStore()
+    const settingsStore = useConsciousnessSettingsStore()
+    await settingsStore.setReasoning('disabled')
     consciousnessStore.activeProvider = 'openrouter-ai'
     consciousnessStore.activeModel = 'uncatalogued-model'
 
@@ -200,6 +247,8 @@ describe('consciousness store provider selection', () => {
     providerConfigStore.ensureProvider('openai', 'openai', { apiKey: 'sk-test' })
     providerConfigStore.ensureProvider('openrouter-ai', 'openrouter-ai', { apiKey: 'test-key' })
     const consciousnessStore = useConsciousnessStore()
+    const settingsStore = useConsciousnessSettingsStore()
+    await settingsStore.setReasoning('disabled')
     consciousnessStore.activeProvider = 'openai'
     consciousnessStore.activeModel = 'gpt-5.1'
 

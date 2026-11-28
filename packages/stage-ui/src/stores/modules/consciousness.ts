@@ -133,6 +133,10 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
    * which can differ from the selection of this store.
    */
   async function getChatProviderInstance(provider: string, model: string) {
+    if (settingsStore.reasoning === 'default') {
+      return providersStore.getChatProviderInstance(provider)
+    }
+
     const requestModel = providersStore.getModelsForProvider(provider).find(candidate => candidate.id === model)
     const useProviderReasoningDefault = isOpenRouterProvider(provider)
       && (!requestModel || requestModel.reasoning?.mandatory === true)
@@ -143,7 +147,7 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
     }
 
     return providersStore.getChatProviderInstance(provider, {
-      reasoning: settingsStore.reasoning ? 'enabled' : 'disabled',
+      reasoning: settingsStore.reasoning,
     })
   }
 

@@ -38,7 +38,32 @@ describe('consciousness settings synchronization', () => {
     localStorage.clear()
   })
 
-  it.each(['reasoning', 'temperatureEnabled', 'topPEnabled'] as const)('applies a remote %s snapshot without publishing it again', async (field) => {
+  it.each([
+    {
+      field: 'reasoning',
+      apply: (store: ReturnType<typeof useConsciousnessSettingsStore>) => {
+        store.reasoning = 'enabled'
+      },
+      read: (store: ReturnType<typeof useConsciousnessSettingsStore>) => store.reasoning,
+      expected: 'enabled',
+    },
+    {
+      field: 'temperatureEnabled',
+      apply: (store: ReturnType<typeof useConsciousnessSettingsStore>) => {
+        store.temperatureEnabled = true
+      },
+      read: (store: ReturnType<typeof useConsciousnessSettingsStore>) => store.temperatureEnabled,
+      expected: true,
+    },
+    {
+      field: 'topPEnabled',
+      apply: (store: ReturnType<typeof useConsciousnessSettingsStore>) => {
+        store.topPEnabled = true
+      },
+      read: (store: ReturnType<typeof useConsciousnessSettingsStore>) => store.topPEnabled,
+      expected: true,
+    },
+  ])('applies a remote $field snapshot without publishing it again', async ({ apply, read, expected }) => {
     const namespace = `consciousness-settings:${crypto.randomUUID()}`
     const leaderContext = createSyncedContext(namespace, 'leader-only')
     await vi.waitFor(() => expect(leaderContext.runtime.isLeader()).toBe(true))
@@ -58,8 +83,8 @@ describe('consciousness settings synchronization', () => {
     followerStore.$subscribe(() => followerMutations++, { flush: 'sync' })
     followerStore.$onAction(() => followerActions++)
 
-    leaderStore[field] = true
-    await vi.waitFor(() => expect(followerStore[field]).toBe(true))
+    apply(leaderStore)
+    await vi.waitFor(() => expect(read(followerStore)).toBe(expected))
     await new Promise(resolve => setTimeout(resolve, 50))
 
     expect(leaderMutations).toBe(1)
@@ -89,12 +114,19 @@ describe('consciousness settings synchronization', () => {
         leaderActions++
     })
 
-    await followerStore.setReasoning(true)
-    await vi.waitFor(() => expect(followerStore.reasoning).toBe(true))
+    await followerStore.setReasoning('enabled')
+    await vi.waitFor(() => expect(followerStore.reasoning).toBe('enabled'))
 
-    expect(leaderStore.reasoning).toBe(true)
+    expect(leaderStore.reasoning).toBe('enabled')
     expect(leaderActions).toBe(1)
-    expect(localStorage.getItem('settings/consciousness/reasoning')).toBe('true')
+    expect(localStorage.getItem('settings/consciousness/reasoning')).toBe('enabled')
+
+    await followerStore.setReasoning('disabled')
+    await vi.waitFor(() => expect(followerStore.reasoning).toBe('disabled'))
+
+    expect(leaderStore.reasoning).toBe('disabled')
+    expect(leaderActions).toBe(2)
+    expect(localStorage.getItem('settings/consciousness/reasoning')).toBe('disabled')
 
     await followerStore.setTemperatureEnabled(true)
     await followerStore.setTopPEnabled(true)
@@ -106,10 +138,13 @@ describe('consciousness settings synchronization', () => {
     expect(localStorage.getItem('settings/consciousness/top-p-enabled')).toBe('true')
 
     await followerStore.resetState()
+    await vi.waitFor(() => expect(followerStore.reasoning).toBe('default'))
     await vi.waitFor(() => expect(followerStore.temperatureEnabled).toBe(false))
     await vi.waitFor(() => expect(followerStore.topPEnabled).toBe(false))
+    expect(leaderStore.reasoning).toBe('default')
     expect(leaderStore.temperatureEnabled).toBe(false)
     expect(leaderStore.topPEnabled).toBe(false)
+    expect(localStorage.getItem('settings/consciousness/reasoning')).toBe('default')
     expect(localStorage.getItem('settings/consciousness/temperature-enabled')).toBe('false')
     expect(localStorage.getItem('settings/consciousness/top-p-enabled')).toBe('false')
   })

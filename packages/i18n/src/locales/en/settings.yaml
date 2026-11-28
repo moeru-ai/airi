@@ -1033,6 +1033,11 @@ pages:
             title: Model options
             thinking:
               label: Thinking
+              description: Model default keeps the provider and model behavior. On or Off overrides it for chat requests.
+              options:
+                default: Model default
+                enabled: On
+                disabled: Off
               required-description: This model requires Thinking.
               provider-default-description: AIRI has no reasoning settings for this model. OpenRouter applies its default.
       title: Consciousness

@@ -295,7 +295,7 @@ it.each(['resetSettings', 'resetState'])('continues independent module resets wh
   const follower = mountMaintenance(namespace, 'follower-only')
   await vi.waitFor(() => expect(follower.runtime.getLeaderId()).toBe(leader.runtime.participantId))
   const { pinia } = follower
-  await useConsciousnessSettingsStore(pinia).setReasoning(true)
+  await useConsciousnessSettingsStore(pinia).setReasoning('enabled')
   useMinecraftStore(pinia).latestRuntimeContextText = 'previous context'
   // A policy that a module reset must clear, so the picker cannot restore it.
   const homeAssistant = useHomeAssistantStore(pinia)
@@ -331,7 +331,7 @@ it.each(['resetSettings', 'resetState'])('continues independent module resets wh
   expect(useMinecraftStore(pinia).latestRuntimeContextText).toBe('')
   expect(homeAssistant.exposureMode).toBe('all')
   expect(homeAssistant.deniedEntities).toEqual([])
-  expect(useConsciousnessSettingsStore(leader.pinia).reasoning).toBe(action === 'resetState')
+  expect(useConsciousnessSettingsStore(leader.pinia).reasoning).toBe(action === 'resetState' ? 'enabled' : 'default')
 })
 
 // ROOT CAUSE:
@@ -441,7 +441,7 @@ it('persists restored consciousness policies', async () => {
   const { pinia, runtime, maintenance } = mountMaintenance(`maintenance:${crypto.randomUUID()}`, 'leader-only')
   await vi.waitFor(() => expect(runtime.isLeader()).toBe(true))
   const settings = useConsciousnessSettingsStore(pinia)
-  await settings.setReasoning(true)
+  await settings.setReasoning('enabled')
   await settings.setTemperatureEnabled(true)
   await settings.setTopPEnabled(true)
   const exporter = maintenance.createModuleSettingsExportAdapter()
@@ -452,7 +452,7 @@ it('persists restored consciousness policies', async () => {
   await importer.apply(await importer.validate(await importer.decode(file)))
 
   const reopened = useConsciousnessSettingsStore(createPinia())
-  expect(reopened.reasoning).toBe(true)
+  expect(reopened.reasoning).toBe('enabled')
   expect(reopened.temperatureEnabled).toBe(true)
   expect(reopened.topPEnabled).toBe(true)
 })
@@ -462,13 +462,13 @@ it('restores previous module settings when applying an import fails', async () =
   const { pinia, runtime, maintenance } = mountMaintenance(`maintenance:${crypto.randomUUID()}`, 'leader-only')
   await vi.waitFor(() => expect(runtime.isLeader()).toBe(true))
   const settings = useConsciousnessSettingsStore(pinia)
-  await settings.setReasoning(true)
+  await settings.setReasoning('enabled')
   await settings.setTemperatureEnabled(true)
   await settings.setTopPEnabled(true)
 
   const exporter = maintenance.createModuleSettingsExportAdapter()
   const target = await exporter.read()
-  target.consciousnessSettings.reasoning = false
+  target.consciousnessSettings.reasoning = 'disabled'
   target.consciousnessSettings.temperatureEnabled = false
   target.consciousnessSettings.topPEnabled = false
   const file = new File([await exporter.encode(target)], 'modules.json')
@@ -477,7 +477,7 @@ it('restores previous module settings when applying an import fails', async () =
 
   await expect(importData(importer, file)).rejects.toThrow('Module setting apply failed')
 
-  expect(settings.reasoning).toBe(true)
+  expect(settings.reasoning).toBe('enabled')
   expect(settings.temperatureEnabled).toBe(true)
   expect(settings.topPEnabled).toBe(true)
 })
