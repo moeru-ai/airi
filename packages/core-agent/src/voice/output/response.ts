@@ -11,9 +11,15 @@ import { errorFromCause, errorMessageFromValue } from '../../utils/error'
 import { toSpeechText } from './speech-transformation'
 import { MarkdownSegmenter } from './speech-transformation/segmenter'
 
+/**
+ * Audio of one synthesized part. A `Blob` is a whole encoded file. A PCM stream plays while it still arrives.
+ * Ownership transfers to playback.
+ */
+export type SpeechAudioData = Blob | ReadableStream<PcmBlock>
+
 /** Each synthesized part carries optional display text. Audio ownership transfers to playback. */
 export interface SpeechAudio {
-  readonly audio: Blob | ReadableStream<PcmBlock>
+  readonly audio: SpeechAudioData
   // REVIEW: I am wondering, is text enough here?
   // Should we consider more richtext friendly design
   // or consider more structural design here?
@@ -46,7 +52,7 @@ export type SpeechOutput = {
   /** BCP 47 code of the voice. The words around a formula or a price select its language first. */
   readonly language?: string
 } & ({
-  readonly synthesize: SpeechPipelineOptions<Blob>['tts']
+  readonly synthesize: SpeechPipelineOptions<SpeechAudioData>['tts']
 } | {
   /** The provider consumes text and emits audio parts concurrently. Its adapter owns decoding and source coordinates. */
   readonly stream: (text: ReadableStream<string>, signal: AbortSignal) => Promise<ReadableStream<SpeechAudio>>
@@ -164,13 +170,13 @@ export class SpeechStream {
     }
 
     const listeners = {
-      start: new Set<SpeechPipelineEvents<Blob>['onPlaybackStart']>(),
-      end: new Set<SpeechPipelineEvents<Blob>['onPlaybackEnd']>(),
-      interrupt: new Set<SpeechPipelineEvents<Blob>['onPlaybackInterrupt']>(),
+      start: new Set<SpeechPipelineEvents<SpeechAudioData>['onPlaybackStart']>(),
+      end: new Set<SpeechPipelineEvents<SpeechAudioData>['onPlaybackEnd']>(),
+      interrupt: new Set<SpeechPipelineEvents<SpeechAudioData>['onPlaybackInterrupt']>(),
     }
-    const pending = new Set<PlaybackItem<Blob>>()
+    const pending = new Set<PlaybackItem<SpeechAudioData>>()
 
-    const pipeline = createSpeechPipeline<Blob>({
+    const pipeline = createSpeechPipeline<SpeechAudioData>({
       tts: async (request, signal) => {
         const { segmentId } = request
         response.emit({ type: 'tts-request', segmentId, text: request.text, reason: request.reason })

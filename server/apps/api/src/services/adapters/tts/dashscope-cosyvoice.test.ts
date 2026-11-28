@@ -48,8 +48,8 @@ describe('dashscopeCosyvoiceAdapter', () => {
     expect(headers.Authorization).toBe('Bearer sk-test')
 
     expect(result.contentType).toBe('audio/mpeg')
-    expect(result.body).toBeInstanceOf(ArrayBuffer)
-    const out = new Uint8Array(result.body as ArrayBuffer)
+    expect(result.body).toBeInstanceOf(ReadableStream)
+    const out = new Uint8Array(await new Response(result.body).arrayBuffer())
     expect(Array.from(out)).toEqual(Array.from(audioBytes))
   })
 

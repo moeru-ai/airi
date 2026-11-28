@@ -889,8 +889,8 @@ catalogs:
       specifier: ^1.10.0
       version: 1.10.0
     mediabunny:
-      specifier: ^1.55.2
-      version: 1.55.2
+      specifier: ^1.66.2
+      version: 1.66.2
     meta-png:
       specifier: ^1.0.6
       version: 1.0.6
@@ -1712,7 +1712,7 @@ importers:
         version: 3.10.1
       mediabunny:
         specifier: 'catalog:'
-        version: 1.55.2
+        version: 1.66.2
       nanoid:
         specifier: 'catalog:'
         version: 6.0.2
@@ -2356,7 +2356,7 @@ importers:
         version: 4.9.0(supports-color@10.2.2)
       mediabunny:
         specifier: 'catalog:'
-        version: 1.55.2
+        version: 1.66.2
       mkcert:
         specifier: 'catalog:'
         version: 3.2.0
@@ -2750,7 +2750,7 @@ importers:
         version: 3.10.1
       mediabunny:
         specifier: 'catalog:'
-        version: 1.55.2
+        version: 1.66.2
       nanoid:
         specifier: 'catalog:'
         version: 6.0.2
@@ -3180,7 +3180,7 @@ importers:
         version: 3.10.1
       mediabunny:
         specifier: 'catalog:'
-        version: 1.55.2
+        version: 1.66.2
       node-vibrant:
         specifier: 'catalog:'
         version: 4.0.4
@@ -4125,7 +4125,7 @@ importers:
         version: link:../stream-kit
       mediabunny:
         specifier: 'catalog:'
-        version: 1.55.2
+        version: 1.66.2
       nanoid:
         specifier: 'catalog:'
         version: 6.0.2
@@ -5415,7 +5415,7 @@ importers:
         version: 1.2.1
       mediabunny:
         specifier: 'catalog:'
-        version: 1.55.2
+        version: 1.66.2
       nanoid:
         specifier: 'catalog:'
         version: 6.0.2
@@ -18341,8 +18341,8 @@ packages:
     resolution: {integrity: sha512-yz3xRaG20c6/BOzvYoDaGtPmGscs7YivItZEEqe6GbwNfHuxu9YNmvnEkMzKldAGY4/80pRcQRZSEnhquk9XuQ==}
     engines: {node: '>= 0.8'}
 
-  mediabunny@1.55.2:
-    resolution: {integrity: sha512-EEx4O6qYddAdCyWPMZNDwI7uc5hewNHrPAf9jLcVhIbXoPsiqNQ+D9i1pfadmGkjN2V318jSrZljkpoziYm6Lg==}
+  mediabunny@1.66.2:
+    resolution: {integrity: sha512-NTzRrBhAyRVi8qpJ9AH6XPyxiDVkfugxYY+gu3Z5zi+Nw2R/7nTAnXJEt2Ucy8wTIve1/UYGnCFf50x2LpvMDQ==}
 
   meow@14.1.0:
     resolution: {integrity: sha512-EDYo6VlmtnumlcBCbh1gLJ//9jvM/ndXHfVXIFrZVr6fGcwTUyCTFNTLCKuY3ffbK8L/+3Mzqnd58RojiZqHVw==}
@@ -34649,7 +34649,7 @@ snapshots:
 
   media-typer@1.1.1: {}
 
-  mediabunny@1.55.2:
+  mediabunny@1.66.2:
     dependencies:
       '@types/dom-mediacapture-transform': 0.1.12
       '@types/dom-webcodecs': 0.1.13

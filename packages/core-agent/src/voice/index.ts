@@ -25,7 +25,7 @@ export type {
 } from './input/types'
 export type { Interruption, VoiceInterruptionEvent } from './interruption'
 export { SpeechStream, VoiceResponse } from './output/response'
-export type { SpeechAudio, SpeechClip, SpeechClipEnd, SpeechOutput, SpeechOutputEvent } from './output/response'
+export type { SpeechAudio, SpeechAudioData, SpeechClip, SpeechClipEnd, SpeechOutput, SpeechOutputEvent } from './output/response'
 export { defaultSpeechPreprocessors, toSpeechText } from './output/speech-transformation'
 export type { SpeechTextOptions } from './output/speech-transformation'
 export { defaultTokenReaders, mathSpeech, mathSpeechPreprocessor, moneySpeechPreprocessor, speakMath, tokenSpeechPreprocessor, toMathJson } from './output/speech-transformation/preprocessor'
