@@ -72,6 +72,7 @@ const {
   live2dAutoBlinkEnabled,
   live2dForceAutoBlinkEnabled,
   live2dExpressionEnabled,
+  live2dInputMappingMode,
   live2dMaxFps,
   live2dRenderScale,
   live2dShadowEnabled,
@@ -273,6 +274,7 @@ defineExpose({
         :live2d-auto-blink-enabled="live2dAutoBlinkEnabled"
         :live2d-force-auto-blink-enabled="live2dForceAutoBlinkEnabled"
         :live2d-expression-enabled="live2dExpressionEnabled"
+        :live2d-input-mapping-mode="live2dInputMappingMode"
         :live2d-shadow-enabled="live2dShadowEnabled"
         :screen-ambient-light-active="screenAmbientLightEnabled && screenAmbientLightActive"
         :screen-ambient-light-filter-options="screenAmbientLightFilterOptions"

@@ -676,6 +676,13 @@ onUnmounted(() => {
 
 defineExpose({
   canvasElement,
+  live2dInputMapping: computed(() => {
+    const modelId = live2d.loadedModelId.value
+    if (stageModelRenderer.value !== 'live2d' || !modelId || modelId !== stageModelSelected.value)
+      return undefined
+
+    return { modelId, mapping: live2d.inputMapping.value }
+  }),
   /**
    * The frame already carries the scene: every renderer paints it into the canvas it
    * draws to, so what comes back is the whole picture.

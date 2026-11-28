@@ -5762,6 +5762,9 @@ importers:
       three:
         specifier: 'catalog:'
         version: 0.185.1
+      valibot:
+        specifier: 'catalog:'
+        version: 1.5.0(typescript@6.0.3)
       vue:
         specifier: 'catalog:'
         version: 3.5.41(typescript@6.0.3)

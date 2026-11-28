@@ -1,11 +1,17 @@
 import type { CubismSpec, JSONObject, ModelSettings } from 'pixi-live2d-display/cubism4'
 
+import type { Live2DInputMapping } from '../controls/input-mapping'
+
 import JSZip from 'jszip'
 
 import { Cubism4ModelSettings, FileLoader, Live2DFactory, ZipLoader } from 'pixi-live2d-display/cubism4'
 
+import { readLive2DInputMapping } from '../controls/input-mapping'
 import { resolveLive2DModelControls } from '../controls/manifest'
 import { decodeZipFileName } from './decode-zip-filename'
+
+/** Model settings with optional author input bindings discovered during archive loading. */
+export type Live2DInputMappingSettings = ModelSettings & { _inputMapping?: Live2DInputMapping }
 
 // Legacy/VTube-Studio archives often store entry names without the UTF-8 flag in a legacy
 // codepage; decode them so non-ASCII names (e.g. `手姿势切换.exp3.json`) don't become
@@ -40,6 +46,7 @@ ZipLoader.createSettings = async (reader: JSZip) => {
   })()
 
   mergeDiscoveredControlsIntoSettings(settings, filePaths)
+  await attachLive2DInputMapping(settings, filePaths, path => ZipLoader.readText(reader, path))
 
   // Extract CDI data from the zip if available
   try {
@@ -78,6 +85,11 @@ ZipLoader.createSettings = async (reader: JSZip) => {
   }
 
   return settings
+}
+
+async function attachLive2DInputMapping(settings: Live2DInputMappingSettings, filePaths: string[], readText: (path: string) => Promise<string>) {
+  const physicsPath = settings.physics ? settings.resolveURL(settings.physics) : undefined
+  settings._inputMapping = await readLive2DInputMapping(settings.url, filePaths, readText, physicsPath)
 }
 
 function mergeDiscoveredControlsIntoSettings(settings: ModelSettings, filePaths: string[]) {
@@ -257,7 +269,14 @@ FileLoader.createSettings = async (files: File[]) => {
   const settingsUrl = settingsFile.webkitRelativePath || settingsFile.name
   const settingsText = await FileLoader.readText(settingsFile)
   const settings = createModelSettings(settingsText, settingsUrl)
-  mergeDiscoveredControlsIntoSettings(settings, files.map(file => file.webkitRelativePath || file.name).filter(path => !shouldIgnoreLive2DArchiveEntry(path)))
+  const paths = files.map(file => file.webkitRelativePath || file.name).filter(path => !shouldIgnoreLive2DArchiveEntry(path))
+  mergeDiscoveredControlsIntoSettings(settings, paths)
+  await attachLive2DInputMapping(settings, paths, async (path) => {
+    const file = files.find(file => (file.webkitRelativePath || file.name) === path)
+    if (!file)
+      throw new Error('Model sidecar not found')
+    return FileLoader.readText(file)
+  })
 
   Object.assign(settings, { _objectURL: URL.createObjectURL(settingsFile) })
 
