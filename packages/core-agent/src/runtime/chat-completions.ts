@@ -135,9 +135,9 @@ export function streamChatCompletions(input: {
       }
       // xsAI appends output to its original array, not the projected request array.
       scopes.push(input.scope)
-      generation.prepareStep({ input: sdkInput, model: next?.model })
+      generation.prepareStep({ input: sdkInput, model: request.config.model })
 
-      return { input: current, model: next?.model ?? input.config.model, toolChoice: !next || requestOptions.tools?.length ? callerToolChoice(steps) : undefined }
+      return { input: current, model: request.config.model, toolChoice: !next || requestOptions.tools?.length ? callerToolChoice(steps) : undefined }
     },
     abortSignal: input.options?.abortSignal,
     temperature: input.options?.temperature,
