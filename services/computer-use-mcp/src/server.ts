@@ -15,8 +15,9 @@ import { registerDesktopGroundingTools } from './server/register-desktop-groundi
 import { registerDisplayTools } from './server/register-display'
 import { destroyAllPtySessions, registerPtyTools } from './server/register-pty'
 import { registerTaskMemoryTools } from './server/register-task-memory'
-import { registerComputerUseTools } from './server/register-tools'
+import { registerComputerUseTools, registerTerminalTools } from './server/register-tools'
 import { registerVscodeTools } from './server/register-vscode'
+import { registerWaylandObservation } from './server/register-wayland-observation'
 import { createRuntime } from './server/runtime'
 import { registerTerminalApproval } from './server/terminal-approval'
 
@@ -32,6 +33,15 @@ export async function createComputerUseMcpServer(config = resolveComputerUseConf
     name: 'AIRI Computer Use',
     version: packageVersion,
   })
+
+  if (config.executor === 'auv-wayland') {
+    registerWaylandObservation(server, runtime)
+    registerComputerUseApproval(server, runtime, executeAction)
+    registerTerminalTools({ server, runtime, executeAction })
+    registerTerminalApproval(server, runtime, executeAction)
+    registerPtyTools({ server, runtime })
+    return { server, runtime, cdpCleanup: undefined }
+  }
 
   registerComputerUseTools({
     server,
@@ -82,7 +92,7 @@ export async function startComputerUseMcpServer(config = resolveComputerUseConfi
         () => runtime.terminalRunner.close?.(),
         () => server.close(),
         () => destroyAllPtySessions(),
-        () => cdpCleanup.close(),
+        () => cdpCleanup?.close(),
         () => runtime.cdpBridgeManager.close(),
         () => runtime.browserDomBridge.close(),
         () => runtime.executor.close?.(),

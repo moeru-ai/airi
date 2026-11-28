@@ -20,6 +20,10 @@ They do not replace `actions`, `all`, and `never` in this service.
   - window observation through the local AUV daemon
   - display capture and window-bound click/type/key/scroll operations
   - each mutation keeps the Host approval gate and a fresh target-window binding
+- `auv-wayland`
+  - current Linux Wayland primary backend
+  - window observation through the local AUV daemon when the host has support
+  - does not expose desktop input, desktop aliases, Chrome, or accessibility helpers
 - `macos-local`
   - legacy local backend
   - window observation via `NSWorkspace + CGWindowList`
@@ -176,7 +180,7 @@ Terminal uses its own runner and is the route for launching a process that has n
 Core:
 
 - `COMPUTER_USE_EXECUTOR`
-  - `dry-run`, `auv`, `macos-local`, or `linux-x11`
+  - `dry-run`, `auv`, `auv-wayland`, `macos-local`, or `linux-x11`
 - `COMPUTER_USE_AUV_BINARY_PATH`
   - optional path override for the Windows AUV executable
 - `COMPUTER_USE_AUV_STORE_ROOT`

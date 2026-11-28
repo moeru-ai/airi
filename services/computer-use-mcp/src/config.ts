@@ -27,7 +27,7 @@ function normalizeHomePathToken(value: string) {
 }
 
 function resolveDefaultOpenableApps(executor: ExecutorKind, hostPlatform: NodeJS.Platform) {
-  if (executor === 'auv') {
+  if (executor === 'auv' || executor === 'auv-wayland') {
     return []
   }
 
@@ -56,10 +56,10 @@ function resolveDefaultTerminalShell(hostPlatform: NodeJS.Platform) {
   }
 
   if (hostPlatform === 'linux') {
-    return '/bin/bash'
+    return 'bash'
   }
 
-  return '/bin/zsh'
+  return 'zsh'
 }
 
 function parseBoolean(value: string | undefined, fallback: boolean) {
@@ -110,7 +110,7 @@ function parseBounds(value: string | undefined): Bounds | undefined {
 }
 
 function parseExecutor(value: string | undefined): ExecutorKind {
-  if (value === 'auv' || value === 'linux-x11' || value === 'macos-local')
+  if (value === 'auv' || value === 'auv-wayland' || value === 'linux-x11' || value === 'macos-local')
     return value
   return 'dry-run'
 }
@@ -163,6 +163,15 @@ export function resolveComputerUseConfig(): ComputerUseConfig {
     || env.TERM_PROGRAM?.trim()
     || env.SHELL?.split('/').at(-1)
     || 'node'
+  const permissionChainHint = env.COMPUTER_USE_PERMISSION_CHAIN_HINT?.trim() || (() => {
+    switch (executor) {
+      case 'linux-x11': return `${launchHostProcess} -> ssh -> remote desktop-runner`
+      case 'macos-local': return `${launchHostProcess} -> swift/quartz + open`
+      case 'auv': return `${launchHostProcess} -> AUV daemon -> local Windows Runner`
+      case 'auv-wayland': return `${launchHostProcess} -> AUV daemon -> local Wayland Runner`
+      default: return `${launchHostProcess} -> local dry-run`
+    }
+  })()
 
   const remoteSshHost = env.COMPUTER_USE_REMOTE_SSH_HOST?.trim() || undefined
   const remoteSshUser = env.COMPUTER_USE_REMOTE_SSH_USER?.trim() || undefined
@@ -209,14 +218,7 @@ export function resolveComputerUseConfig(): ComputerUseConfig {
     timeoutMs: parseInteger(env.COMPUTER_USE_TIMEOUT_MS, 15_000),
     sessionTag: env.COMPUTER_USE_SESSION_TAG?.trim() || undefined,
     launchHostProcess,
-    permissionChainHint: env.COMPUTER_USE_PERMISSION_CHAIN_HINT?.trim()
-      || (executor === 'linux-x11'
-        ? `${launchHostProcess} -> ssh -> remote desktop-runner`
-        : executor === 'macos-local'
-          ? `${launchHostProcess} -> swift/quartz + open`
-          : executor === 'auv'
-            ? `${launchHostProcess} -> AUV daemon -> local Windows Runner`
-            : `${launchHostProcess} -> local dry-run`),
+    permissionChainHint,
     requireSessionTagForMutatingActions,
     requireAllowedBoundsForMutatingActions,
     requireCoordinateAlignmentForMutatingActions,

@@ -3,7 +3,7 @@ import type { TerminalSnapshot, TerminalSpawnInput } from '@proj-airi/stage-shar
 import type { AgentExecutionContracts } from './contracts/agent-execution'
 
 export type ApprovalMode = 'never' | 'actions' | 'all'
-export type ExecutorKind = 'auv' | 'dry-run' | 'macos-local' | 'linux-x11'
+export type ExecutorKind = 'auv' | 'auv-wayland' | 'dry-run' | 'macos-local' | 'linux-x11'
 export type ExecutionMode = 'dry-run' | 'local-windowed' | 'remote'
 export type ExecutionTransport = 'local' | 'ssh-stdio'
 export type RiskLevel = 'low' | 'medium' | 'high'

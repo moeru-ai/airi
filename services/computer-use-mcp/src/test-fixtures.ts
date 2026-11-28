@@ -34,7 +34,7 @@ export function createTestConfig(overrides: Partial<ComputerUseConfig> = {}): Co
     requireSessionTagForMutatingActions: true,
     requireAllowedBoundsForMutatingActions: true,
     requireCoordinateAlignmentForMutatingActions: true,
-    terminalShell: platform === 'win32' ? 'powershell.exe' : '/bin/zsh',
+    terminalShell: platform === 'win32' ? 'powershell.exe' : platform === 'darwin' ? 'zsh' : 'bash',
     remoteSshHost: '20.196.212.37',
     remoteSshUser: 'airi',
     remoteSshPort: 22,

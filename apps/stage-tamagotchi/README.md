@@ -51,6 +51,12 @@ A new MCP config leaves the bundled Terminal off.
 `terminalEnabled: true` starts it with the packaged Electron executable.
 `APP_USER_DATA_PATH` selects the profile directory before the instance lock.
 
+On Linux with a nonblank `WAYLAND_DISPLAY`, the bundled MCP server uses AUV Wayland automatically.
+Chat can use `computer_observe` to get a full-display screenshot.
+`computer_verify` with `screenshot_ready` verifies that AUV can capture a fresh frame and returns only status and frame metadata.
+The portal can prompt for screen sharing. Terminal and PTY access do not depend on AUV startup or capture.
+The Wayland backend does not send desktop input.
+
 ## Computer use
 
 The desktop chat composer starts with **Use computer** on. Turn it off to send a request without desktop access.
@@ -63,7 +69,6 @@ The first tool accepts AUV arguments for command help.
 Use `["invoke", "--help"]` and command-specific help to discover supported operations.
 Native observation, screenshot reads, and history previews are currently denied without trusted observation scope and capture provenance.
 Trusted window capture requires lifecycle binding at dispatch. Window titles and model-supplied targets do not grant access.
-The MCP AUV observation adapter is also disabled. Terminal approval and execution remain independent.
 This containment does not establish admission for visual tasks. See `docs/ai/adr/2026-11-09-native-observation-admission.md`.
 
 Electron starts a private AUV daemon with the matching AUV SDK and CLI 0.0.43 on demand, over a private Unix socket or Windows named pipe.

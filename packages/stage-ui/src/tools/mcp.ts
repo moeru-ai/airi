@@ -1,4 +1,4 @@
-import type { Tool, ToolExecuteOptions } from '@xsai/shared-chat'
+import type { CommonContentPart, Tool, ToolExecuteOptions } from '@xsai/shared-chat'
 
 import type { ToolAttributionContext } from '../types/chat'
 import type { McpToolDescriptor } from '../types/mcp'
@@ -81,6 +81,31 @@ function errorResult(dispatchOutcome: McpDispatchOutcome, error: unknown): McpCa
     isError: true,
     content: [{ type: 'text', text: errorMessageFrom(error) ?? 'Unknown error.' }],
   }
+}
+
+/**
+ * Ensure all parts of the content array have a format supported by xsAI
+ * (`text` or `image_url`). If one part is unsupported, xsAI will serialize and
+ * tokenize the whole content, including the images.
+ */
+function projectMcpToolResult(result: McpCallToolResult): McpCallToolResult | CommonContentPart[] {
+  if (!result.content?.some(part => part.type === 'image'))
+    return result
+
+  const { content, ...metadata } = result
+  const parts = content.map<CommonContentPart>((part) => {
+    if (part.type === 'image') {
+      if (typeof part.data !== 'string' || !part.data || typeof part.mimeType !== 'string' || !/^image\/[\w.+-]+$/i.test(part.mimeType))
+        return { type: 'text', text: 'The MCP server returned an invalid image block.' }
+      return { type: 'image_url', image_url: { url: `data:${part.mimeType};base64,${part.data}` } }
+    }
+    if (part.type === 'text' && typeof part.text === 'string')
+      return { type: 'text', text: part.text }
+    return { type: 'text', text: JSON.stringify(part) }
+  })
+  if (Object.keys(metadata).length > 0)
+    parts.push({ type: 'text', text: JSON.stringify(metadata) })
+  return parts
 }
 
 /**
@@ -183,7 +208,7 @@ export async function createMcpTools(runtime: McpToolRuntime, registration: McpT
   async function execute(payload: McpCallToolPayload, options?: McpExecutionOptions) {
     try {
       options?.abortSignal?.throwIfAborted()
-      return await runtime.callTool(payload, options)
+      return projectMcpToolResult(await runtime.callTool(payload, options))
     }
     catch (error) {
       if (options?.abortSignal?.aborted)

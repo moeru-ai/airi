@@ -288,8 +288,16 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
       buildAgentExecutionContracts({ result, modelDecision, authorizationSource }),
     )
     const isTerminal = normalizedAction.kind === 'terminal_exec' || normalizedAction.kind === 'terminal_reset'
+    const wayland = runtime.config.executor === 'auv-wayland'
+    if (wayland && !isTerminal) {
+      return finalize({
+        isError: true,
+        content: [{ type: 'text', text: 'AUV Wayland is observe-only.' }],
+        structuredContent: { status: 'denied', reason: 'AUV Wayland is observe-only.' },
+      })
+    }
     const isBrowserDomAction = normalizedAction.kind.startsWith('browser_dom_')
-    const { executionTarget, context: actualContext, displayInfo } = isTerminal && runtime.config.executor === 'auv'
+    const { executionTarget, context: actualContext, displayInfo } = isTerminal && (runtime.config.executor === 'auv' || wayland)
       ? getAuvTerminalRunState(runtime)
       : await refreshRuntimeRunState(runtime, { probeBrowser: !isTerminal })
     options.executionSignal?.throwIfAborted()

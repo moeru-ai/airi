@@ -1,9 +1,12 @@
+import type { GenerationProvider } from '@proj-airi/provider-inference'
 import type { JsonSchema } from 'xsschema'
 
 import type { McpToolRuntime } from './mcp'
 
+import { streamFrom } from '@proj-airi/core-agent'
 import { describe, expect, it, vi } from 'vitest'
 
+import { withDescribedImages } from '../stores/ai/chat-llm/tool-images'
 import { createMcpTools, mcp, MCP_AGENT_EXECUTION_PROMPT, MCP_CALL_TOOL_NAME, MCP_LIST_TOOL_NAME } from './mcp'
 
 function createRuntime(): McpToolRuntime {
@@ -12,6 +15,65 @@ function createRuntime(): McpToolRuntime {
     callTool: vi.fn(async () => ({ content: [{ type: 'text', text: 'ok' }] })),
   }
 }
+
+describe('mcp tool images', () => {
+  it.each(['chat-completions', 'responses'] as const)('sends a screenshot as an image on the next %s request', async (protocol) => {
+    const data = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9pP8WwAAAABJRU5ErkJggg=='
+    const imageUrl = `data:image/png;base64,${data}`
+    const metadata = { structuredContent: { frame: { width: 1, height: 1 } }, dispatchOutcome: 'response_received' } as const
+    const direct = [{ serverName: 'airi-terminal', name: 'airi-terminal::computer_observe', toolName: 'computer_observe', exposure: 'direct', inputSchema: { type: 'object', properties: {} } }] as const
+    const runtime = createRuntime()
+    vi.mocked(runtime.callTool).mockResolvedValue({
+      ...metadata,
+      content: [{ type: 'text', text: 'Display captured.' }, { type: 'image', data, mimeType: 'image/png' }],
+    })
+    const tools = await createMcpTools(runtime, { direct })
+    const requests: Record<string, unknown>[][] = []
+    const call = { name: 'computer_observe', arguments: '{}' }
+    const fetch: typeof globalThis.fetch = async (_url, init) => {
+      const request = JSON.parse(String(init?.body))
+      requests.push(protocol === 'responses' ? request.input : request.messages)
+      const first = requests.length === 1
+      const output = first ? [{ type: 'function_call', call_id: 'observe-1', ...call }] : []
+      const events = protocol === 'responses'
+        ? [...output.map(item => ({ type: 'response.output_item.done', item })), { type: 'response.completed', response: { output } }]
+        : [{ choices: [{ index: 0, delta: first
+            ? { tool_calls: [{ index: 0, id: 'observe-1', type: 'function', function: call }] }
+            : { content: 'Done.' }, finish_reason: first ? 'tool_calls' : 'stop' }] }]
+      return new Response(events.map(event => `data: ${JSON.stringify(event)}\n\n`).join(''), { headers: { 'content-type': 'text/event-stream' } })
+    }
+    const chatProvider: GenerationProvider = { generation: model => protocol === 'responses'
+      ? { protocol, webSearch: false, config: { model, baseURL: 'https://example.com/v1/', fetch } }
+      : { protocol, config: { model, baseURL: 'https://example.com/v1/', fetch } } }
+
+    await streamFrom({ model: 'fixture', chatProvider, conversation: { turns: [] }, options: {
+      tools,
+      prepareConversation: async context => context,
+    } })
+
+    expect(requests).toHaveLength(2)
+    const response = requests[1].find(item => protocol === 'responses' ? item.call_id === 'observe-1' && item.type === 'function_call_output' : item.tool_call_id === 'observe-1')
+    const textType = protocol === 'responses' ? 'input_text' : 'text'
+    expect(response?.[protocol === 'responses' ? 'output' : 'content']).toEqual([
+      { type: textType, text: 'Display captured.' },
+      protocol === 'responses' ? { type: 'input_image', image_url: imageUrl } : { type: 'image_url', image_url: { url: imageUrl } },
+      { type: textType, text: JSON.stringify(metadata) },
+    ])
+    expect(JSON.stringify(requests[1]).split(data)).toHaveLength(2)
+  })
+
+  it('lets the vision model describe an image returned through the MCP router', async () => {
+    const runtime = createRuntime()
+    vi.mocked(runtime.callTool).mockResolvedValue({ content: [{ type: 'image', data: 'aW1hZ2U=', mimeType: 'image/png' }] })
+    const tools = await createMcpTools(runtime, { proxy: 'active' })
+    const proxy = tools.find(tool => tool.function.name === MCP_CALL_TOOL_NAME)!
+    const describe = vi.fn(async () => 'A settings window.')
+    const result = await withDescribedImages(proxy, describe).execute({ name: 'fixture::capture', arguments: '{}' }, { messages: [], toolCallId: 'describe' })
+
+    expect(describe).toHaveBeenCalledExactlyOnceWith('data:image/png;base64,aW1hZ2U=')
+    expect(result).toEqual([{ type: 'text', text: '[Image description from the vision model]\nA settings window.\n[End image description]' }])
+  })
+})
 
 describe('mcp Agent execution prompt', () => {
   it('keeps scoped app lists and dry-run evidence from ending an available task early', () => {

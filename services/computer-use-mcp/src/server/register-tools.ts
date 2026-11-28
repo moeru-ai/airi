@@ -249,6 +249,52 @@ function buildBrowserDomActionErrorResponse(params: {
   }
 }
 
+/** Registers the local shell tools without exposing a desktop or browser route. */
+export function registerTerminalTools({ server, runtime, executeAction }: Omit<RegisterComputerUseToolsOptions, 'enableTestTools'>) {
+  server.tool(
+    'terminal_exec',
+    `Run command text inside the configured local Shell. terminal_exec is an MCP tool, not a Shell command. ${runtime.terminalRunner.describe().notes.join(' ')}`,
+    {
+      command: z.string().min(1).describe('Command text interpreted by the configured Shell'),
+      cwd: z.string().optional().describe('Optional spawn directory. Omit to use the previous spawn directory. Relative paths resolve against the executor process directory.'),
+      timeoutMs: z.number().int().min(1).max(120_000).optional().describe('Optional timeout override in milliseconds'),
+    },
+    async (input: TerminalExecActionInput, extra) => {
+      const origin = v.safeParse(terminalOriginSchema, extra._meta?.[terminalOriginMetaKey])
+      return executeAction({ kind: 'terminal_exec', input }, 'terminal_exec', {
+        terminalOrigin: origin.success && origin.output.nonce === runtime.terminalControlNonce ? origin.output : undefined,
+      })
+    },
+  )
+
+  server.tool(
+    'terminal_get_state',
+    'Read the Terminal executor contract and default spawn directory without executing a command. This is not a live interactive Shell directory.',
+    {},
+    async () => {
+      const terminalState = runtime.session.getTerminalState()
+      return {
+        content: [
+          textContent(`Terminal runner cwd=${terminalState.effectiveCwd}, lastExitCode=${terminalState.lastExitCode ?? 'n/a'}, lastCommand=${terminalState.lastCommandSummary || 'n/a'}.`),
+        ],
+        structuredContent: {
+          status: 'ok',
+          terminalState,
+          terminalBackend: runtime.terminalRunner.describe(),
+        },
+      }
+    },
+  )
+
+  server.tool(
+    'terminal_reset_state',
+    {
+      reason: z.string().optional().describe('Optional reset note for the audit log'),
+    },
+    async input => executeAction({ kind: 'terminal_reset', input }, 'terminal_reset_state'),
+  )
+}
+
 export function registerComputerUseTools(params: RegisterComputerUseToolsOptions) {
   const { runtime, executeAction, enableTestTools } = params
   const server = createToolLaneHygieneServer(params.server, runtime.stateManager)
@@ -474,48 +520,7 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
     async input => executeAction({ kind: 'wait', input }, 'desktop_wait'),
   )
 
-  server.tool(
-    'terminal_exec',
-    `Run command text inside the configured local Shell. terminal_exec is an MCP tool, not a Shell command. ${runtime.terminalRunner.describe().notes.join(' ')}`,
-    {
-      command: z.string().min(1).describe('Command text interpreted by the configured Shell'),
-      cwd: z.string().optional().describe('Optional spawn directory. Omit to use the previous spawn directory. Relative paths resolve against the executor process directory.'),
-      timeoutMs: z.number().int().min(1).max(120_000).optional().describe('Optional timeout override in milliseconds'),
-    },
-    async (input: TerminalExecActionInput, extra) => {
-      const origin = v.safeParse(terminalOriginSchema, extra._meta?.[terminalOriginMetaKey])
-      return executeAction({ kind: 'terminal_exec', input }, 'terminal_exec', {
-        terminalOrigin: origin.success && origin.output.nonce === runtime.terminalControlNonce ? origin.output : undefined,
-      })
-    },
-  )
-
-  server.tool(
-    'terminal_get_state',
-    'Read the Terminal executor contract and default spawn directory without executing a command. This is not a live interactive Shell directory.',
-    {},
-    async () => {
-      const terminalState = runtime.session.getTerminalState()
-      return {
-        content: [
-          textContent(`Terminal runner cwd=${terminalState.effectiveCwd}, lastExitCode=${terminalState.lastExitCode ?? 'n/a'}, lastCommand=${terminalState.lastCommandSummary || 'n/a'}.`),
-        ],
-        structuredContent: {
-          status: 'ok',
-          terminalState,
-          terminalBackend: runtime.terminalRunner.describe(),
-        },
-      }
-    },
-  )
-
-  server.tool(
-    'terminal_reset_state',
-    {
-      reason: z.string().optional().describe('Optional reset note for the audit log'),
-    },
-    async input => executeAction({ kind: 'terminal_reset', input }, 'terminal_reset_state'),
-  )
+  registerTerminalTools({ server, runtime, executeAction })
 
   server.tool(
     'secret_read_env_value',

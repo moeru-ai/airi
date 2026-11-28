@@ -84,6 +84,7 @@ export default defineConfig({
     'docs/superpowers/**',
     '.agents/**',
     '.github/**',
+    '.jj/**',
     'CLAUDE.md', // Skip the symbolic link
   ],
 }, {
