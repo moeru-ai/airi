@@ -182,9 +182,8 @@ function waitWithSignal<T>(promise: Promise<T>, signal: AbortSignal) {
   })
 }
 
-/** Whether a consciousness selection can send. The `prompt-api` provider runs without a selected model. */
 function isChatSelectionReady(providerId: string, modelId: string) {
-  return !!providerId && (!!modelId || providerId === 'prompt-api')
+  return !!providerId && !!modelId
 }
 
 function retryContentFrom(message: ChatHistoryItem | undefined): Pick<ChatSendPayload, 'attachments' | 'text'> | null {
