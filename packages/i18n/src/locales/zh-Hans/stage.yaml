@@ -22,6 +22,7 @@ character-switcher:
   on-stage: '{name} · 在舞台上'
   empty: 暂无角色
   failed: 无法切换角色，请重试。
+  edit: 编辑角色卡
 mobile-tools:
   sign-in: 登录 AIRI
   account-description: 账户与偏好

@@ -22,6 +22,7 @@ character-switcher:
   on-stage: '{name} · on stage'
   empty: No characters yet
   failed: Could not switch characters. Try again.
+  edit: Edit character
 mobile-tools:
   sign-in: Sign in to AIRI
   account-description: Account and preferences

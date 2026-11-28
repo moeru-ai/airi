@@ -40,6 +40,7 @@ import {
 } from '../../shared/eventa'
 import { useChatDraftHandover } from '../composables/use-chat-draft-handover'
 import { dismissOverlays, useChatFloatingClickThrough } from '../composables/use-chat-floating-click-through'
+import { useSwipeBack } from '../composables/use-swipe-back'
 import { useControlsIslandStore } from '../stores/controls-island'
 
 const panel = useTemplateRef<HTMLElement>('panel')
@@ -281,6 +282,16 @@ async function selectCharacter(characterId: string) {
   else
     await activateCharacter(characterId)
 }
+
+const chatLevel = useTemplateRef<HTMLElement>('chat-level')
+// A swipe to the right goes back from the conversation to the list. The message feed is transparent, so it has no swipe.
+const { progress: backProgress, tracking: swipingBack } = useSwipeBack({
+  level: chatLevel,
+  enabled: () => !danmaku.value && !listOpen.value,
+  onBack: () => {
+    listOpen.value = true
+  },
+})
 
 // The panel and the column beside the message feed change what is painted under a still cursor.
 watch(panelShown, async () => {
@@ -663,7 +674,9 @@ const gripListeners = {
             variant="island"
             :tooltip-side="columnTooltipSide"
             :class="['min-h-0 flex-1']"
+            editable
             @select="selectCharacter"
+            @edit="characterId => openCharacterPage(`/settings/airi-card/${encodeURIComponent(characterId)}`)"
             @manage="openCharacterPage('/settings/airi-card')"
           />
         </div>
@@ -678,16 +691,18 @@ const gripListeners = {
         >
           <!--
             The list of the conversations. It steps back to the start under the conversation, and slides in again when it
-            opens.
+            opens. A swipe back drives both levels through the states of that slide, and they finish it from there.
           -->
           <div
             ref="list-level"
             tabindex="-1"
             :inert="!listOpen"
             :class="[
-              'absolute inset-0 outline-none transition-[transform,opacity] duration-340 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none',
+              'absolute inset-0 outline-none duration-340 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none',
+              swipingBack ? 'transition-none' : 'transition-[transform,opacity]',
               listOpen ? '' : '-translate-x-1/4 opacity-0',
             ]"
+            :style="swipingBack ? { transform: `translateX(${-25 * (1 - backProgress)}%)`, opacity: backProgress } : undefined"
             @transitionend.self="hitTest()"
           >
             <ChatSessionsDrawer
@@ -699,12 +714,15 @@ const gripListeners = {
           </div>
 
           <div
+            ref="chat-level"
             :inert="listOpen"
             :class="[
-              'absolute inset-0 flex flex-col transition-transform duration-340 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none',
+              'absolute inset-0 flex flex-col duration-340 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none',
+              swipingBack ? 'transition-none' : 'transition-transform',
               danmaku ? 'gap-1 pt-3' : '',
               listOpen ? 'translate-x-full' : '',
             ]"
+            :style="swipingBack ? { transform: `translateX(${backProgress * 100}%)` } : undefined"
             @transitionend.self="hitTest()"
           >
             <!--

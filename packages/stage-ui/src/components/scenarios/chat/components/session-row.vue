@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { SessionRow } from './session-row-model'
 
+import { isStageWeb } from '@proj-airi/stage-shared'
 import { BasicButton, DropdownMenu, MenuItem, MenuSeparator, SwipeActionButton, SwipeActionsContent, SwipeActionsItem, SwipeActionsList, SwipeActionsRoot } from '@proj-airi/ui'
 import { onLongPress } from '@vueuse/core'
 import { computed, nextTick, ref, shallowRef, useTemplateRef, watch } from 'vue'
@@ -52,12 +53,18 @@ watch(() => props.selecting, (selecting) => {
 })
 
 const archived = computed(() => props.row.meta.archivedAt !== undefined)
+const pinned = computed(() => !!props.row.meta.pinnedAt)
 /**
  * The compact row of a pointer, for example in the popover or beside the chat of a desktop window. A swipe to the left,
- * for example with two fingers on a trackpad, shows Archive only. Its delete stays in the menu. The mobile row and the
- * touch row show Archive and Delete.
+ * for example with two fingers on a trackpad, shows Archive only. Its delete stays in the menu. A swipe to the right
+ * shows Pin, which the menu also keeps. The mobile row and the touch row show Archive and Delete to the left.
  */
-const archiveOnlySwipe = computed(() => props.compact && !props.touch)
+const compactPointer = computed(() => props.compact && !props.touch)
+/**
+ * The touch row opens its menu with a long press. The compact pointer row of the desktop app opens it with a right
+ * click, so it shows no menu button either. Stage Web keeps the button on its pointer rows.
+ */
+const menuButtonHidden = computed(() => props.touch || (compactPointer.value && !isStageWeb()))
 // NOTICE:
 // In a 50px compact row, the swipe action surface sank below the middle and cut its label.
 // `SwipeActionButton` sets a 44px minimum and an 8px inset, sized for 80px rows.
@@ -102,9 +109,31 @@ watch(menuOpen, (open) => {
     menuShown.value = true
 })
 
+/**
+ * The point of the right click that opened the menu. The menu opens at it, as the menu of a desktop app does. A menu
+ * from its button or from the menu key has no point and opens at the button. The point stays until the menu has left,
+ * so the closing menu stays where it was.
+ */
+const menuPoint = shallowRef<{ x: number, y: number }>()
+const menuReference = computed(() => {
+  const point = menuPoint.value
+  return point ? { getBoundingClientRect: () => DOMRect.fromRect({ x: point.x, y: point.y, width: 0, height: 0 }) } : undefined
+})
+
 function onMenuCloseAutoFocus(event: Event) {
   menuShown.value = false
+  menuPoint.value = undefined
   menuClose.onCloseAutoFocus(event)
+}
+
+/** A right click anywhere on the row of a pointer opens its menu at the pointer. The touch row uses a long press. */
+function openMenuAtPointer(event: MouseEvent) {
+  if (props.touch || renaming.value)
+    return
+  event.preventDefault()
+  // The menu key reports no pointer position, so its menu opens at the button.
+  menuPoint.value = event.clientX || event.clientY ? { x: event.clientX, y: event.clientY } : undefined
+  menuOpen.value = true
 }
 
 /** The Delete item of the menu asks for a second press. It turns into its confirmation and keeps the menu open. */
@@ -151,7 +180,9 @@ function saveRename(returnFocus: boolean) {
 }
 
 function runSwipeAction(value: string) {
-  if (value === 'archive')
+  if (value === 'pin')
+    emit('pin', !pinned.value)
+  else if (value === 'archive')
     emit('archive', !archived.value)
   else
     emit('delete')
@@ -202,7 +233,20 @@ function runSwipeAction(value: string) {
         50px high, so its actions show the icon only and the surface fills the row with an even inset. The accessible
         names stay.
       -->
-      <SwipeActionsList :gap="16" :default-action="archiveOnlySwipe ? 'archive' : 'delete'">
+      <SwipeActionsList v-if="compactPointer && !archived" side="start" :gap="16" default-action="pin">
+        <SwipeActionsItem v-slot="{ takeover }" value="pin" as-child>
+          <SwipeActionButton
+            :label="pinned ? t('stage.chat.sessions.unpin') : t('stage.chat.sessions.pin')"
+            :aria-label="pinned ? t('stage.chat.sessions.unpin') : t('stage.chat.sessions.pin')"
+            :icon="pinned ? 'i-mingcute:pin-fill' : 'i-mingcute:pin-line'"
+            :show-label="false"
+            :surface-class="['bg-primary-500 text-white', compactActionSurface].join(' ')"
+            :takeover="takeover"
+            :class="['text-primary-600 focus-visible:outline-2 focus-visible:outline-offset-[-4px] focus-visible:outline-primary-500 dark:text-primary-300', compactActionButton]"
+          />
+        </SwipeActionsItem>
+      </SwipeActionsList>
+      <SwipeActionsList :gap="16" :default-action="compactPointer ? 'archive' : 'delete'">
         <SwipeActionsItem v-slot="{ takeover }" value="archive" as-child>
           <SwipeActionButton
             :label="archived ? t('stage.chat.sessions.unarchive') : t('stage.chat.sessions.archive')"
@@ -214,7 +258,7 @@ function runSwipeAction(value: string) {
             :class="['text-neutral-600 focus-visible:outline-2 focus-visible:outline-offset-[-4px] focus-visible:outline-neutral-500 dark:text-neutral-300', compactActionButton]"
           />
         </SwipeActionsItem>
-        <SwipeActionsItem v-if="!archiveOnlySwipe" v-slot="{ takeover }" value="delete" as-child>
+        <SwipeActionsItem v-if="!compactPointer" v-slot="{ takeover }" value="delete" as-child>
           <SwipeActionButton
             :label="t('stage.chat.sessions.delete-short')"
             :aria-label="t('stage.chat.sessions.delete')"
@@ -232,12 +276,17 @@ function runSwipeAction(value: string) {
             'group relative flex items-center overflow-hidden',
             props.compact ? 'rounded-lg pr-0.5' : 'rounded-2xl pr-1',
             // The swipe actions lie under the row, so the touch row has a solid fill, the color of the drawer.
+            // A compact row keeps its hover fill while its menu is on screen, because the open menu takes the pointer
+            // and the user still sees which row the menu belongs to.
             props.row.isActive
               ? 'bg-primary-50/80 dark:bg-primary-950/80'
               : props.touch
                 ? 'bg-neutral-50 dark:bg-neutral-900'
-                : props.compact ? 'bg-transparent hover:bg-neutral-100/80 dark:hover:bg-neutral-800/80' : 'bg-white dark:bg-neutral-800',
+                : props.compact
+                  ? menuShown ? 'bg-neutral-100/80 dark:bg-neutral-800/80' : 'bg-transparent hover:bg-neutral-100/80 dark:hover:bg-neutral-800/80'
+                  : 'bg-white dark:bg-neutral-800',
           ]"
+          @contextmenu="openMenuAtPointer"
         >
           <div
             v-if="renaming"
@@ -278,10 +327,11 @@ function runSwipeAction(value: string) {
           <template v-if="!renaming">
             <!--
               The compact row keeps Archive on the row, because it is the common action and an archived conversation comes
-              back. A swipe to the left archives it too. Delete is in its menu, where the item turns into its own
-              confirmation. The mobile row opens the swipe area, where Archive and Delete are the second press.
+              back. A swipe to the left archives it too, and a swipe to the right pins it. Delete is in its menu, where the
+              item turns into its own confirmation. The mobile row opens the swipe area, where Archive and Delete are the
+              second press.
             -->
-            <template v-if="props.compact && !props.touch">
+            <template v-if="compactPointer">
               <button
                 type="button"
                 :aria-label="`${archived ? t('stage.chat.sessions.unarchive') : t('stage.chat.sessions.archive')}: ${props.row.preview}`"
@@ -308,7 +358,8 @@ function runSwipeAction(value: string) {
 
             <DropdownMenu
               v-model:open="menuOpen"
-              align="end"
+              :reference="menuReference"
+              :align="menuPoint ? 'start' : 'end'"
               :side-offset="4"
               :content-class="['min-w-48 max-h-[var(--reka-dropdown-menu-content-available-height)] overflow-y-auto']"
               @close-auto-focus="onMenuCloseAutoFocus"
@@ -324,9 +375,9 @@ function runSwipeAction(value: string) {
                     iconButtonClasses,
                     insetFocusRing,
                     menuOpen ? 'text-primary-500 dark:text-primary-400' : quietIconClasses,
-                    // The touch row opens its menu with a long press. Its trigger stays for the keyboard and the screen reader,
-                    // and it gives the menu its place at the end of the row.
-                    props.touch
+                    // A row without a menu button keeps its trigger for the keyboard and the screen reader. The trigger shows
+                    // only with keyboard focus, and it gives the menu its place at the end of the row.
+                    menuButtonHidden
                       ? 'pointer-events-none absolute right-1 top-1/2 size-8 -translate-y-1/2 opacity-0 focus-visible:opacity-100'
                       : props.compact
                         ? ['size-8', menuShown ? 'inline-flex' : 'hidden group-hover:inline-flex group-focus-within:inline-flex']
@@ -338,9 +389,9 @@ function runSwipeAction(value: string) {
                 </button>
               </template>
 
-              <MenuItem v-if="!archived" @select="emit('pin', !props.row.meta.pinnedAt)">
-                <span aria-hidden="true" :class="[props.row.meta.pinnedAt ? 'i-mingcute:pin-fill' : 'i-mingcute:pin-line', 'size-4 shrink-0']" />
-                {{ props.row.meta.pinnedAt ? t('stage.chat.sessions.unpin') : t('stage.chat.sessions.pin') }}
+              <MenuItem v-if="!archived" @select="emit('pin', !pinned)">
+                <span aria-hidden="true" :class="[pinned ? 'i-mingcute:pin-fill' : 'i-mingcute:pin-line', 'size-4 shrink-0']" />
+                {{ pinned ? t('stage.chat.sessions.unpin') : t('stage.chat.sessions.pin') }}
               </MenuItem>
               <MenuItem @select="requestRename">
                 <span aria-hidden="true" :class="['i-mingcute:edit-2-line size-4 shrink-0']" />

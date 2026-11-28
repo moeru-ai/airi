@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { client } from '@proj-airi/stage-ui/composables/api'
 import { GhostButton } from '@proj-airi/ui'
 import { onScopeDispose, shallowRef } from 'vue'
@@ -31,10 +30,7 @@ async function openReceipt() {
     const { url } = await response.json()
     if (signal.aborted)
       return
-    if (isStageTamagotchi())
-      window.open(url, '_blank', 'noopener,noreferrer')
-    else
-      window.location.assign(url)
+    window.open(url, '_blank', 'noopener,noreferrer')
   }
   catch {
     if (!signal.aborted)
