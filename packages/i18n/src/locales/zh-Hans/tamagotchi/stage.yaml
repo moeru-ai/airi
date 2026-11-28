@@ -86,7 +86,6 @@ docs:
     approval-active: 当前会话已开启完全或自动授权
     approval-section: 审批
     approval-command: 命令
-    approval-computer-use: Computer Use
     approval-mode-ask: 询问
     approval-mode-auto: 自动
     approval-mode-full: 完全
@@ -124,11 +123,9 @@ docs:
     model: 模型
     provider: 提供方
     window: 上下文窗口
-    window-value: '{count} tokens'
     window-full: '{percent}% 已用'
     window-over: '已用窗口的 {percent}%（超出）'
-    window-usage: 上下文窗口的 {percent}%，来自提供方回报的输入 token
-    tokens: tokens
+    window-usage: '上下文窗口的 {percent}%，来自提供方回报的输入 token'
     reported-usage: 最近一次请求的回报用量
     input: 输入
     output: 输出
@@ -143,7 +140,6 @@ docs:
       tool-call: 工具调用
       tool-result: 工具结果
       tool-schema: 工具 schema
-
   danmaku-feed:
     title: 消息停留时间
     hide-read: 自动隐藏已读消息
@@ -220,7 +216,7 @@ about:
       ready: 已准备好安装
       manual-install-required: 新版本 v{version} 需要重新安装。请下载后手动安装。
       downloading: 正在下载更新......
-      download-remaining: 剩余 {duration} · {speed}
+      download-remaining: '剩余 {duration} · {speed}'
       error-prefix: 错误
       latest: 已是最新版（v{version}）
       downloaded:
@@ -240,7 +236,7 @@ about:
       restart-silent: 重新启动以静默更新
       restart-install: 重启并安装更新
       confirm-restart: 确认重新启动
-      whats-new: 更新内容
+      whats-new: '更新内容'
       view-changes: 查看代码变更
     dialog:
       version-available: v{version} 现已可用

@@ -143,7 +143,6 @@ chat:
     confirm-delete: Удалить этот диалог и его сообщения?
     cancel: Отменить
     empty: Диалогов пока нет
-    cloud-badge: Синхронизировано с облаком
     new-chat-fallback: Новый чат
     delete: Удалить диалог
 render-error:
@@ -261,9 +260,6 @@ websocket-status:
   connected: Подключено
   disconnected: Нет подключения
   open-settings: Открыть настройки подключения
-computer-use:
-  label: Использовать компьютер
-  description: Разрешить этому окну чата просматривать и управлять нативными приложениями на этом компьютере.
 status:
   preparing: Подготовка микрофона
   listening: Прослушивание

@@ -143,7 +143,6 @@ chat:
     confirm-delete: ลบบทสนทนานี้และข้อความทั้งหมดในบทสนทนาหรือไม่?
     cancel: ยกเลิก
     empty: ยังไม่มีบทสนทนา
-    cloud-badge: ซิงค์กับคลาวด์แล้ว
     new-chat-fallback: แชทใหม่
     delete: ลบบทสนทนา
 render-error:
@@ -261,9 +260,6 @@ websocket-status:
   connected: เชื่อมต่อแล้ว
   disconnected: ไม่มีการเชื่อมต่อ
   open-settings: เปิดการตั้งค่าการเชื่อมต่อ
-computer-use:
-  label: ใช้คอมพิวเตอร์
-  description: อนุญาตให้หน้าต่างแชทนี้ตรวจดูและควบคุมแอปบนคอมพิวเตอร์เครื่องนี้
 status:
   preparing: กำลังเตรียมไมโครโฟน
   listening: กำลังฟัง
