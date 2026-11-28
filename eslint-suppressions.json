@@ -129,16 +129,6 @@
       "count": 2
     }
   },
-  "apps/stage-web/src/pages/devtools/performance-playground.vue": {
-    "ts/no-explicit-any": {
-      "count": 2
-    }
-  },
-  "apps/stage-web/src/workers/vad/vad.ts": {
-    "ts/no-explicit-any": {
-      "count": 4
-    }
-  },
   "integrations/discord-bot/src/bots/discord/commands/summon.ts": {
     "ts/no-explicit-any": {
       "count": 6
