@@ -172,6 +172,8 @@ export interface ProviderExtraMethods<TConfig> {
    */
 
   listVoices?: (config: TConfig, provider: ProviderInstance, model?: string, signal?: AbortSignal) => Promise<VoiceInfo[]>
+  /** Creates a provider-managed voice from a text description. */
+  designVoice?: (config: TConfig, provider: ProviderInstance, input: VoiceDesignInput) => Promise<VoiceDesignResult>
   loadModel?: (config: TConfig, provider: ProviderInstance, hooks?: { onProgress?: (progress: ProgressInfo) => Promise<void> | void }) => Promise<void>
 }
 
@@ -260,6 +262,17 @@ export interface VoiceInfo {
     code: string
     title: string
   }[]
+}
+
+/** Input for a provider-managed voice-design request. */
+export interface VoiceDesignInput {
+  prompt: string
+  voiceId: string
+}
+
+/** Result from a provider-managed voice-design request. */
+export interface VoiceDesignResult {
+  voiceId: string
 }
 
 /** A provider definition and its configuration contract. */
