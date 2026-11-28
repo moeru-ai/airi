@@ -121,6 +121,73 @@ describe('resolveControlsIslandDock', () => {
     expect(resolve({ x: 1370, y: 430, width: 450, height: 600 })).toBe('bottom-right')
   })
 
+  // https://github.com/moeru-ai/airi/issues/2849
+  // ROOT CAUSE:
+  //
+  // If a window edge left the work area, the island stayed on that edge.
+  // This happened because the quadrant policy ignored the work-area boundary.
+  //
+  // We fixed this by selecting the opposite edge when it remains inside the work area.
+  it('moves the dock left when the right window edge leaves the work area for Issue #2849', () => {
+    const bounds = { x: 1500, y: 430, width: 450, height: 600 }
+    const dock = resolve(bounds)
+
+    expect(dock).toBe('bottom-left')
+    expect(resolveControlsIslandDock({
+      displays: [primaryDisplay],
+      previousDock: dock,
+      windowBounds: bounds,
+    })).toBe(dock)
+  })
+
+  it('moves the dock away from the other outside work-area edges for Issue #2849', () => {
+    expect(resolveControlsIslandDock({
+      displays: [primaryDisplay],
+      previousDock: 'bottom-left',
+      windowBounds: { x: -50, y: 430, width: 450, height: 600 },
+    })).toBe('bottom-right')
+    expect(resolveControlsIslandDock({
+      displays: [primaryDisplay],
+      previousDock: 'top-right',
+      windowBounds: { x: 1370, y: -50, width: 450, height: 600 },
+    })).toBe('bottom-right')
+    expect(resolveControlsIslandDock({
+      displays: [primaryDisplay],
+      previousDock: 'bottom-right',
+      windowBounds: { x: 1370, y: 550, width: 450, height: 600 },
+    })).toBe('top-right')
+  })
+
+  it('keeps the quadrant when the window only touches an edge for Issue #2849', () => {
+    expect(resolve({ x: 1470, y: 430, width: 450, height: 600 })).toBe('bottom-right')
+    expect(resolveControlsIslandDock({
+      displays: [primaryDisplay],
+      previousDock: 'bottom-left',
+      windowBounds: { x: 0, y: 430, width: 450, height: 600 },
+    })).toBe('bottom-left')
+    expect(resolveControlsIslandDock({
+      displays: [primaryDisplay],
+      previousDock: 'top-right',
+      windowBounds: { x: 1370, y: 25, width: 450, height: 600 },
+    })).toBe('top-right')
+    expect(resolve({ x: 1370, y: 480, width: 450, height: 600 })).toBe('bottom-right')
+  })
+
+  it('keeps the quadrant when both opposite edges are outside for Issue #2849', () => {
+    const bounds = { x: -100, y: 100, width: 2120, height: 600 }
+
+    expect(resolveControlsIslandDock({
+      displays: [primaryDisplay],
+      previousDock: 'top-right',
+      windowBounds: bounds,
+    })).toBe('top-right')
+    expect(resolveControlsIslandDock({
+      displays: [primaryDisplay],
+      previousDock: 'top-left',
+      windowBounds: bounds,
+    })).toBe('top-left')
+  })
+
   it('uses the display that contains the largest window area', () => {
     const secondaryDisplay = {
       bounds: { x: -1600, y: -900, width: 1600, height: 900 },
@@ -130,7 +197,7 @@ describe('resolveControlsIslandDock', () => {
     const dock = resolveControlsIslandDock({
       displays: [primaryDisplay, secondaryDisplay],
       previousDock: 'bottom-right',
-      windowBounds: { x: -500, y: -300, width: 450, height: 600 },
+      windowBounds: { x: -500, y: -650, width: 450, height: 600 },
     })
 
     expect(dock).toBe('bottom-right')
