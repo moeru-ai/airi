@@ -13,23 +13,7 @@ import { useAuthStore } from '../auth'
 import { useAiriCardStore } from '../modules/airi-card'
 import { useSyncPreferencesStore } from '../sync-preferences'
 
-vi.mock('../../database/repos/chat-sessions.repo', () => ({
-  chatSessionsRepo: {
-    addTombstone: vi.fn().mockResolvedValue(undefined),
-    deleteSession: vi.fn().mockResolvedValue(undefined),
-    dequeueOutbox: vi.fn().mockResolvedValue(undefined),
-    dropOutboxForSession: vi.fn().mockResolvedValue(undefined),
-    enqueueOutbox: vi.fn().mockResolvedValue(undefined),
-    getIndex: vi.fn().mockResolvedValue(null),
-    getOutbox: vi.fn().mockResolvedValue([]),
-    getSession: vi.fn().mockResolvedValue(null),
-    getTombstones: vi.fn().mockResolvedValue([]),
-    removeTombstones: vi.fn().mockResolvedValue(undefined),
-    saveIndex: vi.fn().mockResolvedValue(undefined),
-    saveSession: vi.fn().mockResolvedValue(undefined),
-    updateOutboxEntries: vi.fn().mockResolvedValue(undefined),
-  },
-}))
+vi.mock('../../database/repos/chat-sessions.repo', async () => (await import('../../database/repos/testing/chat-sessions-repo')).createChatSessionsRepoMockModule())
 
 vi.mock('../../libs/product-signals', () => ({
   captureAnalyticsEvent: vi.fn(),
