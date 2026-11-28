@@ -77,7 +77,8 @@ const rail = useTemplateRef<HTMLElement>('rail')
 /**
  * The menu of an avatar. One menu serves the whole rail. It opens beside the avatar, on the side of its tooltip, so it
  * never covers the avatar. Its trigger is hidden, because a menu trigger opens on a left click, and the left click picks
- * the character. The avatar gets the focus back when the menu closes.
+ * the character. The open menu takes the pointer, so the avatar keeps its hover look until the menu has left. Then the
+ * avatar gets the focus back.
  */
 const menuOpen = shallowRef(false)
 const menuCharacterId = shallowRef<string>()
@@ -94,6 +95,7 @@ function openMenu(event: MouseEvent, characterId: string) {
 
 function returnFocus(event: Event) {
   event.preventDefault()
+  menuCharacterId.value = undefined
   menuAvatar.value?.focus({ preventScroll: true })
 }
 const items = useTemplateRef<HTMLElement>('items')
@@ -152,12 +154,16 @@ const labelClasses = computed(() => [
  * character on the stage in the theme color, and the avatar under the pointer in a neutral color. The other rails ring
  * the character on the stage while they are closed. The open rail marks it by its row and its bold name instead.
  */
-function avatarStateClasses(onStage: boolean) {
+function avatarStateClasses(onStage: boolean, menuShown: boolean) {
   const faint = !onStage && !open.value ? 'opacity-70' : ''
   if (island.value) {
     return [
       'ring-offset-1 ring-offset-neutral-50 transition-[box-shadow,opacity] duration-150 motion-reduce:transition-none dark:ring-offset-neutral-800',
-      onStage ? 'ring-2 ring-primary-500' : 'group-hover:ring-2 group-hover:ring-neutral-400/40 dark:group-hover:ring-neutral-500/50',
+      onStage
+        ? 'ring-2 ring-primary-500'
+        : menuShown
+          ? 'ring-2 ring-neutral-400/40 dark:ring-neutral-500/50'
+          : 'group-hover:ring-2 group-hover:ring-neutral-400/40 dark:group-hover:ring-neutral-500/50',
       faint,
     ]
   }
@@ -233,6 +239,7 @@ function avatarStateClasses(onStage: boolean) {
               rowClasses,
               open || variant === 'docked' ? 'hover:bg-neutral-500/10' : '',
               (open || variant === 'docked') && entry.onStage ? 'bg-neutral-500/15' : '',
+              variant === 'docked' && !entry.onStage && menuCharacterId === entry.id ? 'bg-neutral-500/10' : '',
             ]"
           @click="emit('select', entry.id)"
           @contextmenu="openMenu($event, entry.id)"
@@ -244,7 +251,7 @@ function avatarStateClasses(onStage: boolean) {
               // The avatar root is an inline element. It takes a size only as a block.
               'block size-8 shrink-0 rounded-full bg-neutral-200/70 text-neutral-600 dark:bg-neutral-700/70 dark:text-neutral-300',
               '[&_[data-avatar-image]]:object-top',
-              avatarStateClasses(entry.onStage),
+              avatarStateClasses(entry.onStage, menuCharacterId === entry.id),
             ]"
           >
             <template #fallback>
