@@ -1,4 +1,4 @@
-import type { CreateAttachmentRequest, CreateAttachmentResponse, DownloadAttachmentResponse, WireAttachment } from '@proj-airi/server-sdk-shared/v2'
+import type { CreateAttachmentRequest, CreateAttachmentResponse, DownloadAttachmentResponse, ImageThumbnail, WireAttachment } from '@proj-airi/server-sdk-shared/v2'
 
 import type { Database } from '../../libs/db'
 import type { Attachment } from '../../schemas/attachments'
@@ -11,8 +11,8 @@ import { attachments } from '../../schemas/attachments'
 import { chatMembers, chats, messages } from '../../schemas/chats'
 import { signWriteOnceUpload, uploadedObjectMismatch } from './direct-upload'
 
-function toWireAttachment({ id, mimeType, size }: Attachment): WireAttachment {
-  return { id, mimeType, size }
+function toWireAttachment({ id, mimeType, size, thumbnail }: Attachment): WireAttachment {
+  return { id, mimeType, size, ...(thumbnail ? { thumbnail } : {}) }
 }
 
 export function createAttachmentService(
@@ -71,6 +71,24 @@ export function createAttachmentService(
       return toWireAttachment(readyAttachment)
     },
 
+    async backfillThumbnail(userId: string, attachmentId: string, thumbnail: ImageThumbnail) {
+      const [updated] = await db.update(attachments)
+        .set({ thumbnail, updatedAt: new Date() })
+        .where(and(
+          eq(attachments.id, attachmentId),
+          eq(attachments.ownerId, userId),
+          eq(attachments.state, 'ready'),
+          isNull(attachments.thumbnail),
+        ))
+        .returning({ id: attachments.id })
+      if (updated)
+        return
+
+      const attachment = await requireOwnedAttachment(userId, attachmentId)
+      if (attachment.state !== 'ready')
+        throw createConflictError('Attachment is not ready')
+    },
+
     async createDownload(userId: string, attachmentId: string): Promise<DownloadAttachmentResponse> {
       const attachment = await db.query.attachments.findFirst({
         where: and(eq(attachments.id, attachmentId), eq(attachments.state, 'ready')),
@@ -100,6 +118,7 @@ export function createAttachmentService(
         attachment: toWireAttachment(attachment),
         sha256: attachment.sha256,
         url: await objectStore.createDownloadUrl(attachment.objectKey),
+        ...(attachment.ownerId === userId && !attachment.thumbnail ? { canBackfillThumbnail: true } : {}),
       }
     },
 

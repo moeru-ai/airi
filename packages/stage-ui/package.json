@@ -183,6 +183,7 @@
     "remark-rehype": "catalog:",
     "shiki": "catalog:",
     "splitpanes": "catalog:",
+    "thumbhash": "catalog:",
     "unified": "catalog:",
     "unist-builder": "catalog:",
     "unist-util-visit": "catalog:",

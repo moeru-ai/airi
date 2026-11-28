@@ -1,52 +1,42 @@
 import type { MaybeRefOrGetter } from 'vue'
 
-import { onScopeDispose, shallowRef, toValue, watch } from 'vue'
+import { onScopeDispose, shallowReactive, toValue, watch } from 'vue'
 
 import { chatAssetIdFrom, readChatAsset } from '../libs/chat-assets'
 
 /**
- * Turns message media sources into URLs that an `img` or `audio` element can load.
- *
- * An asset reference becomes an object URL of the stored bytes. It stays `undefined` while it loads, or when the asset
- * is missing. Any other source, such as a data URL, passes through. Object URLs are revoked when the sources change
- * and when the scope ends.
- *
- * Use when:
- * - A chat message renders its images or recordings
+ * Looks up the object URL for a stored chat asset. Other URLs pass through.
+ * An object URL stays valid while its source is in the list and the scope is active.
  */
-export function useChatAssetUrls(sources: MaybeRefOrGetter<readonly string[]>) {
-  const urls = shallowRef<(string | undefined)[]>([])
-  let created: string[] = []
+export function useChatAssetUrls(sources: MaybeRefOrGetter<readonly (string | undefined)[]>) {
+  const objectUrls = shallowReactive(new Map<string, string>())
 
-  function revoke() {
-    created.forEach(url => URL.revokeObjectURL(url))
-    created = []
-  }
-
-  watch(() => [...toValue(sources)], async (values, _, onCleanup) => {
+  watch(() => [...toValue(sources)], (values, _, onCleanup) => {
     let cancelled = false
     onCleanup(() => {
       cancelled = true
     })
 
-    urls.value = values.map(value => chatAssetIdFrom(value) ? undefined : value)
-    const loaded = await Promise.all(values.map(async (value) => {
-      if (!chatAssetIdFrom(value))
-        return value
-      const record = await readChatAsset(value).catch(() => undefined)
-      return record ? URL.createObjectURL(record.blob) : undefined
-    }))
-    const fresh = loaded.filter((url, index): url is string => !!url && url !== values[index])
-    if (cancelled) {
-      fresh.forEach(url => URL.revokeObjectURL(url))
-      return
+    const assets = new Set(values.filter((value): value is string => !!value && !!chatAssetIdFrom(value)))
+    for (const [source, url] of objectUrls) {
+      if (!assets.has(source)) {
+        URL.revokeObjectURL(url)
+        objectUrls.delete(source)
+      }
     }
-    revoke()
-    created = fresh
-    urls.value = loaded
+
+    for (const source of assets) {
+      if (objectUrls.has(source))
+        continue
+
+      void readChatAsset(source).then(({ blob }) => {
+        if (!cancelled)
+          objectUrls.set(source, URL.createObjectURL(blob))
+      }, () => undefined)
+    }
   }, { immediate: true })
 
-  onScopeDispose(revoke)
+  onScopeDispose(() => objectUrls.forEach(url => URL.revokeObjectURL(url)))
 
-  return urls
+  return (source?: string) => source && chatAssetIdFrom(source) ? objectUrls.get(source) : source
 }

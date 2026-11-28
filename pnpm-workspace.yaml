@@ -444,6 +444,7 @@ catalog:
   telegram: ^2.26.22
   three: ^0.185.1
   three-stdlib: ^2.36.1
+  thumbhash: 0.1.1
   tinyexec: ^1.3.1
   tsdown: ^0.22.14
   tsx: ^4.23.15

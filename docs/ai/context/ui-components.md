@@ -380,6 +380,19 @@ dock, icons at rest have the colors of the Controls Island icons. Attributes suc
 
 A line between groups of buttons in a `Dock`. It runs across the dock.
 
+### ThumbHashImage
+
+Displays an image from a URL. With `thumbnail`, it reserves space and shows the ThumbHash until the original decodes.
+The image fades in unless reduced motion is active. If the original fails to load, the preview stays visible.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `src` | `string?` | — | Original image URL. It can arrive after the preview |
+| `thumbnail` | `{ width: number, height: number, hash?: string }` | — | Original dimensions and optional Base64 ThumbHash |
+| `alt` | `string` | *(required)* | Alternative text for the picture |
+
+**Slots and emits**: None.
+
 ### Tooltip
 
 A short label beside one control. It opens at once on hover, and only on

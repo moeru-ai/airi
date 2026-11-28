@@ -5,7 +5,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { computed, createApp, defineComponent, h, nextTick } from 'vue'
 import { createI18n } from 'vue-i18n'
 
+import { chatAssetsRepo } from '../../database/repos/chat-assets.repo'
 import { chatSessionsRepo } from '../../database/repos/chat-sessions.repo'
+import { authedFetch } from '../../libs/auth-fetch'
+import { readChatAsset } from '../../libs/chat-assets'
 import { useAuthStore } from '../auth'
 import { useAiriCardStore } from '../modules/airi-card'
 
@@ -694,6 +697,66 @@ describe('chat-session-store · cloud reconciliation', () => {
     expect(chatSessionsRepo.updateOutboxEntries).toHaveBeenCalledWith(meta.userId, [
       { messageId: 'image', attempts: 1, lastError: expect.stringContaining('Chat asset is missing') },
     ])
+  })
+
+  it('persists the message and preview while the original is still downloading', async () => {
+    const meta = { sessionId: 'cloud-session', userId: 'cloud-user', characterId: 'default', cloudChatId: 'cloud-session', createdAt: 1, updatedAt: 1 }
+    const attachment = {
+      id: 'attachment-1',
+      mimeType: 'image/png',
+      size: 4,
+      thumbnail: { hash: 'HikOLYh4eXepiHecd/d3eoaAdwh4', width: 640, height: 480 },
+    }
+    const sha256 = '9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08'
+    const originalUrl = 'https://objects.example.com/original'
+    const message = {
+      id: 'message-1',
+      chatId: meta.cloudChatId,
+      senderId: meta.userId,
+      role: 'user',
+      seq: 1,
+      content: 'look',
+      createdAt: 1,
+      updatedAt: 1,
+      attachments: [attachment],
+    }
+    const original = Promise.withResolvers<Response>()
+    pullMessagesMock.mockResolvedValue({ messages: [message], seq: 1 })
+    const authFetchMock = vi.mocked(authedFetch)
+    const authFetchDefault = authFetchMock.getMockImplementation()!
+    authFetchMock.mockImplementation((request, init) => String(request).endsWith('/attachments/attachment-1/download')
+      ? Promise.resolve(Response.json({ attachment, sha256, url: originalUrl }))
+      : authFetchDefault(request, init))
+    const fetchUnmocked = globalThis.fetch
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation((request, init) => {
+      if (request === originalUrl)
+        return original.promise
+      return fetchUnmocked(request, init)
+    })
+    try {
+      const store = await reconcileWith(meta, remoteChat(null))
+      const restoredMessage = () => store.getSessionMessages(meta.sessionId).find(entry => entry.id === message.id)
+      expect(restoredMessage()).toMatchObject({ content: 'look', cloudImages: [attachment] })
+      await vi.waitFor(() => expect(saveSessionMock).toHaveBeenCalledWith(meta.sessionId, expect.objectContaining({
+        messages: expect.arrayContaining([expect.objectContaining({ id: message.id, content: 'look', cloudImages: [attachment] })]),
+      })))
+
+      original.resolve(new Response('test'))
+      const assetRef = `airi-asset:${sha256}`
+      await vi.waitFor(() => expect(restoredMessage()?.cloudImages?.[0]?.assetRef).toBe(assetRef))
+      expect((await readChatAsset(assetRef)).owners).toContain(meta.sessionId)
+      expect(restoredMessage()?.content).toEqual([
+        { type: 'text', text: 'look' },
+        { type: 'image_url', image_url: { url: assetRef } },
+      ])
+      expect(fetchMock.mock.calls.filter(([request]) => request === originalUrl)).toHaveLength(1)
+    }
+    finally {
+      original.resolve(new Response(null, { status: 500 }))
+      authFetchMock.mockImplementation(authFetchDefault)
+      fetchMock.mockRestore()
+      await chatAssetsRepo.releaseOwner(meta.sessionId)
+    }
   })
 
   it('includes a pending title when an unmapped session is created', async () => {

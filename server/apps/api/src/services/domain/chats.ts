@@ -498,13 +498,14 @@ export function createChatService(db: Database, metrics?: EngagementMetrics | nu
           .from(schema.messages)
           .where(eq(schema.messages.chatId, chatId))
 
-        const attachmentIds = [...new Set(rows.flatMap(row => row.mediaIds))]
+        const attachmentIds = [...new Set(rows.flatMap(row => row.deletedAt ? [] : row.mediaIds))]
         const attachmentRows = attachmentIds.length > 0
           ? await tx
               .select({
                 id: attachments.id,
                 mimeType: attachments.mimeType,
                 size: attachments.size,
+                thumbnail: attachments.thumbnail,
               })
               .from(attachments)
               .where(and(
@@ -512,7 +513,10 @@ export function createChatService(db: Database, metrics?: EngagementMetrics | nu
                 eq(attachments.state, 'ready'),
               ))
           : []
-        const attachmentsById = new Map(attachmentRows.map(attachment => [attachment.id, attachment]))
+        const attachmentsById = new Map(attachmentRows.map(({ id, mimeType, size, thumbnail }) => [
+          id,
+          { id, mimeType, size, ...(thumbnail ? { thumbnail } : {}) },
+        ]))
 
         const wireMessages: WireMessage[] = rows.map(r => ({
           id: r.id,
@@ -520,7 +524,7 @@ export function createChatService(db: Database, metrics?: EngagementMetrics | nu
           senderId: r.senderId,
           role: r.role as MessageRole,
           content: r.content,
-          attachments: r.mediaIds.flatMap(id => attachmentsById.get(id) ?? []),
+          attachments: r.deletedAt ? [] : r.mediaIds.flatMap(id => attachmentsById.get(id) ?? []),
           replyToMessageId: r.replyToMessageId,
           seq: r.seq!,
           createdAt: r.createdAt.getTime(),
