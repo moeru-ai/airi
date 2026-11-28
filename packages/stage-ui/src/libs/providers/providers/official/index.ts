@@ -11,7 +11,7 @@ import { defineProvider } from '../registry'
 import { OFFICIAL_CHAT_PROVIDER_ID, OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, OFFICIAL_TRANSCRIPTION_PROVIDER_ID } from './constants'
 import { createOfficialAudioProvider, createOfficialOpenAIProvider, OFFICIAL_ICON, withCredentials } from './shared'
 
-export { OFFICIAL_CHAT_PROVIDER_ID, OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, OFFICIAL_TRANSCRIPTION_PROVIDER_ID, OFFICIAL_VISION_PROVIDER_ID } from './constants'
+export { OFFICIAL_CHAT_PROVIDER_ID, OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, OFFICIAL_TRANSCRIPTION_PROVIDER_ID, OFFICIAL_VISION_PROVIDER_ID, OFFICIAL_VOICE_PACK_MODEL_ID } from './constants'
 
 const officialConfigSchema = z.object({})
 const officialChatConfigSchema = z.object({
@@ -149,7 +149,7 @@ export const providerOfficialSpeech = defineProvider({
       if (!res.ok)
         throw new Error(`audio models upstream ${res.status}: ${await res.text().catch(() => '')}`.slice(0, 256))
 
-      const data = await res.json() as { models?: { id: string, name: string, description?: string }[], default?: string | null }
+      const data = await res.json() as { models?: { id: string, name: string, description?: string, costMultiplier?: number }[], default?: string | null }
       if (!Array.isArray(data.models))
         throw new Error('audio models upstream returned malformed body')
 
@@ -160,6 +160,7 @@ export const providerOfficialSpeech = defineProvider({
           id: m.id,
           name: m.name,
           description: m.description,
+          costMultiplier: m.costMultiplier,
           provider: OFFICIAL_SPEECH_PROVIDER_ID,
         })),
       }
@@ -185,6 +186,7 @@ export const providerOfficialSpeech = defineProvider({
           id: string
           name: string
           description?: string
+          cost_multiplier?: number
           labels?: Record<string, unknown>
           tags?: string[]
           languages?: { code: string, title: string }[]
@@ -210,6 +212,7 @@ export const providerOfficialSpeech = defineProvider({
           name: v.name,
           provider: OFFICIAL_SPEECH_PROVIDER_ID,
           description: v.description || undefined,
+          costMultiplier: v.cost_multiplier,
           gender: rawGender?.toLowerCase() || undefined,
           previewURL: v.preview_audio_url || undefined,
           // NOTICE: deliberately dropping `compatible_models`. The official

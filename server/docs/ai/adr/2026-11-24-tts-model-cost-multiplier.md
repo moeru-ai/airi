@@ -13,8 +13,9 @@ Users select a model from `provider_catalog_tts_models`, but that table had no p
 - `provider_catalog_tts_models` gets `cost_multiplier real not null default 1` and `description text`.
 - `voice_packs.cost_multiplier` is dropped. A Voice Pack bills at the multiplier of the catalog model that it routes to.
 - `POST /api/v1/audio/speech` computes billing units as `ceil(input characters x model cost multiplier)`. The multiplier is written to the `flux_usage` detail.
-- `GET /api/v1/audio/models` returns `description` and `costMultiplier` for each model. The description names the price only when it is not 1x.
-- `GET /api/v1/audio/voices?model=voice-pack` shows each pack with the multiplier of its model. It leaves out a pack whose model is not enabled, because a request for that pack fails.
+- `GET /api/v1/audio/models` returns `description` and `costMultiplier` for each model. The description is the operator text only.
+- `GET /api/v1/audio/voices?model=voice-pack` returns each pack with `cost_multiplier`, the multiplier of its model. It leaves out a pack whose model is not enabled, because a request for that pack fails.
+- The server sends no price text. The client builds the localized price label from the multiplier, with `packages/i18n`.
 - `GET /api/v1/voice-packs` no longer returns `costMultiplier`. No client screen reads it.
 - The router config sync does not write the two new columns. Operators set them in the admin dashboard.
 
@@ -89,5 +90,6 @@ sequenceDiagram
 
 - A Voice Pack bills at the multiplier of its catalog model.
 - The model list returns the description and the multiplier, and a 1x model has no added description.
-- The Voice Pack list shows the model multiplier and leaves out a pack whose model is not enabled.
+- The Voice Pack list returns the model multiplier and leaves out a pack whose model is not enabled.
+- The API sends no price text. The speech settings page shows the localized price for a model or a voice that is not 1x.
 - The router config sync keeps the operator description and multiplier.

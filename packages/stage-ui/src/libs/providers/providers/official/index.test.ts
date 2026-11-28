@@ -1,7 +1,8 @@
 import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 
 import { isGenerationProvider } from '@proj-airi/provider-inference'
-import { describe, expect, it } from 'vitest'
+import { createPinia, setActivePinia } from 'pinia'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
 
 import { OFFICIAL_TRANSCRIPTION_PROVIDER_ID, providerOfficialChat, providerOfficialSpeech, providerOfficialSpeechStreaming, providerOfficialTranscription } from './index'
@@ -154,5 +155,34 @@ describe('official transcription provider', () => {
         description: 'Realtime transcription routed by AIRI',
       },
     ])
+  })
+})
+
+describe('official speech catalog', () => {
+  // The provider reads the auth token from the auth store.
+  beforeEach(() => {
+    setActivePinia(createPinia())
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  /**
+   * @example
+   * GET /api/v1/audio/models -> { models: [{ id: 'fish', costMultiplier: 5 }] }
+   */
+  it('keeps the price multiplier as data, so the interface localizes the label', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => Response.json(url.includes('/audio/models')
+      ? { models: [{ id: 'fish', name: 'Fish', description: 'Faster first audio', costMultiplier: 5 }], default: null }
+      : { voices: [{ id: 'fast-girl', name: 'Fast girl', cost_multiplier: 5, languages: [] }], recommended: {} })))
+    const provider = await providerOfficialSpeech.createProvider({})
+
+    const catalog = await providerOfficialSpeech.extraMethods?.listModelCatalog?.({}, provider)
+    const voices = await providerOfficialSpeech.extraMethods?.listVoices?.({}, provider, 'voice-pack')
+
+    expect(catalog?.models).toEqual([expect.objectContaining({ id: 'fish', description: 'Faster first audio', costMultiplier: 5 })])
+    expect(voices).toEqual([expect.objectContaining({ id: 'fast-girl', costMultiplier: 5 })])
+    expect(voices?.[0]?.description).toBeUndefined()
   })
 })

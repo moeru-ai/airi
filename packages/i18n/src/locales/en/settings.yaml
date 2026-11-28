@@ -1376,7 +1376,9 @@ pages:
             loading: Loading Voice Packs...
             title: Voice Pack
           provider-voice-selection:
+            cost_multiplier: Uses {multiplier}× Flux
             load_error: Cannot load voices
+            streaming_model_description: Low-latency streaming speech
             custom_model_placeholder: Enter custom model name...
             custom_voice_placeholder: Enter custom voice ID...
             description: Select the default speech provider. A character uses it unless it has its own.

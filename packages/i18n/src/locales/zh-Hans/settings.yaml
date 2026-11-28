@@ -1282,7 +1282,9 @@ pages:
             loading: 正在加载语音包...
             title: 语音包
           provider-voice-selection:
+            cost_multiplier: 消耗 {multiplier} 倍 Flux 电量
             load_error: 无法加载音色
+            streaming_model_description: 低延迟流式语音合成
             custom_model_placeholder: 输入指定模型名称...
             custom_voice_placeholder: 输入指定声线 ID...
             description: 选择默认的语音服务来源。角色没有单独设置时使用它。

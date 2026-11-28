@@ -1939,10 +1939,10 @@ describe('v1CompletionsRoutes', () => {
         name: 'Voice Pack',
         description: 'Server-curated voices',
       })
-      // A 1x model keeps its plain name. Another price is named next to the operator description.
+      // The server sends the operator description and the multiplier as data. Clients localize the price.
       expect(data.models[1]).not.toHaveProperty('description')
       expect(data.models[1]).toMatchObject({ costMultiplier: 1 })
-      expect(data.models[2]).toMatchObject({ description: 'Faster first audio · Flux cost: 5x', costMultiplier: 5 })
+      expect(data.models[2]).toMatchObject({ description: 'Faster first audio', costMultiplier: 5 })
       expect(data.default).toBe('microsoft/v1')
       expect(providerCatalogService.syncTtsModelsFromRouterConfig).not.toHaveBeenCalled()
     })
@@ -2251,13 +2251,15 @@ describe('v1CompletionsRoutes', () => {
       expect(data.voices[0]).toMatchObject({
         id: 'narrator-alias',
         name: 'Narrator',
-        description: 'Warm voice · Flux cost: 2x',
+        description: 'Warm voice',
+        cost_multiplier: 2,
       })
       expect(data.voices[0]).not.toHaveProperty('upstreamVoiceId')
       expect(data.voices[0]).not.toHaveProperty('ttsModelId')
       // A pack whose model is disabled in the catalog cannot be requested, so the list leaves it out.
       expect(data.voices.map(voice => voice.id)).toEqual(['narrator-alias', 'other-model-alias'])
-      expect(data.voices[1]).toMatchObject({ id: 'other-model-alias', description: 'Flux cost: 1x' })
+      expect(data.voices[1]).toMatchObject({ id: 'other-model-alias', cost_multiplier: 1 })
+      expect(data.voices[1]).not.toHaveProperty('description')
       expect(llmRouter.listTtsVoices).not.toHaveBeenCalled()
     })
 

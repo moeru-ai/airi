@@ -238,6 +238,8 @@ export interface ModelInfo {
   name: string
   provider: string
   description?: string
+  /** Price of this model as a multiple of the base price, when the provider bills by it. The UI localizes the label. */
+  costMultiplier?: number
   capabilities?: string[]
   /** Input media declared by the provider model catalog. Missing means unknown. */
   inputModalities?: string[]
@@ -253,6 +255,8 @@ export interface VoiceInfo {
   recommendedFor?: string[]
   compatibleModels?: string[]
   description?: string
+  /** Price of this voice as a multiple of the base price, when the provider bills by it. The UI localizes the label. */
+  costMultiplier?: number
   gender?: string
   deprecated?: boolean
   previewURL?: string
