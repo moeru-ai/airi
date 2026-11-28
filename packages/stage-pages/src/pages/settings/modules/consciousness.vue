@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { ConsciousnessReasoningMode } from '@proj-airi/stage-ui/stores/modules/consciousness-settings'
+
 import { RadioCardManySelect, RadioCardSimple } from '@proj-airi/stage-ui/components'
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
@@ -6,9 +8,9 @@ import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consci
 import { useConsciousnessSettingsStore } from '@proj-airi/stage-ui/stores/modules/consciousness-settings'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
-import { Alert, FieldCheckbox, FieldRange, SettingsCard } from '@proj-airi/ui'
+import { Alert, FieldCheckbox, FieldRange, FieldSelect, SettingsCard } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { watch } from 'vue'
+import { computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
@@ -63,7 +65,25 @@ async function handleDeleteProvider(providerId: string) {
   await providersStore.deleteProvider(providerId)
 }
 
-async function updateReasoning(value: boolean) {
+const reasoningOptions = computed<Array<{ label: string, value: ConsciousnessReasoningMode }>>(() => [
+  {
+    label: t('settings.pages.modules.consciousness.sections.section.model-options.thinking.options.default'),
+    value: 'default',
+  },
+  {
+    label: t('settings.pages.modules.consciousness.sections.section.model-options.thinking.options.enabled'),
+    value: 'enabled',
+  },
+  {
+    label: t('settings.pages.modules.consciousness.sections.section.model-options.thinking.options.disabled'),
+    value: 'disabled',
+  },
+])
+
+async function updateReasoning(value: ConsciousnessReasoningMode | undefined) {
+  if (!value)
+    return
+
   await consciousnessSettingsStore.setReasoning(value)
 }
 
@@ -301,11 +321,14 @@ async function updateTopPEnabled(value: boolean) {
           {{ t('settings.pages.modules.consciousness.sections.section.model-options.thinking.provider-default-description') }}
         </span>
       </div>
-      <FieldCheckbox
+      <FieldSelect
         v-else
-        :model-value="reasoning || activeModelRequiresReasoning"
+        :model-value="activeModelRequiresReasoning ? 'enabled' : reasoning"
         :label="t('settings.pages.modules.consciousness.sections.section.model-options.thinking.label')"
-        :description="activeModelRequiresReasoning ? t('settings.pages.modules.consciousness.sections.section.model-options.thinking.required-description') : undefined"
+        :description="activeModelRequiresReasoning
+          ? t('settings.pages.modules.consciousness.sections.section.model-options.thinking.required-description')
+          : t('settings.pages.modules.consciousness.sections.section.model-options.thinking.description')"
+        :options="reasoningOptions"
         :disabled="activeModelRequiresReasoning"
         @update:model-value="updateReasoning"
       />

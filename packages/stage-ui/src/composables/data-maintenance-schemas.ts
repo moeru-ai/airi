@@ -119,7 +119,11 @@ export const moduleSettingsSchemas = {
     temperature: finiteNumber,
     topP: finiteNumber,
   }),
-  consciousnessSettings: v.strictObject({ reasoning: v.boolean(), temperatureEnabled: v.boolean(), topPEnabled: v.boolean() }),
+  consciousnessSettings: v.strictObject({
+    reasoning: v.picklist(['default', 'enabled', 'disabled']),
+    temperatureEnabled: v.boolean(),
+    topPEnabled: v.boolean(),
+  }),
   twitter: v.strictObject({ enabled: v.boolean(), apiKey: v.string(), apiSecret: v.string(), accessToken: v.string(), accessTokenSecret: v.string() }),
   webSearch: v.strictObject({ enabled: v.boolean(), apiKey: v.string() }),
   discord: v.strictObject({ enabled: v.boolean(), token: v.string() }),

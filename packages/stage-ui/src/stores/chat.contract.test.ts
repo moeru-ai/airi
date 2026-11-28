@@ -243,9 +243,12 @@ vi.mock('./modules/consciousness', () => ({
     chatReady: chatReadyRef,
     providerModels: consciousnessModels.value,
     getModelsForProvider: async () => consciousnessModels.value,
-    getChatProviderInstance: (providerId: string) => getChatProviderInstanceMock(providerId, {
-      reasoning: useConsciousnessSettingsStore().reasoning ? 'enabled' : 'disabled',
-    }),
+    getChatProviderInstance: (providerId: string) => {
+      const reasoning = useConsciousnessSettingsStore().reasoning
+      return reasoning === 'default'
+        ? getChatProviderInstanceMock(providerId)
+        : getChatProviderInstanceMock(providerId, { reasoning })
+    },
   })),
 }))
 
@@ -690,8 +693,8 @@ describe('chat store contract', () => {
     const store = useChatStore()
     await store.send({ sessionId: 'session-2', text: 'For Bob' })
 
-    expect(getChatProviderInstanceMock).toHaveBeenCalledWith('bob-provider', { reasoning: 'disabled' })
-    expect(getChatProviderInstanceMock).not.toHaveBeenCalledWith('mock-provider', expect.anything())
+    expect(getChatProviderInstanceMock).toHaveBeenCalledWith('bob-provider')
+    expect(getChatProviderInstanceMock).not.toHaveBeenCalledWith('mock-provider')
     expect(llmStreamMock.mock.calls[0]?.[0]).toBe('bob-model')
     expect(activeSessionIdRef.value).toBe('session-1')
   })
@@ -729,7 +732,7 @@ describe('chat store contract', () => {
       { model: 'alice-model', providerId: 'alice-provider' },
       { model: 'alice-model', providerId: 'alice-provider' },
     ])
-    expect(getChatProviderInstanceMock).not.toHaveBeenCalledWith('selected-card-provider', expect.anything())
+    expect(getChatProviderInstanceMock).not.toHaveBeenCalledWith('selected-card-provider')
   })
 
   it('reads the session character settings and prompt again before each model step', async () => {
@@ -756,7 +759,7 @@ describe('chat store contract', () => {
       [AIRI_CHAT_SESSION_ID_HEADER]: 'session-1',
       [AIRI_CHAT_ROUND_ID_HEADER]: expect.any(String),
     })
-    expect(getChatProviderInstanceMock).toHaveBeenLastCalledWith('official-provider', { reasoning: 'disabled' })
+    expect(getChatProviderInstanceMock).toHaveBeenLastCalledWith('official-provider')
   })
 
   it('projects stored audio and recognizes provider-declared image input across model changes', async () => {
@@ -843,7 +846,7 @@ describe('chat store contract', () => {
     const store = useChatStore()
     await store.submit({ sessionId: 'session-2', messageId: 'bob-voice', text: 'For Bob' })
 
-    expect(getChatProviderInstanceMock).toHaveBeenCalledWith('bob-provider', { reasoning: 'disabled' })
+    expect(getChatProviderInstanceMock).toHaveBeenCalledWith('bob-provider')
     expect(llmStreamMock.mock.calls[0]?.[0]).toBe('bob-model')
     expect(activeSessionIdRef.value).toBe('session-1')
   })
@@ -869,7 +872,7 @@ describe('chat store contract', () => {
     })
 
     expect(getChatProviderInstanceMock).toHaveBeenCalledTimes(2)
-    expect(getChatProviderInstanceMock).toHaveBeenCalledWith('mock-provider', { reasoning: 'disabled' })
+    expect(getChatProviderInstanceMock).toHaveBeenCalledWith('mock-provider')
     expect(() => structuredClone(result)).not.toThrow()
     // The session character's wake word tool joins every turn. It is not a selectable stored tool.
     // Reply cards are on by default, so the owner's chat also gets the card tool and the icon search of cards.
@@ -1613,16 +1616,23 @@ describe('chat store contract', () => {
 
   it('passes the current consciousness reasoning option to the chat provider', async () => {
     const settings = useConsciousnessSettingsStore()
-    await settings.setReasoning(true)
-    llmStreamMock.mockImplementationOnce(async (_model: string, _chatProvider: GenerationProvider, _messages: Conversation, options: StreamOptions) => {
+    const store = useChatStore()
+    llmStreamMock.mockImplementation(async (_model: string, _chatProvider: GenerationProvider, _messages: Conversation, options: StreamOptions) => {
       await options.onStreamEvent?.({ type: 'finish' })
     })
 
-    const store = useChatStore()
-    await store.send({ sessionId: 'session-1', text: 'reply without changing provider defaults' })
+    await store.send({ sessionId: 'session-1', text: 'reply with model default reasoning' })
+    expect(getChatProviderInstanceMock).toHaveBeenLastCalledWith('mock-provider')
 
-    expect(getChatProviderInstanceMock).toHaveBeenCalledWith('mock-provider', { reasoning: 'enabled' })
-    await settings.setReasoning(false)
+    await settings.setReasoning('enabled')
+    await store.send({ sessionId: 'session-1', text: 'reply with reasoning enabled' })
+    expect(getChatProviderInstanceMock).toHaveBeenLastCalledWith('mock-provider', { reasoning: 'enabled' })
+
+    await settings.setReasoning('disabled')
+    await store.send({ sessionId: 'session-1', text: 'reply with reasoning disabled' })
+    expect(getChatProviderInstanceMock).toHaveBeenLastCalledWith('mock-provider', { reasoning: 'disabled' })
+
+    await settings.setReasoning('default')
   })
 
   it('passes a native reply relation to the chat runtime', async () => {

@@ -963,6 +963,11 @@ pages:
             title: 模型选项
             thinking:
               label: 思考
+              description: 选择模型默认时保留提供商和模型的默认设置。选择开启或关闭时，会在聊天请求中覆盖该设置。
+              options:
+                default: 模型默认
+                enabled: 开启
+                disabled: 关闭
               required-description: 此模型必须启用思考。
               provider-default-description: AIRI 未提供此模型的推理设置，将使用 OpenRouter 的默认设置。
       title: 意识

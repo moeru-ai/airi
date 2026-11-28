@@ -11,30 +11,42 @@ describe('consciousness settings store', () => {
     setActivePinia(createPinia())
   })
 
-  it('turns model reasoning off by default', () => {
+  it('uses model default reasoning by default', () => {
     const store = useConsciousnessSettingsStore()
 
-    expect(store.reasoning).toBe(false)
+    expect(store.reasoning).toBe('default')
   })
 
-  it('loads the persisted value', () => {
-    localStorage.setItem('settings/consciousness/reasoning', 'true')
+  it.each(['default', 'enabled', 'disabled'] as const)('loads the persisted %s value', (mode) => {
+    localStorage.setItem('settings/consciousness/reasoning', mode)
     const store = useConsciousnessSettingsStore()
 
-    expect(store.reasoning).toBe(true)
+    expect(store.reasoning).toBe(mode)
+  })
+
+  it.each(['true', 'false', 'invalid'])('falls back to default for unrecognized persisted value %s', (raw) => {
+    localStorage.setItem('settings/consciousness/reasoning', raw)
+    const store = useConsciousnessSettingsStore()
+
+    expect(store.reasoning).toBe('default')
   })
 
   it('persists changes through store actions', async () => {
     const store = useConsciousnessSettingsStore()
-    await store.setReasoning(true)
+    await store.setReasoning('enabled')
 
-    expect(store.reasoning).toBe(true)
-    expect(localStorage.getItem('settings/consciousness/reasoning')).toBe('true')
+    expect(store.reasoning).toBe('enabled')
+    expect(localStorage.getItem('settings/consciousness/reasoning')).toBe('enabled')
+
+    await store.setReasoning('disabled')
+
+    expect(store.reasoning).toBe('disabled')
+    expect(localStorage.getItem('settings/consciousness/reasoning')).toBe('disabled')
 
     await store.resetState()
 
-    expect(store.reasoning).toBe(false)
-    expect(localStorage.getItem('settings/consciousness/reasoning')).toBe('false')
+    expect(store.reasoning).toBe('default')
+    expect(localStorage.getItem('settings/consciousness/reasoning')).toBe('default')
   })
 
   it('ignores storage events because Pinia owns cross-window synchronization', () => {
@@ -42,9 +54,9 @@ describe('consciousness settings store', () => {
 
     window.dispatchEvent(new StorageEvent('storage', {
       key: 'settings/consciousness/reasoning',
-      newValue: 'true',
+      newValue: 'enabled',
     }))
 
-    expect(store.reasoning).toBe(false)
+    expect(store.reasoning).toBe('default')
   })
 })

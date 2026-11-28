@@ -230,6 +230,14 @@ Disabling a parameter keeps its slider value but omits it from chat requests.
 Previously saved values remain disabled until the user enables them. Explicit
 per-request overrides still take precedence over these settings.
 
+## Chat thinking
+
+In Settings > Modules > Consciousness, Thinking starts on Model default.
+In this mode, chat requests omit the reasoning override, so each provider uses its own default or provider-level thinking setting.
+
+Select On or Off to send an explicit reasoning mode to providers that support it.
+OpenRouter models that require reasoning or do not appear in the catalog still use the provider default.
+
 ## Chat images
 
 Web and Electron composers share image drafts and previews. They accept PNG,
