@@ -9,7 +9,8 @@ import { nextTick, shallowRef, toValue, watch } from 'vue'
 
 import { electronAppIsWayland } from '../../shared/eventa'
 
-function paintsBackground(style: CSSStyleDeclaration) {
+/** Whether an element paints a background: an image, or a color that is not fully transparent. */
+export function paintsBackground(style: CSSStyleDeclaration) {
   if (style.backgroundImage !== 'none')
     return true
 
