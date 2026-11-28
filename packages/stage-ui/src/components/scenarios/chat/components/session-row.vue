@@ -260,11 +260,15 @@ function runSwipeAction(value: string) {
             'group relative flex items-center overflow-hidden',
             props.compact ? 'rounded-lg pr-0.5' : 'rounded-2xl pr-1',
             // The swipe actions lie under the row, so the touch row has a solid fill, the color of the drawer.
+            // A compact row keeps its hover fill while its menu is on screen, because the open menu takes the pointer
+            // and the user still sees which row the menu belongs to.
             props.row.isActive
               ? 'bg-primary-50/80 dark:bg-primary-950/80'
               : props.touch
                 ? 'bg-neutral-50 dark:bg-neutral-900'
-                : props.compact ? 'bg-transparent hover:bg-neutral-100/80 dark:hover:bg-neutral-800/80' : 'bg-white dark:bg-neutral-800',
+                : props.compact
+                  ? menuShown ? 'bg-neutral-100/80 dark:bg-neutral-800/80' : 'bg-transparent hover:bg-neutral-100/80 dark:hover:bg-neutral-800/80'
+                  : 'bg-white dark:bg-neutral-800',
           ]"
           @contextmenu="openMenuAtPointer"
         >
