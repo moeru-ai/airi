@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { SessionRow } from './session-row-model'
 
+import { isStageWeb } from '@proj-airi/stage-shared'
 import { BasicButton, DropdownMenu, MenuItem, MenuSeparator, SwipeActionButton, SwipeActionsContent, SwipeActionsItem, SwipeActionsList, SwipeActionsRoot } from '@proj-airi/ui'
 import { onLongPress } from '@vueuse/core'
 import { computed, nextTick, ref, shallowRef, useTemplateRef, watch } from 'vue'
@@ -58,6 +59,11 @@ const archived = computed(() => props.row.meta.archivedAt !== undefined)
  * touch row show Archive and Delete.
  */
 const archiveOnlySwipe = computed(() => props.compact && !props.touch)
+/**
+ * The touch row opens its menu with a long press. The compact pointer row of the desktop app opens it with a right
+ * click, so it shows no menu button either. Stage Web keeps the button on its pointer rows.
+ */
+const menuButtonHidden = computed(() => props.touch || (archiveOnlySwipe.value && !isStageWeb()))
 // NOTICE:
 // In a 50px compact row, the swipe action surface sank below the middle and cut its label.
 // `SwipeActionButton` sets a 44px minimum and an 8px inset, sized for 80px rows.
@@ -102,9 +108,31 @@ watch(menuOpen, (open) => {
     menuShown.value = true
 })
 
+/**
+ * The point of the right click that opened the menu. The menu opens at it, as the menu of a desktop app does. A menu
+ * from its button or from the menu key has no point and opens at the button. The point stays until the menu has left,
+ * so the closing menu stays where it was.
+ */
+const menuPoint = shallowRef<{ x: number, y: number }>()
+const menuReference = computed(() => {
+  const point = menuPoint.value
+  return point ? { getBoundingClientRect: () => DOMRect.fromRect({ x: point.x, y: point.y, width: 0, height: 0 }) } : undefined
+})
+
 function onMenuCloseAutoFocus(event: Event) {
   menuShown.value = false
+  menuPoint.value = undefined
   menuClose.onCloseAutoFocus(event)
+}
+
+/** A right click anywhere on the row of a pointer opens its menu at the pointer. The touch row uses a long press. */
+function openMenuAtPointer(event: MouseEvent) {
+  if (props.touch || renaming.value)
+    return
+  event.preventDefault()
+  // The menu key reports no pointer position, so its menu opens at the button.
+  menuPoint.value = event.clientX || event.clientY ? { x: event.clientX, y: event.clientY } : undefined
+  menuOpen.value = true
 }
 
 /** The Delete item of the menu asks for a second press. It turns into its confirmation and keeps the menu open. */
@@ -238,6 +266,7 @@ function runSwipeAction(value: string) {
                 ? 'bg-neutral-50 dark:bg-neutral-900'
                 : props.compact ? 'bg-transparent hover:bg-neutral-100/80 dark:hover:bg-neutral-800/80' : 'bg-white dark:bg-neutral-800',
           ]"
+          @contextmenu="openMenuAtPointer"
         >
           <div
             v-if="renaming"
@@ -308,7 +337,8 @@ function runSwipeAction(value: string) {
 
             <DropdownMenu
               v-model:open="menuOpen"
-              align="end"
+              :reference="menuReference"
+              :align="menuPoint ? 'start' : 'end'"
               :side-offset="4"
               :content-class="['min-w-48 max-h-[var(--reka-dropdown-menu-content-available-height)] overflow-y-auto']"
               @close-auto-focus="onMenuCloseAutoFocus"
@@ -324,9 +354,9 @@ function runSwipeAction(value: string) {
                     iconButtonClasses,
                     insetFocusRing,
                     menuOpen ? 'text-primary-500 dark:text-primary-400' : quietIconClasses,
-                    // The touch row opens its menu with a long press. Its trigger stays for the keyboard and the screen reader,
-                    // and it gives the menu its place at the end of the row.
-                    props.touch
+                    // A row without a menu button keeps its trigger for the keyboard and the screen reader. The trigger shows
+                    // only with keyboard focus, and it gives the menu its place at the end of the row.
+                    menuButtonHidden
                       ? 'pointer-events-none absolute right-1 top-1/2 size-8 -translate-y-1/2 opacity-0 focus-visible:opacity-100'
                       : props.compact
                         ? ['size-8', menuShown ? 'inline-flex' : 'hidden group-hover:inline-flex group-focus-within:inline-flex']

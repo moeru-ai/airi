@@ -10,6 +10,7 @@ import {
   DropdownMenuRoot,
   DropdownMenuTrigger,
 } from 'reka-ui'
+import { computed } from 'vue'
 
 import { AnimatedContent } from '../animations'
 
@@ -19,6 +20,11 @@ const props = withDefaults(defineProps<{
   disabled?: DropdownMenuTriggerProps['disabled']
   /** A non-modal menu leaves the rest of the page interactive while it is open. */
   modal?: boolean
+  /**
+   * A point or an element that the menu opens at in place of its trigger, for example the pointer of a right click. The
+   * trigger still gets the focus back when the menu closes.
+   */
+  reference?: DropdownMenuContentProps['reference']
   side?: DropdownMenuContentProps['side']
   sideOffset?: DropdownMenuContentProps['sideOffset']
   variant?: 'blurry' | 'default'
@@ -27,6 +33,7 @@ const props = withDefaults(defineProps<{
   contentClass: undefined,
   disabled: false,
   modal: true,
+  reference: undefined,
   side: 'bottom',
   sideOffset: 6,
   variant: 'default',
@@ -39,6 +46,13 @@ const emit = defineEmits<{
 
 /** The open state. Bind it to open the menu from code, for example after a hover delay. */
 const open = defineModel<boolean>('open', { default: false })
+
+// NOTICE:
+// reka forwards a prop to inner menu parts only when it had a value at their first render.
+// The content mounts again when a reference comes, so the reference reaches the popper.
+// Source: reka-ui 2.10, dist/shared/useForwardProps.js.
+// Remove the key when reka forwards props that get a value later.
+const contentKey = computed(() => props.reference === undefined ? 'trigger' : 'reference')
 </script>
 
 <template>
@@ -52,10 +66,12 @@ const open = defineModel<boolean>('open', { default: false })
 
     <DropdownMenuPortal>
       <DropdownMenuContent
+        :key="contentKey"
         as-child
         :align="props.align"
         :side="props.side"
         :side-offset="props.sideOffset"
+        :reference="props.reference"
         :class="[
           'z-[10000] rounded-xl border p-1 shadow-lg outline-none',
           props.variant === 'blurry'

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Avatar, BasicButton, Tooltip } from '@proj-airi/ui'
+import { Avatar, BasicButton, DropdownMenu, MenuItem, Tooltip } from '@proj-airi/ui'
 import { useElementHover } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, shallowRef, useTemplateRef } from 'vue'
@@ -24,7 +24,9 @@ const props = withDefaults(defineProps<{
   variant?: 'floating' | 'docked' | 'island'
   /** The side of the tooltips of a docked rail or an island. Pick the side that faces into the window. @default 'right' */
   tooltipSide?: 'left' | 'right'
-}>(), { variant: 'floating', tooltipSide: 'right' })
+  /** A right click on an avatar opens a menu with Edit, and the rail emits `edit`. @default false */
+  editable?: boolean
+}>(), { variant: 'floating', tooltipSide: 'right', editable: false })
 
 const emit = defineEmits<{
   /**
@@ -34,6 +36,8 @@ const emit = defineEmits<{
   select: [characterId: string]
   /** The user asked for the character management page. The host opens it, because each app opens settings its own way. */
   manage: []
+  /** The user asked to edit a character from the menu of its avatar. The host opens the page of that character. */
+  edit: [characterId: string]
 }>()
 
 const { t } = useI18n()
@@ -69,6 +73,29 @@ const floating = computed(() => props.variant === 'floating')
 const island = computed(() => props.variant === 'island')
 
 const rail = useTemplateRef<HTMLElement>('rail')
+
+/**
+ * The menu of an avatar. One menu serves the whole rail. It opens beside the avatar, on the side of its tooltip, so it
+ * never covers the avatar. Its trigger is hidden, because a menu trigger opens on a left click, and the left click picks
+ * the character. The avatar gets the focus back when the menu closes.
+ */
+const menuOpen = shallowRef(false)
+const menuCharacterId = shallowRef<string>()
+const menuAvatar = shallowRef<HTMLElement>()
+
+function openMenu(event: MouseEvent, characterId: string) {
+  if (!props.editable)
+    return
+  event.preventDefault()
+  menuAvatar.value = event.currentTarget instanceof HTMLElement ? event.currentTarget : undefined
+  menuCharacterId.value = characterId
+  menuOpen.value = true
+}
+
+function returnFocus(event: Event) {
+  event.preventDefault()
+  menuAvatar.value?.focus({ preventScroll: true })
+}
 const items = useTemplateRef<HTMLElement>('items')
 // A recent chat moves its character up. The avatars slide to their new places in every form of the rail.
 useListReorderMotion({
@@ -208,6 +235,7 @@ function avatarStateClasses(onStage: boolean) {
               (open || variant === 'docked') && entry.onStage ? 'bg-neutral-500/15' : '',
             ]"
           @click="emit('select', entry.id)"
+          @contextmenu="openMenu($event, entry.id)"
         >
           <!-- Display model previews are portrait. Align them to the top so the circle keeps the head. -->
           <Avatar
@@ -236,6 +264,22 @@ function avatarStateClasses(onStage: boolean) {
         </BasicButton>
       </Tooltip>
     </div>
+    <DropdownMenu
+      v-if="props.editable"
+      v-model:open="menuOpen"
+      :reference="menuAvatar"
+      :side="props.tooltipSide"
+      align="center"
+      @close-auto-focus="returnFocus"
+    >
+      <template #trigger>
+        <span aria-hidden="true" tabindex="-1" :class="['pointer-events-none absolute size-0']" />
+      </template>
+      <MenuItem @select="menuCharacterId && emit('edit', menuCharacterId)">
+        <span aria-hidden="true" :class="['i-mingcute:edit-2-line size-4 shrink-0']" />
+        {{ t('stage.character-switcher.edit') }}
+      </MenuItem>
+    </DropdownMenu>
     <!-- The line has no fixed width, so it spans the closed rail and the open rail. The island keeps Manage at its end. -->
     <span v-if="!island" aria-hidden="true" :class="['mx-2 my-1 h-px shrink-0 bg-neutral-400/30']" />
     <Tooltip :label="t('stage.character-switcher.manage')" :side="props.tooltipSide" :disabled="!island">

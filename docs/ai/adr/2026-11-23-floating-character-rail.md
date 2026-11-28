@@ -20,6 +20,7 @@ On a wide screen, the web header held the character switcher as a popover. The u
 - A ring marks the character on the stage. Its accessible name and its tooltip say so in words.
 - The rail shows no badge and no message preview.
 - A pick on the rail goes to its host, and every host activates the character.
+- In the classic chat window and beside the floating chat, a right click on an avatar opens a menu with Edit, which opens the page of that character. The menu opens beside the avatar, on the side of its tooltip, so it does not cover the avatar.
 - The rail does not open the character management page. It asks its host, because each app opens settings in its own way.
 
 The header has no character switcher. The rail replaces it, so the header keeps no control and no prop for it. `ProfileSwitcherPopover` stays in the package, because stage-tamagotchi-kirie uses it.
@@ -39,6 +40,7 @@ The floating chat window of the desktop app has a column beside its panel, on th
 - A pick opens the last chat of that character, from `useCharacterLastChatsStore`. The chat that the pick leaves becomes the last chat of its character, so a switch to another character and back returns to it. The record lives in IndexedDB for each account, so it lasts across restarts. Each write drops the chats of deleted character cards.
 - The index session of the character does not change. Voice input and wake words still use it, as after a chat that the user opens from the list.
 - The panel has two levels: the list of the conversations and the open conversation. The list pushes in from the start. An opened conversation pushes in from the end.
+- A swipe to the right with two fingers on the trackpad goes back from the conversation to the list. It starts only on a blank part of the conversation, where the conversation paints nothing of its own. The levels follow the fingers through the same states as the click. Past half the width, or with a quick swipe, the list opens. Else the conversation goes back. The message feed is transparent, so it has no swipe.
 - The message feed has no panel and no column. Its dock opens the list. The panel and the column show until the user picks a conversation.
 
 ## Consequences

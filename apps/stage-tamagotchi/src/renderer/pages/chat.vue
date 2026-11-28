@@ -51,7 +51,9 @@ useChatDraftHandover(interactiveArea)
     <div :class="['h-full min-h-0 flex pb-1.5 pr-1.5']">
       <CharacterRail
         variant="docked"
+        editable
         @select="activateCharacter"
+        @edit="characterId => openSettings({ route: `/settings/airi-card/${encodeURIComponent(characterId)}` })"
         @manage="openSettings({ route: '/settings/airi-card' })"
       />
       <div
