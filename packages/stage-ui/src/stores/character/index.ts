@@ -35,6 +35,22 @@ export function setCharacterLlmMarkerParserFactoryForTest(factory: ParserFactory
   parserFactory = factory ?? useLlmmarkerParser
 }
 
+/**
+ * Returns the text of a reaction without its markers, as speech reads it.
+ * The marker parser also drops escaped markers and a marker that the model left unfinished.
+ */
+async function spokenTextOf(fullText: string) {
+  let text = ''
+  const parser = useLlmmarkerParser({
+    onLiteral: (literal) => {
+      text += literal
+    },
+  })
+  await parser.consume(fullText)
+  await parser.end()
+  return text.trim()
+}
+
 export const useCharacterStore = defineStore('character', () => {
   const { activeCard, activeCardId, systemPrompt } = storeToRefs(useAiriCardStore())
 
@@ -103,7 +119,7 @@ export const useCharacterStore = defineStore('character', () => {
 
     state.reaction.message = fullText
     recordSparkNotifyReaction(sparkEventId, fullText, { metadata: options?.metadata })
-    void storeSparkNotifyReactionInChat(fullText)
+    void storeSparkNotifyReactionInChat(sparkEventId, fullText)
       .catch(error => console.error('Failed to store a spark notify reaction in chat', error))
 
     void state.parser.end().then(async () => {
@@ -132,11 +148,14 @@ export const useCharacterStore = defineStore('character', () => {
   /**
    * Stores a spoken spark notify reaction in the current chat session of the active character.
    * The chat then shows the reaction, and later turns send it to the model.
+   * The reaction is stored as a proactive message, so it stays local and never syncs to the cloud.
    */
-  async function storeSparkNotifyReactionInChat(fullText: string) {
-    const text = fullText.replace(/<\|[\s\S]*?\|>/g, '').trim()
+  async function storeSparkNotifyReactionInChat(sparkEventId: string, fullText: string) {
     const characterId = activeCardId.value
-    if (!text || !characterId)
+    if (!characterId)
+      return
+    const text = await spokenTextOf(fullText)
+    if (!text)
       return
 
     // Notifications can run in a window other than the chat window.
@@ -150,6 +169,7 @@ export const useCharacterStore = defineStore('character', () => {
       content: text,
       slices: [{ type: 'text', text }],
       tool_results: [],
+      proactive: { turnId: `spark:${sparkEventId}`, source: 'spark:notify' },
       createdAt: now,
       completedAt: now,
     })
