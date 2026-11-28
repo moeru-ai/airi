@@ -37,6 +37,27 @@ describe('consciousness settings store', () => {
     expect(localStorage.getItem('settings/consciousness/reasoning')).toBe('false')
   })
 
+  it('names new conversations by default and loads the persisted choice', () => {
+    expect(useConsciousnessSettingsStore().titleGeneration).toBe(true)
+
+    localStorage.setItem('settings/consciousness/title-generation', 'false')
+    setActivePinia(createPinia())
+
+    expect(useConsciousnessSettingsStore().titleGeneration).toBe(false)
+  })
+
+  it('turns conversation naming back on when the settings reset', async () => {
+    const store = useConsciousnessSettingsStore()
+    await store.setTitleGeneration(false)
+
+    expect(localStorage.getItem('settings/consciousness/title-generation')).toBe('false')
+
+    await store.resetState()
+
+    expect(store.titleGeneration).toBe(true)
+    expect(localStorage.getItem('settings/consciousness/title-generation')).toBe('true')
+  })
+
   it('ignores storage events because Pinia owns cross-window synchronization', () => {
     const store = useConsciousnessSettingsStore()
 

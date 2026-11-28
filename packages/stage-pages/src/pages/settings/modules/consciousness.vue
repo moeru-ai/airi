@@ -21,7 +21,7 @@ const consciousnessStore = useConsciousnessStore()
 const consciousnessSettingsStore = useConsciousnessSettingsStore()
 const { configuredProviders } = storeToRefs(providerStore)
 const { moduleChatProvidersMetadata } = storeToRefs(providersStore)
-const { reasoning, temperatureEnabled, topPEnabled } = storeToRefs(consciousnessSettingsStore)
+const { reasoning, temperatureEnabled, titleGeneration, topPEnabled } = storeToRefs(consciousnessSettingsStore)
 const {
   activeProvider,
   activeModel,
@@ -73,6 +73,10 @@ async function updateTemperatureEnabled(value: boolean) {
 
 async function updateTopPEnabled(value: boolean) {
   await consciousnessSettingsStore.setTopPEnabled(value)
+}
+
+async function updateTitleGeneration(value: boolean) {
+  await consciousnessSettingsStore.setTitleGeneration(value)
 }
 </script>
 
@@ -347,6 +351,15 @@ async function updateTopPEnabled(value: boolean) {
         :format-value="value => value.toFixed(1)"
       />
     </div>
+  </SettingsCard>
+
+  <SettingsCard class="mt-4">
+    <FieldCheckbox
+      :model-value="titleGeneration"
+      :label="t('settings.pages.modules.consciousness.sections.section.conversation-title.label')"
+      :description="t('settings.pages.modules.consciousness.sections.section.conversation-title.description')"
+      @update:model-value="updateTitleGeneration"
+    />
   </SettingsCard>
 
   <div

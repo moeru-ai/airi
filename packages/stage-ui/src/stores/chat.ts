@@ -25,6 +25,7 @@ import { computed, shallowRef, toRaw, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { getConversationAnalyticsSurface } from '../composables'
+import { useConversationTitle } from '../composables/conversation-title'
 import { useAiriRuntimePrompt } from '../composables/use-airi-runtime-prompt'
 import { getTraceSink, LOCAL_AGENT_ACTOR } from '../composables/use-trace'
 import { modelDeclaresImageInput, useChatVision } from '../composables/vision/use-chat-vision'
@@ -295,6 +296,7 @@ export const useChatStore = defineStore('chat', () => {
   const cardStore = useAiriCardStore()
   const recipes = useRecipesStore()
   const memory = useMemoryStore()
+  const conversationTitle = useConversationTitle()
 
   /** The persona of a session. A session without one uses the selected card. */
   function personaOf(sessionId: string) {
@@ -1164,6 +1166,18 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   /** The character that owns a session. A queued turn keeps it when another window selects a different card. */
+  /**
+   * The chat model that names a session: the one that its character chats with. A session whose character was deleted
+   * gets no title, because `getModules` throws for a missing card and the turn has already ended.
+   */
+  function conversationTitleSelection(sessionId: string) {
+    const characterId = personaOf(sessionId)
+    if (!cardStore.getCard(characterId))
+      return undefined
+    const { provider, model } = cardStore.getModules(characterId).consciousness
+    return isChatSelectionReady(provider, model) ? { providerId: provider, model } : undefined
+  }
+
   function sessionCard(sessionId: string) {
     const [characterId] = chatSession.characterMembersOf(sessionId)
     return characterId ? cardStore.getCard(characterId) : undefined
@@ -1288,6 +1302,9 @@ export const useChatStore = defineStore('chat', () => {
     onAssistantTurnReady: ({ sessionId, messageText, sessionMessages }) => {
       if (!isOwnerTurn(sessionId, sessionMessages))
         return
+      const titleSelection = conversationTitleSelection(sessionId)
+      if (titleSelection)
+        void conversationTitle.nameAfterReply({ sessionId, selection: titleSelection })
       const artistry = sessionCard(sessionId)?.extensions?.airi?.modules?.artistry
       if (artistry?.autonomousEnabled && artistry?.autonomousTarget === 'assistant')
         void artistryAutonomousStore.runArtistTask(messageText, toProviderHistory(sessionMessages))

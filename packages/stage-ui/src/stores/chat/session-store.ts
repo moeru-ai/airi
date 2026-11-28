@@ -696,6 +696,28 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     if (!meta)
       return false
 
+    return writeSessionTitle(meta, title)
+  }
+
+  /**
+   * Sets a title that a model wrote for a session without one.
+   *
+   * The model request runs for seconds. The owner can rename the session during it, or the cloud can deliver a title.
+   * This action runs in the leader, so the check and the write cannot interleave with another rename.
+   *
+   * Returns:
+   * - `false` when the session is gone, or when it has a title or a title that waits for cloud delivery.
+   */
+  async function setGeneratedSessionTitle(sessionId: string, title: string): Promise<boolean> {
+    const meta = sessionMetas.value[sessionId]
+    if (!meta || meta.title || meta.cloudTitlePending !== undefined || !title.trim())
+      return false
+
+    return writeSessionTitle(meta, title)
+  }
+
+  async function writeSessionTitle(meta: ChatSessionMeta, title: string) {
+    const sessionId = meta.sessionId
     const normalizedTitle = title.trim()
     sessionMetas.value[sessionId] = {
       ...meta,
@@ -2256,6 +2278,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     loadSession,
     refreshSession,
     renameSession,
+    setGeneratedSessionTitle,
     setSessionPinned,
     setSessionsArchived,
     deleteSession,
@@ -2294,6 +2317,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       'pushMessageToCloud',
       'refreshSession',
       'renameSession',
+      'setGeneratedSessionTitle',
       'setSessionPinned',
       'setSessionsArchived',
       'resetAllSessions',

@@ -233,6 +233,34 @@ describe('chat session synchronization', () => {
     expect(await follower.setSessionTask('missing-session', { status: 'done' })).toBe(false)
   })
 
+  it('sets a generated title through the leader only while the session has no title', async () => {
+    const namespace = `chat-generated-title:${crypto.randomUUID()}`
+    const leaderContext = createSyncedContext(namespace, 'leader-only')
+    await vi.waitFor(() => expect(leaderContext.runtime.isLeader()).toBe(true))
+    const leader = useChatSessionStore(leaderContext.pinia)
+    await leader.initialize()
+
+    const followerContext = createSyncedContext(namespace, 'follower-only')
+    const follower = useChatSessionStore(followerContext.pinia)
+    await vi.waitFor(() => expect(followerContext.runtime.getLeaderId()).toBe(leaderContext.runtime.participantId))
+    await follower.initialize()
+
+    const untitled = await follower.createSession('default', { setActive: false })
+    expect(await follower.setGeneratedSessionTitle(untitled, '  Moon landing  ')).toBe(true)
+    expect(leader.sessionMetas[untitled]?.title).toBe('Moon landing')
+    await vi.waitFor(() => expect(follower.sessionMetas[untitled]?.title).toBe('Moon landing'))
+
+    const renamed = await follower.createSession('default', { setActive: false })
+    await follower.renameSession(renamed, 'My title')
+    expect(await follower.setGeneratedSessionTitle(renamed, 'Generated title')).toBe(false)
+    expect(leader.sessionMetas[renamed]?.title).toBe('My title')
+
+    const empty = await follower.createSession('default', { setActive: false })
+    expect(await follower.setGeneratedSessionTitle(empty, '  ')).toBe(false)
+    expect(leader.sessionMetas[empty]?.title).toBeUndefined()
+    expect(await follower.setGeneratedSessionTitle('missing-session', 'Title')).toBe(false)
+  })
+
   // ROOT CAUSE:
   // Background tasks were deleted through deleteSession, which moved the character's selected conversation to the first remaining session,
   // a hidden one included, and created a replacement when none remained.
