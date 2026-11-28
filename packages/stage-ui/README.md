@@ -255,6 +255,7 @@ images with a short note. Stored history keeps the images.
 
 Disable these options to send images directly to a chat model that supports them.
 Without a configured vision model, images also go directly to the chat model.
+Stage sends MCP images as image parts in tool results. The chat endpoint must support images in tool results.
 Use this flow for chat attachments and tool images, not periodic screen capture.
 
 ## Character-card module settings
