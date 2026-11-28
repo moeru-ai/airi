@@ -225,7 +225,6 @@ chat:
     confirm-delete: 이 대화와 메시지를 삭제할까요?
     cancel: 취소
     empty: 아직 대화가 없습니다
-    cloud-badge: 클라우드에 동기화됨
     new-chat-fallback: 새 채팅
     delete: 대화 삭제
 avatar-model-missing:
@@ -349,9 +348,6 @@ websocket-status:
   connected: 연결됨
   disconnected: 연결 없음
   open-settings: 연결 설정 열기
-computer-use:
-  label: 컴퓨터 사용
-  description: 이 채팅 창이 이 컴퓨터의 네이티브 앱을 살펴보고 제어하도록 허용합니다.
 status:
   preparing: 마이크 준비 중
   listening: 듣는 중

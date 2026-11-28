@@ -143,7 +143,6 @@ chat:
     confirm-delete: Xóa cuộc trò chuyện này và các tin nhắn?
     cancel: Hủy
     empty: Chưa có đoạn hội thoại nào
-    cloud-badge: Đã đồng bộ đám mây
     new-chat-fallback: Cuộc trò chuyện mới
     delete: Xóa đoạn hội thoại
 render-error:
@@ -267,9 +266,6 @@ websocket-status:
   connected: Đã kết nối
   disconnected: Chưa kết nối
   open-settings: Mở cài đặt kết nối
-computer-use:
-  label: Sử dụng máy tính
-  description: Cho phép cửa sổ trò chuyện này xem và điều khiển ứng dụng gốc trên máy tính này.
 status:
   preparing: Đang chuẩn bị micrô
   listening: Đang lắng nghe

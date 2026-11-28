@@ -143,7 +143,6 @@ chat:
     confirm-delete: この会話とメッセージを削除しますか？
     cancel: キャンセル
     empty: 会話はまだありません
-    cloud-badge: クラウドに同期しました
     new-chat-fallback: 新しいチャット
     delete: 会話を削除
 render-error:
@@ -261,9 +260,6 @@ websocket-status:
   connected: 接続済み
   disconnected: 未接続
   open-settings: 接続設定を開く
-computer-use:
-  label: コンピューターを操作
-  description: このチャットウィンドウによる、このコンピューター上のネイティブアプリの確認と操作を許可します。
 status:
   preparing: マイクを準備中
   listening: 聞き取り中
