@@ -18,6 +18,8 @@ export function listProviders() {
 
 export { portableProviderDefinitions }
 export * from './generation'
+export { createMiniMaxVoiceClone } from './providers/cloud/minimax-speech'
+export type { MiniMaxVoiceCloneInput, MiniMaxVoiceCloneResult } from './providers/cloud/minimax-speech'
 export { createWebSpeechAPIProvider, streamWebSpeechAPITranscription } from './providers/local/browser-web-speech-api'
 export { createSherpawTranscriptionDefinition, executeSherpawStream, SHERPAW_TRANSCRIPTION_PROVIDER_ID } from './providers/local/sherpaw-transcription'
 export type { SherpawModelResource, SherpawTranscriptionHost } from './providers/local/sherpaw-transcription'
